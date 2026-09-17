@@ -1,3 +1,11 @@
+## Your Team
+
+- Neilay Krishna Agarwal (nagarwal46@wisc.edu)
+- Jelly Tu (ztu29@wisc.edu)
+
+Reach your partner directly by emailing the address above — it's their @wisc.edu NetID email.
+---
+
 # Buzzer Game
 
 A Jackbox-inspired real-time party quiz platform built for classroom use. A **Host** displays game state on a large screen while **Players** join and answer questions from their mobile browsers.
