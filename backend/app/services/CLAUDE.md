@@ -1,0 +1,70 @@
+# backend/app/services/
+
+## Purpose
+Business logic shared by the REST routers and the Socket.io gateway: auth/JWT, room lifecycle
+and access checks, scoring, Redis live state, roster import, and CSV/HTML exports.
+
+## Contents
+- `auth_service.py` — bcrypt password hashing; RS256 JWTs (`access` 2 h and carries `role`,
+  `refresh` 7 d, `temp` 15 min); base64-encoded PEM keys come from settings, with **ephemeral
+  in-memory keys** as the fallback (tokens die on restart). User helpers:
+  `get_or_create_user_by_netid`, `create_guest_user` (reuses a GUEST by email, refuses if the
+  email belongs to a real account), `authenticate_local`.
+- `bootstrap.py` — on startup, creates the first ADMIN from `ADMIN_USERNAME/PASSWORD` if none
+  exists, retrying until `alembic upgrade head` has created the schema.
+- `game_service.py` — the game domain:
+  - `generate_room_code` (6 chars from an unambiguous charset), `create_room` (checks course and
+    game access, enforces `MAX_ROOMS` by scanning Redis, writes the `GameSession` plus Redis room
+    state), `get_session_by_code`, `start_game` / `complete_game` / `abandon_game`.
+  - Access checks: `assert_host_can_use_course` (ADMIN, or `UserCourseAccess.role == HOST`),
+    `assert_host_can_use_game` (ADMIN, or a `UserGameAccess` row), and `authorise_player`
+    (GUEST and ADMIN always pass; otherwise an active roster row by netid, or course access as
+    PLAYER or HOST).
+  - **Scoring**: `calculate_score(question, answer_data) → ScoreResult`. COMPLETENESS gives full
+    points for any non-empty answer. ACCURACY looks up points per type: an index into
+    `answer_points` (MC), a `"true"/"false"` key (TF), the best `acceptedAnswers` match within the
+    Levenshtein `editDistance` (FITB), or the sum of selected `answer_points` floored at 0 (MS).
+  - `record_answer`: scores the answer, inserts a `SessionScore`, updates the Redis score and the
+    answered set, and bumps the Redis answer distribution.
+  - `get_leaderboard`, `get_player_question_summary` and `get_host_question_summary` build the
+    game-over payloads, including the answer reveal and distributions.
+- `state_service.py` — the Redis live-state layer. Key layout is documented in the module
+  docstring: `room:{code}` (JSON, 90-min TTL refreshed on activity), and
+  `session:{id}:players | player:{uid} | question | answered:{qid} | dist:{qid}`.
+  `delete_room_state` removes all of them. `restore_from_mysql` rebuilds scores and the next
+  question after a Redis loss.
+- `roster_service.py` — `process_roster_csv` parses a Canvas gradebook export (`Student`
+  "Last, First" becomes the given name; `SIS Login ID` becomes netid/email; the "Points Possible"
+  row is skipped). `process_roster_rows` handles pre-mapped rows. Both upsert and then
+  **deactivate every roster entry not in the upload**. Limit: 1000 rows.
+- `export_service.py` — `build_session_csv` (Player, Q1..Qn, Total) and `build_canvas_csv`
+  (Canvas import format, SIS Login ID = netid[@domain], optional per-question columns, optional
+  `roster_only`).
+- `report_service.py` — `build_session_report`: a self-contained HTML report with aggregate
+  statistics only (no names), bar charts, a word cloud, and a score histogram.
+
+## How it fits in
+`routers/` and `websocket/gateway.py` call these; services use `models/` and `state_service`, and
+never import routers or the gateway. **Division of storage:** Redis holds "what is happening now"
+(it may expire); MySQL holds the permanent record. Anything that must outlive the room goes
+through `record_answer` / the models.
+
+## Gotchas
+- **Per-type logic is duplicated.** Adding a question type (T7) touches all of these:
+  `calculate_score`; the distribution keys in `record_answer`; the reveal and distribution in
+  both `get_*_question_summary` functions; `_answer_reveal`, `_extract_answer_key`, the type badge
+  and chart choice in `report_service.py`; and `gateway._answer_reveal` + `_question_payload`.
+  Consider centralizing reveal/dist before adding types.
+- **`report_service` is already stale:** it has no `multi_select` support at all (no reveal, no
+  distribution, no badge, no chart), so multi-select questions render without a chart.
+- The FITB distribution key is normalized differently in different places: `record_answer`
+  collapses internal whitespace, while `get_host_question_summary` and `report_service` only strip.
+- `calculate_score` assumes well-formed `answer_data`. For example, a string `selectedIndex` for
+  MC raises `TypeError`. Only multi_select is shape-checked, and that check is in the gateway.
+- `update_player_score` is read-modify-write on a JSON blob (not atomic). It's safe today only
+  because each player writes their own key and duplicates are filtered upstream.
+- `create_room` and `delete_room_state` use `redis.keys(...)` (O(N) scans). Fine at 50 rooms.
+- `abandon_game` only flushes (the caller commits); `start_game` and `complete_game` commit
+  immediately on purpose, to avoid races with concurrent answer handlers.
+- `build_session_csv` raises `ValueError` rather than `NotFoundError` for a missing session.
+  Routers check existence first.
