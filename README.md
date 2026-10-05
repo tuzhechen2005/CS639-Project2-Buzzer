@@ -129,7 +129,7 @@ This creates all tables. Within a few seconds the waiting backend picks up the n
 |---|---|---|
 | Player app | http://localhost:8080/player/ | Mobile-optimised |
 | Host app | http://localhost:8080/host/ | Large-screen display |
-| Admin app | http://localhost:8080/admin/ | Course/game/user management |
+| Admin app | http://localhost:8080/admin/ | Users, courses, access grants, guests, all sessions |
 | API (direct) | http://localhost:8000 | Bypasses Nginx |
 | Interactive API docs | http://localhost:8000/api/docs | Swagger UI (dev only) |
 | Health check | http://localhost:8000/api/health | Service status |
@@ -337,25 +337,38 @@ This creates a **Demo Course** and a **Buzzer Demo** game with 9 questions (1 po
 
 ### Admin interface
 
-The Admin app (`http://localhost:8080/admin/`) provides a full management UI:
+The Admin app (`http://localhost:8080/admin/`) is admin-first:
 
 | Section | What you can do |
 |---|---|
-| **Courses** | Create courses; navigate to roster management |
-| **Roster** | Upload a Canvas gradebook CSV or a basic CSV roster; activate or deactivate individual entries |
-| **Users** | Create local accounts; click any user to grant or revoke course access (HOST/PLAYER) and game access |
+| **Users** | Create local accounts; click any user to grant or revoke course access (HOST/PLAYER) and game access. Game access can only be granted for games in a course the user is a HOST of; grants that no longer apply are marked *inactive* |
+| **Courses** | Create and rename courses; see each course's hosts, players and games; delete games; open the course roster in the host app; move *Unassigned games* (left by the T4 migration) to a real course |
 | **Guests** | View guest accounts; merge a guest's scores into a real netid account; delete stale guests |
-| **Games** | Create games; import a game from a JSON file; delete games |
-| **Questions** | Add, edit, delete, and reorder questions within a game; export the game as a JSON file |
-| **Sessions** | View completed game sessions and download score exports |
+| **Sessions** | View all game sessions and download score exports (CSV or Canvas) and the HTML summary |
+| **Host & Play** | Links to the host and player apps, where admins can do everything a host or player can |
 
-Log in with the `ADMIN_USERNAME` / `ADMIN_PASSWORD` from your `.env`.
+Log in with the `ADMIN_USERNAME` / `ADMIN_PASSWORD` from your `.env`. The Roster and Host & Play
+links work on the nginx build (`localhost:8080`), not under the Vite dev servers.
+
+### Host interface
+
+The Host app (`http://localhost:8080/host/`) starts with the courses you are a HOST of (admins
+see all). Pick a course to get three tabs:
+
+| Tab | What you can do |
+|---|---|
+| **Games** | Create a game or import one from JSON; **Start room**; **Edit questions** (add, edit, delete, reorder, scoring, export JSON). A game that has been played is locked — use **Duplicate to edit** |
+| **Roster** | Upload a Canvas gradebook CSV or a basic CSV roster with a dry-run preview; *Add only* (default) or *Replace* (deactivates students missing from the file); activate or deactivate individual entries |
+| **Past Sessions** | Download the HTML summary, the per-player score CSV, or a Canvas gradebook CSV for a completed or abandoned session |
+
+Games belong to the course they were created in; only that course's hosts (with access to the
+game) can manage or run it, and only its players (or guests) can join.
 
 ### Quiz import and export
 
 Games (metadata + all questions including answer data) can be exported and re-imported as JSON files.
 
-**Export** — from the Admin UI, open a game's question editor and click **Export JSON**. Or via the API:
+**Export** — in the Host app, open a game's question editor and click **Export JSON**. Or via the API:
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
@@ -366,7 +379,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 Course HOSTs who hold a grant for the game can export it; admins can export any game (the old
 `/api/admin/games/{game_id}/export` path still works for admins).
 
-**Import** — from the Admin UI, click **Import JSON** on the Games page and pick a `.json` file. This always creates a *new* game — it never overwrites an existing one. Or via the API:
+**Import** — in the Host app, click **Import JSON** on a course's Games tab and pick a `.json` file. This always creates a *new* game in that course — it never overwrites an existing one. Or via the API:
 
 Every game belongs to one course, and the file never names one: the course comes from the
 request. A course HOST imports into their course; admins can also use the admin path with a
@@ -437,7 +450,7 @@ A session that is still running returns 409. The legacy
 
 Roster uploads expect either a minimal CSV roster or a **Canvas gradebook export CSV**. When importing, the user can match columns to necessary fields for the players.
 
-See `sample_rosters/*sample_roster_from_gradebook*.csv` for a working examples. Upload via the Admin UI (Courses → Roster → Upload CSV), or via the API:
+See `sample_rosters/*sample_roster_from_gradebook*.csv` for a working examples. Upload via the Host app (course → Roster → Upload CSV, with a preview before saving), or via the API:
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \

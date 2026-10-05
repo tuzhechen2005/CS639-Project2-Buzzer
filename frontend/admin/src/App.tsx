@@ -1,13 +1,10 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate, NavLink } from 'react-router-dom';
-import { BookOpen, Users, Gamepad2, UserX, LogOut, History } from 'lucide-react';
+import { BookOpen, Users, UserX, LogOut, History, Monitor, Smartphone } from 'lucide-react';
 import LoginPage from './pages/LoginPage';
 import CoursesPage from './pages/CoursesPage';
-import RosterPage from './pages/RosterPage';
 import UsersPage from './pages/UsersPage';
 import UserDetailPage from './pages/UserDetailPage';
 import GuestsPage from './pages/GuestsPage';
-import GamesPage from './pages/GamesPage';
-import QuestionEditorPage from './pages/QuestionEditorPage';
 import SessionsPage from './pages/SessionsPage';
 
 function RequireAdmin() {
@@ -39,14 +36,11 @@ function AdminLayout() {
           <h1 className="text-lg font-bold text-white">Buzzer Admin</h1>
         </div>
         <nav className="flex-1 p-3 space-y-1">
-          <NavLink to="/courses" className={linkClass}>
-            <BookOpen size={16} /> Courses
-          </NavLink>
           <NavLink to="/users" className={linkClass}>
             <Users size={16} /> Users
           </NavLink>
-          <NavLink to="/games" className={linkClass}>
-            <Gamepad2 size={16} /> Games
+          <NavLink to="/courses" className={linkClass}>
+            <BookOpen size={16} /> Courses
           </NavLink>
           <NavLink to="/guests" className={linkClass}>
             <UserX size={16} /> Guests
@@ -54,6 +48,18 @@ function AdminLayout() {
           <NavLink to="/sessions" className={linkClass}>
             <History size={16} /> Sessions
           </NavLink>
+
+          {/* Host and player work happens in those apps; admins pass every check there.
+              Plain links: they only work behind nginx (:8080), where the apps share a token. */}
+          <div className="pt-5">
+            <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Host &amp; Play</p>
+            <a href="/host/" className={linkClass({ isActive: false })}>
+              <Monitor size={16} /> Host app
+            </a>
+            <a href="/player/" className={linkClass({ isActive: false })}>
+              <Smartphone size={16} /> Player app
+            </a>
+          </div>
         </nav>
         <div className="p-3 border-t border-slate-700">
           <button
@@ -80,17 +86,14 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route element={<RequireAdmin />}>
           <Route element={<AdminLayout />}>
-            <Route path="/courses" element={<CoursesPage />} />
-            <Route path="/courses/:courseId/roster" element={<RosterPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/users/:userId" element={<UserDetailPage />} />
+            <Route path="/courses" element={<CoursesPage />} />
             <Route path="/guests" element={<GuestsPage />} />
-            <Route path="/games" element={<GamesPage />} />
-            <Route path="/games/:gameId/questions" element={<QuestionEditorPage />} />
             <Route path="/sessions" element={<SessionsPage />} />
           </Route>
         </Route>
-        <Route path="*" element={<Navigate to="/courses" replace />} />
+        <Route path="*" element={<Navigate to="/users" replace />} />
       </Routes>
     </BrowserRouter>
   );
