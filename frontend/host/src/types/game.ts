@@ -24,14 +24,21 @@ export interface PlayerLeftPayload {
   playerCount: number;
 }
 
+export type QuestionType =
+  | 'multiple_choice'
+  | 'true_false'
+  | 'fill_in_the_blank'
+  | 'multi_select'
+  | 'numeric_estimate';
+
 export interface QuestionPayload {
   questionId: number;
   questionNumber: number;
   totalQuestions: number;
-  type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'multi_select';
+  type: QuestionType;
   gradingType: 'ACCURACY' | 'COMPLETENESS';
   prompt: string;
-  config: { options?: string[]; maxLength?: number };
+  config: { options?: string[]; maxLength?: number; unit?: string };
   timeLimitSeconds: number;
   pointsValue: number;
   editDistance?: number;
@@ -66,6 +73,12 @@ export type AnswerReveal =
   | { type: 'fill_in_the_blank'; acceptedAnswers: string[]; editDistance: number }
   | { type: 'completeness' }
   | { type: 'multi_select'; answerPoints: number[] }
+  | {
+      type: 'numeric_estimate';
+      target: number;
+      mode: 'relative' | 'absolute';
+      bands: { within: number; points: number }[];
+    }
   | Record<string, never>;
 
 export interface HostResultsPayload {
@@ -80,9 +93,9 @@ export interface HostQuestionSummaryItem {
   questionId: number;
   questionNumber: number;
   prompt: string;
-  type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'multi_select';
+  type: QuestionType;
   gradingType: 'ACCURACY' | 'COMPLETENESS';
-  config: { options?: string[]; maxLength?: number };
+  config: { options?: string[]; maxLength?: number; unit?: string };
   pointsValue: number;
   answerReveal: AnswerReveal;
   answerDistribution: Record<string, number>;

@@ -25,6 +25,7 @@ export default function QuestionPage() {
     true_false: 'True / False',
     fill_in_the_blank: 'Fill in the Blank',
     multi_select: 'Multi-Select',
+    numeric_estimate: 'Numeric Estimate',
   };
 
   function editDistanceLabel(d: number): string {
@@ -74,6 +75,10 @@ export default function QuestionPage() {
         <h2 className="text-4xl font-bold text-slate-100 text-center max-w-3xl leading-tight">
           {currentQuestion.prompt}
         </h2>
+      )}
+
+      {currentQuestion.type === 'numeric_estimate' && currentQuestion.config.unit && !questionLocked && (
+        <p className="text-slate-400 text-lg">Answer in {currentQuestion.config.unit}</p>
       )}
 
       <div className="text-slate-300 text-xl">
