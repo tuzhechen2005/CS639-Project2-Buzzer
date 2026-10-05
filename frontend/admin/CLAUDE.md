@@ -2,8 +2,9 @@
 
 ## Purpose
 The Admin React app (Vite + TypeScript + Tailwind), packaged as its own npm project. It is the
-desktop dashboard for setting up courses, users, games and questions and for exporting results;
-see `src/CLAUDE.md` for how the app works.
+admin-first desktop dashboard for user accounts, courses, access grants, guests and session
+exports (game and roster editing live in the host app since T4); see `src/CLAUDE.md` for how the
+app works.
 
 ## Contents
 - `src/` — all application code; see `src/CLAUDE.md`.

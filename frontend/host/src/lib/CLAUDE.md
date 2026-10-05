@@ -4,25 +4,28 @@
 Tiny shared helpers for the host app: the REST client and the Tailwind class-merging helper.
 
 ## Contents
-- `api.ts` — `api.get/post/delete` over `fetch`, prefixed with `/api`. Attaches
-  `Authorization: Bearer <localStorage.token>` when present, always sends JSON, throws
-  `Error(body.detail)`, falling back to `Error("HTTP <status>")`, and returns `{}` for empty bodies (204).
+- `api.ts` — `api.get/post/put/patch/delete` over `fetch`, prefixed with `/api`, plus
+  `postForm(path, FormData)` (multipart upload; the browser sets the boundary) and
+  `download(path)` (authenticated GET saved as a file, name from `Content-Disposition`). Attaches
+  `Authorization: Bearer <localStorage.token>` when present and returns `{}` for empty bodies
+  (204). Errors throw `Error(text)` where `text` is, in order: `body.message`, `body.detail` if a
+  string, the joined `msg` fields of a 422 `detail` array, else `HTTP <status>`.
 - `utils.ts` — `cn(...)` = `twMerge(clsx(...))`, used by every `components/ui` primitive.
 
 ## How it fits in
-Pages call `api` for REST only (login, `/game/my-courses`, `/game/my-games`, `/game/my-active-sessions`,
-`/game/rooms`, session delete). Live game traffic does not go through here; it uses the Socket.io
+Pages call `api` for REST only: login, `/game/my-courses`, `/game/my-active-sessions`,
+`/game/rooms`, session delete, and the course pages' `/courses/…`, `/games/…`, `/sessions/…`
+endpoints (`postForm` for game import, `download` for exports and reports). Live game traffic does not go through here; it uses the Socket.io
 client created in `pages/game/GameLayout.tsx`. `/api` is relative, so it works both behind nginx
 (:8080) and through the Vite dev proxy.
 
 ## Gotchas
-- **Backend error messages are lost.** `apiFetch` reads `body.detail`, but most backend errors
-  (`BuzzerError`: 401/403/404/409) send `{error, message}`, so the user sees a bare
-  `HTTP 401` / `HTTP 403` instead of e.g. "Invalid credentials". Validation errors (422) put an
-  *array* in `detail`, which shows as `[object Object]`. Only plain `HTTPException`s (e.g. game
-  import) come through readably. See `backend/app/common/CLAUDE.md`.
-- No `put`/`patch` helper; add one here rather than calling `fetch` directly.
-- No 401 handling or token refresh. An expired token surfaces as a page-level `HTTP 401` error;
+- The error-text order above matches the backend's two error shapes (`{error, message}` from
+  `BuzzerError`, `{error, detail: [...]}` from validation; see `backend/app/common/CLAUDE.md`).
+  Keep it in sync with the admin and player copies.
+- `download` reads the whole file into memory before saving and revokes the object URL right
+  after `click()`.
+- No 401 handling or token refresh. An expired token surfaces as a page-level error message;
   `App.tsx`'s `RequireAuth` only checks that a token *exists*.
 - The token lives in `localStorage['token']`, shared with the Socket.io auth callback. Logout
   (in `HomePage`) just deletes it.
