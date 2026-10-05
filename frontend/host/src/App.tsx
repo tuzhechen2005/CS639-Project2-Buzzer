@@ -1,6 +1,11 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
+import CourseLayout from './pages/course/CourseLayout';
+import GamesTab from './pages/course/GamesTab';
+import RosterTab from './pages/course/RosterTab';
+import SessionsTab from './pages/course/SessionsTab';
+import QuestionEditorPage from './pages/course/QuestionEditorPage';
 import GameLayout from './pages/game/GameLayout';
 import LobbyPage from './pages/game/LobbyPage';
 import QuestionPage from './pages/game/QuestionPage';
@@ -18,6 +23,13 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/home" element={<RequireAuth><HomePage /></RequireAuth>} />
+        <Route path="/courses/:courseId" element={<RequireAuth><CourseLayout /></RequireAuth>}>
+          <Route index element={<Navigate to="games" replace />} />
+          <Route path="games" element={<GamesTab />} />
+          <Route path="games/:gameId/questions" element={<QuestionEditorPage />} />
+          <Route path="roster" element={<RosterTab />} />
+          <Route path="sessions" element={<SessionsTab />} />
+        </Route>
         <Route path="/game/:code" element={<RequireAuth><GameLayout /></RequireAuth>}>
           <Route path="lobby" element={<LobbyPage />} />
           <Route path="question" element={<QuestionPage />} />
