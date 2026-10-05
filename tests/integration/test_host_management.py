@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 import httpx
 import pytest
 
-from engine.socket_client import TestSocketClient
+from .engine.socket_client import TestSocketClient
 
 _REPO_ROOT = pathlib.Path(__file__).parent.parent.parent
 
