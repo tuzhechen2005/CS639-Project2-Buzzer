@@ -43,6 +43,6 @@ Cross-cutting ones. Each subdirectory's `CLAUDE.md` has the details.
   places; see `pages/CLAUDE.md`), on top of the backend, host and player changes. The `answer_data`
   keys must match the backend validator exactly, and they mix snake_case and camelCase today.
 - **Auth is thin:** `RequireAdmin` doesn't check the role, so a non-admin login reaches the
-  dashboard and then sees "Admin access required" errors; there is no refresh or 401 redirect.
+  dashboard and then sees bare `HTTP 403` errors on every page; there is no refresh or 401 redirect.
 - **Missing operations:** courses can't be deleted (no UI and no endpoint).
 - No code is shared with the host or player apps; `lib/` and `components/ui/` are copies.

@@ -6,7 +6,7 @@ Tiny shared helpers for the host app: the REST client and the Tailwind class-mer
 ## Contents
 - `api.ts` — `api.get/post/delete` over `fetch`, prefixed with `/api`. Attaches
   `Authorization: Bearer <localStorage.token>` when present, always sends JSON, throws
-  `Error(detail)` from FastAPI's error body (or `HTTP <status>`), and returns `{}` for empty bodies (204).
+  `Error(body.detail)`, falling back to `Error("HTTP <status>")`, and returns `{}` for empty bodies (204).
 - `utils.ts` — `cn(...)` = `twMerge(clsx(...))`, used by every `components/ui` primitive.
 
 ## How it fits in
@@ -16,8 +16,13 @@ client created in `pages/game/GameLayout.tsx`. `/api` is relative, so it works b
 (:8080) and through the Vite dev proxy.
 
 ## Gotchas
+- **Backend error messages are lost.** `apiFetch` reads `body.detail`, but most backend errors
+  (`BuzzerError`: 401/403/404/409) send `{error, message}`, so the user sees a bare
+  `HTTP 401` / `HTTP 403` instead of e.g. "Invalid credentials". Validation errors (422) put an
+  *array* in `detail`, which shows as `[object Object]`. Only plain `HTTPException`s (e.g. game
+  import) come through readably. See `backend/app/common/CLAUDE.md`.
 - No `put`/`patch` helper; add one here rather than calling `fetch` directly.
-- No 401 handling or token refresh. An expired token surfaces as a page-level error string;
+- No 401 handling or token refresh. An expired token surfaces as a page-level `HTTP 401` error;
   `App.tsx`'s `RequireAuth` only checks that a token *exists*.
 - The token lives in `localStorage['token']`, shared with the Socket.io auth callback. Logout
   (in `HomePage`) just deletes it.
