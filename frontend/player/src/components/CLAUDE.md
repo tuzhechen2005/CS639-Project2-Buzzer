@@ -11,6 +11,10 @@ and option colours are built inline in `pages/game/QuestionPage.tsx`, not here.
 - `ui/input.tsx` — styled `Input` (larger padding, `text-base` so iOS doesn't zoom on focus).
 - `ui/TimerBar.tsx` — countdown bar (green → yellow → red) with seconds readout. Props:
   `totalSeconds`, `paused`.
+- `ui/QuestionImage.tsx` — (T8) a question or option image by id (`/api/images/{id}`, no
+  login). Shows a same-size pulsing placeholder while loading, and on failure a short note or
+  nothing (`fallbackText={null}`, used where the text label stays visible). `className` sizes the
+  box; `align="left"` pins the picture to the left edge. No pre-loading; it never delays a question.
 
 ## How it fits in
 Used by the pages in `pages/`. Styling is Tailwind via `lib/utils.ts`'s `cn`; callers can
