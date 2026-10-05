@@ -79,6 +79,7 @@ class MyCourseItem(BaseModel):
 class MyGameItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    course_id: int
     title: str
     description: str
     max_players: int

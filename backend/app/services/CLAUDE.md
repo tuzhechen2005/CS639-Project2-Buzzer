@@ -13,13 +13,21 @@ and access checks, scoring, Redis live state, roster import, and CSV/HTML export
 - `bootstrap.py` — on startup, creates the first ADMIN from `ADMIN_USERNAME/PASSWORD` if none
   exists, retrying until `alembic upgrade head` has created the schema.
 - `game_service.py` — the game domain:
-  - `generate_room_code` (6 chars from an unambiguous charset), `create_room` (checks course and
-    game access, enforces `MAX_ROOMS` by scanning Redis, writes the `GameSession` plus Redis room
+  - `generate_room_code` (6 chars from an unambiguous charset), `create_room` (checks
+    `can_use_game`, then `COURSE_MISMATCH` (400) if the course isn't the game's, then the system
+    course; enforces `MAX_ROOMS` by scanning Redis, writes the `GameSession` plus Redis room
     state), `get_session_by_code`, `start_game` / `complete_game` / `abandon_game`.
-  - Access checks: `assert_host_can_use_course` (ADMIN, or `UserCourseAccess.role == HOST`),
-    `assert_host_can_use_game` (ADMIN, or a `UserGameAccess` row), and `authorise_player`
-    (GUEST and ADMIN always pass; otherwise an active roster row by netid, or course access as
-    PLAYER or HOST).
+  - Permission rules (§B of docs/plans/t4-ui-restructuring.md): `can_manage_course` (ADMIN or
+    course HOST), `can_use_game` (ADMIN, or HOST of the game's course **and** a grant),
+    `can_read_session`, each with an `assert_*` twin raising 403. `authorise_player` (players:
+    GUEST and ADMIN always pass; otherwise an active roster row by netid, or course access).
+  - Integrity rules (409, admins included): `assert_not_system_course` (`SYSTEM_COURSE`),
+    `locked_game_ids`/`is_locked` (game has recorded answers → `GAME_LOCKED`),
+    `reconcile_session_status`/`is_live` (liveness decided by the Redis room; a LOBBY/IN_PROGRESS
+    session with no room key is marked ABANDONED → `GAME_LIVE` only for real rooms),
+    `assert_questions_editable`, `check_can_delete_game`.
+  - Grants: `grant_game` (idempotent), `apply_creation_grants` (host → self; admin → every course
+    HOST), `assert_can_grant_game` (`NOT_COURSE_HOST`).
   - **Scoring**: `calculate_score(question, answer_data) → ScoreResult`. COMPLETENESS gives full
     points for any non-empty answer. ACCURACY looks up points per type: an index into
     `answer_points` (MC), a `"true"/"false"` key (TF), the best `acceptedAnswers` match within the
@@ -36,8 +44,14 @@ and access checks, scoring, Redis live state, roster import, and CSV/HTML export
   whose Redis keys are lost.
 - `roster_service.py` — `process_roster_csv` parses a Canvas gradebook export (`Student`
   "Last, First" becomes the given name; `SIS Login ID` becomes netid/email; the "Points Possible"
-  row is skipped). `process_roster_rows` handles pre-mapped rows. Both upsert and then
-  **deactivate every roster entry not in the upload**. Limit: 1000 rows.
+  row is skipped). `process_roster_rows` handles pre-mapped rows. Both feed `_apply_rows`:
+  `mode="replace"` upserts and **deactivates every entry not in the upload** (admin aliases),
+  `mode="add_only"` deactivates nobody (host endpoints' default); `dry_run` returns the counts
+  without writing. Limit: 1000 rows.
+- `game_admin_service.py` — game and question CRUD shared by the neutral routers and the admin
+  aliases: create/update (course moves: admin only)/duplicate/import/export, `delete_game_rows`
+  (MySQL only), questions with the locked/live checks, `sanitize_prompt`, `session_items` and
+  `finished_course_sessions`. Imports no routers/websocket code.
 - `export_service.py` — `build_session_csv` (Player, Q1..Qn, Total) and `build_canvas_csv`
   (Canvas import format, SIS Login ID = netid[@domain], optional per-question columns, optional
   `roster_only`).
@@ -46,7 +60,8 @@ and access checks, scoring, Redis live state, roster import, and CSV/HTML export
 
 ## How it fits in
 `routers/` and `websocket/gateway.py` call these; services use `models/` and `state_service`, and
-never import routers or the gateway. **Division of storage:** Redis holds "what is happening now"
+never import routers or the gateway (live rooms are ended by the routers, via
+`gateway.end_session_from_rest`). **Division of storage:** Redis holds "what is happening now"
 (it may expire); MySQL holds the permanent record. Anything that must outlive the room goes
 through `record_answer` / the models.
 

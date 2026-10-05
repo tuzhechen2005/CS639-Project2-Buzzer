@@ -34,7 +34,18 @@ class CourseResponse(BaseModel):
     id: int
     name: str
     semester: str
+    is_system: bool = False
     created_at: datetime
+
+
+class CourseAccessItem(BaseModel):
+    """One UserCourseAccess row of a course, for the admin course view."""
+
+    user_id: str
+    display_name: str | None
+    netid: str | None
+    username: str | None
+    role: str
 
 
 # ---------------------------------------------------------------------------
@@ -92,20 +103,30 @@ class GameCreate(BaseModel):
     max_players: int = Field(150, ge=1, le=500)
 
 
+class AdminGameCreate(GameCreate):
+    """Admin alias body: the neutral endpoint takes the course from the path instead."""
+
+    course_id: int = Field(..., gt=0)
+
+
 class GameUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     title: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = Field(None, max_length=5000)
     max_players: int | None = Field(None, ge=1, le=500)
+    # Admins may move a game; anyone may send the game's current course unchanged.
+    course_id: int | None = Field(None, gt=0)
 
 
 class GameResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    course_id: int
     title: str
     description: str
     max_players: int
     created_at: datetime
+    locked: bool = False
 
 
 # ---------------------------------------------------------------------------

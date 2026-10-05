@@ -26,7 +26,7 @@ from ..schemas.game import (
     RoomInfoResponse,
 )
 from ..services import game_service
-from ..services import state_service as state
+from ..websocket.gateway import end_session_from_rest
 
 router = APIRouter(prefix="/game", tags=["game"])
 logger = structlog.get_logger()
@@ -45,10 +45,13 @@ async def my_courses(
     """
     Returns courses the authenticated user can host.
     ADMIN sees all courses; USER sees courses with HOST role in user_course_access.
+    The system "Unassigned" course is never listed.
     """
     if user.role == "ADMIN":
         result = await db.execute(
-            select(Course).order_by(Course.semester.desc(), Course.name)
+            select(Course)
+            .where(Course.is_system.is_(False))
+            .order_by(Course.semester.desc(), Course.name)
         )
         return [
             {"id": c.id, "name": c.name, "semester": c.semester, "role": "HOST"}
@@ -61,6 +64,7 @@ async def my_courses(
         .where(
             UserCourseAccess.user_id == user.id,
             UserCourseAccess.role == "HOST",
+            Course.is_system.is_(False),
         )
         .order_by(Course.semester.desc(), Course.name)
     )
@@ -76,16 +80,28 @@ async def my_games(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[Game]:
     """
-    Returns games the authenticated user can run.
-    ADMIN sees all games; USER sees games from user_game_access.
+    Returns games the authenticated user can run (can_use_game): ADMIN sees every game
+    outside the system course; USER sees games they hold a grant for in a course they
+    are HOST of. Kept for scripts and tests; the host app lists games per course.
     """
     if user.role == "ADMIN":
-        result = await db.execute(select(Game).order_by(Game.title))
+        result = await db.execute(
+            select(Game)
+            .join(Course, Course.id == Game.course_id)
+            .where(Course.is_system.is_(False))
+            .order_by(Game.title)
+        )
         return result.scalars().all()
 
     result = await db.execute(
         select(Game)
         .join(UserGameAccess, UserGameAccess.game_id == Game.id)
+        .join(
+            UserCourseAccess,
+            (UserCourseAccess.course_id == Game.course_id)
+            & (UserCourseAccess.user_id == user.id)
+            & (UserCourseAccess.role == "HOST"),
+        )
         .where(UserGameAccess.user_id == user.id)
         .order_by(Game.title)
     )
@@ -130,7 +146,6 @@ async def delete_session(
     session_id: str,
     user: Annotated[User, Depends(require_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    redis=Depends(get_redis),
 ) -> None:
     """Permanently delete a session and all associated scores. Host or admin only."""
     session = await db.get(GameSession, session_id)
@@ -142,10 +157,9 @@ async def delete_session(
 
         raise ForbiddenError("Only the session host can delete this session")
 
-    # Wipe Redis state (room key, player keys, question key, answered sets, dist hashes)
-    await state.delete_room_state(redis, session.room_code, session_id)
-
-    # Delete from MySQL — cascade="all, delete-orphan" removes session_scores automatically
+    # End live state first (notify clients, cancel timers, detach sockets, wipe Redis),
+    # then delete the rows; cascade="all, delete-orphan" removes session_scores.
+    await end_session_from_rest(session_id, session.room_code)
     await db.delete(session)
     await db.commit()
 
