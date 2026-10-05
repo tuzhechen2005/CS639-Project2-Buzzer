@@ -524,13 +524,16 @@ export default function QuestionEditorPage() {
   const [detailSaving, setDetailSaving] = useState(false);
 
   async function load() {
+    let redirected = false;
     try {
       const [g, qs] = await Promise.all([
         api.get<Game>(`/games/${gameId}`),
         api.get<Question[]>(`/games/${gameId}/questions`),
       ]);
       if (String(g.course_id) !== courseId) {
-        // The game belongs to another course: show it under the right one.
+        // The game belongs to another course: show it under the right one. Keep the
+        // spinner up until the new route loads, so "Game not found" doesn't flash.
+        redirected = true;
         navigate(`/courses/${g.course_id}/games/${g.id}/questions`, { replace: true });
         return;
       }
@@ -539,7 +542,7 @@ export default function QuestionEditorPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load');
     } finally {
-      setLoading(false);
+      if (!redirected) setLoading(false);
     }
   }
 
@@ -586,6 +589,9 @@ export default function QuestionEditorPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save question');
+      // The game may have been played or opened in a room meanwhile (409); reload so
+      // the page shows its current state.
+      await load();
     } finally {
       setSaving(false);
     }
@@ -600,6 +606,7 @@ export default function QuestionEditorPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update question');
+      await load();
     } finally {
       setSaving(false);
     }
@@ -613,6 +620,7 @@ export default function QuestionEditorPage() {
       setQuestions((prev) => prev.filter((q) => q.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete question');
+      await load();
     }
   }
 

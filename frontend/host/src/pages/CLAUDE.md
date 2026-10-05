@@ -71,8 +71,8 @@ what comes next. The host receives the full answer distribution and reveal; play
   (`answer_points`) and camelCase (FITB `acceptedAnswers`, `answerPoints`, `editDistance`); match
   the backend validator exactly.
 - **Locked / live games:** the server returns 409 `GAME_LOCKED` / `GAME_LIVE` for question changes;
-  the editor shows the message but only learns `locked` on load, so a game that becomes locked
-  while open stays editable in the UI until reload.
+  the editor shows the message and reloads after any failed question change, so a game that
+  became locked while open switches to the read-only view at that point (not before).
 - **Roster replace mode deactivates everyone missing from the file**; the dry-run preview and
   confirm are the only guard, so keep them if you change the wizard.
 - **`points_value` is computed in the editor** for accuracy questions (MC / FITB: highest option;
