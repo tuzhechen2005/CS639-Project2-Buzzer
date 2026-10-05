@@ -76,9 +76,16 @@ async def refresh_room_ttl(redis: Redis, code: str) -> None:
     await redis.expire(_room_key(code), ROOM_TTL)
 
 
-async def delete_room_state(redis: Redis, code: str, session_id: str) -> None:
-    """Clean up all keys for a completed/abandoned room."""
-    keys = [_room_key(code), _players_key(session_id), _question_key(session_id)]
+async def delete_room_state(
+    redis: Redis, code: str, session_id: str, *, delete_room_key: bool = True
+) -> None:
+    """
+    Clean up all keys for a completed/abandoned room. Pass delete_room_key=False when
+    the room code may now belong to another session: only session-keyed data is removed.
+    """
+    keys = [_players_key(session_id), _question_key(session_id)]
+    if delete_room_key:
+        keys.append(_room_key(code))
     answered_keys = await redis.keys(f"session:{session_id}:answered:*")
     dist_keys = await redis.keys(f"session:{session_id}:dist:*")
     player_keys = await redis.keys(f"session:{session_id}:player:*")

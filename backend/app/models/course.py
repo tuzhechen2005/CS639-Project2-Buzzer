@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+import sqlalchemy as sa
 from sqlalchemy import (
     Boolean,
     DateTime,
@@ -19,6 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..database import Base
 
 if TYPE_CHECKING:
+    from .game import Game
     from .session import GameSession
     from .user import User
 
@@ -29,6 +31,10 @@ class Course(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     semester: Mapped[str] = mapped_column(String(50), nullable=False)
+    # True only for the migration-created "Unassigned" course (T4); never settable via the API.
+    is_system: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     roster: Mapped[list[CourseRoster]] = relationship(
@@ -40,6 +46,7 @@ class Course(Base):
     sessions: Mapped[list[GameSession]] = relationship(
         "GameSession", back_populates="course"
     )
+    games: Mapped[list[Game]] = relationship("Game", back_populates="course")
 
 
 class CourseRoster(Base):

@@ -49,5 +49,9 @@ question is.
   scoring/reveal/distribution code in `services/` and `websocket/` (see those CLAUDE.md files).
 - Key naming is inconsistent by type: `answer_points` (snake) vs `acceptedAnswers`/`answerPoints`/
   `editDistance` (camel). Existing JSON files depend on these exact names.
-- `GameCreate`/`GameResponse` have no `course_id` yet (see `models/` gotcha re: T4).
+- Games: `GameCreate` (no `course_id`; the neutral endpoint takes it from the path, and
+  `extra="forbid"` makes a body `course_id` a 422), `AdminGameCreate` (+ required `course_id`, admin
+  alias), `GameUpdate` (optional `course_id`; only admins may change it), `GameResponse` (+
+  `course_id`, `locked`). `CourseResponse` has `is_system`; no request schema accepts it.
+  `CourseAccessItem` backs `GET /api/admin/courses/{id}/access`.
 - `merge-guest` endpoints take a raw `dict` body, not a schema.

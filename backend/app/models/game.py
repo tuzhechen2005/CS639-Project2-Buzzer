@@ -10,14 +10,18 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..database import Base
 
 if TYPE_CHECKING:
+    from .course import Course
     from .session import GameSession, SessionScore
-    from .user import User, UserGameAccess
+    from .user import User
 
 
 class Game(Base):
     __tablename__ = "games"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    course_id: Mapped[int] = mapped_column(
+        ForeignKey("courses.id"), nullable=False, index=True
+    )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(
         Text, nullable=False, default="", server_default=sa.text("''")
@@ -25,6 +29,7 @@ class Game(Base):
     max_players: Mapped[int] = mapped_column(Integer, default=150, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
+    course: Mapped[Course] = relationship("Course", back_populates="games")
     questions: Mapped[list[Question]] = relationship(
         "Question",
         back_populates="game",
