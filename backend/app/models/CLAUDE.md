@@ -16,7 +16,10 @@ Schema changes here require an Alembic migration in `../migrations/versions/`.
 - `game.py` — `Game` (`course_id`, title, description, `max_players`); `Question` (polymorphic via `type`
   string + two JSON columns: `config` = what the player sees, `answer_data` = the answer key and
   point table, never sent to clients; `grading_type` enum `ACCURACY | COMPLETENESS`; `order_index`);
-  `UserGameAccess` (composite PK `user_id + game_id`, no role).
+  `UserGameAccess` (composite PK `user_id + game_id`, no role); `Image` (T8, migration 005: a
+  picture owned by a game, UUID string PK, `content_type`, `size_bytes`, `width`, `height`,
+  `sha256`, bytes in a **deferred** `LONGBLOB` `data` column; unique `(game_id, sha256)`,
+  `ON DELETE CASCADE`). Questions reference images only by id inside `config`, no FK.
 - `session.py` — `GameSession` (one played instance: UUID PK, 6-char unique `room_code`,
   `game_id`, `course_id`, `host_user_id`, `status` enum `LOBBY | IN_PROGRESS | COMPLETED | ABANDONED`);
   `SessionScore` (one row per player per answered question: `points_awarded` float, `is_correct`,
@@ -51,6 +54,10 @@ User ─┬─ UserCourseAccess(HOST|PLAYER) ─ Course ─┬─ CourseRoster
 - **No uniqueness on `(session_id, user_id, question_id)`** in `SessionScore` — duplicate-answer
   protection is only the Redis "answered" set checked in the gateway.
 - `Question` has no per-type columns; a new question type normally needs **no** migration, just a
-  new `config`/`answer_data` shape. Images (T8) stored in the DB will need a new table.
+  new `config`/`answer_data` shape.
+- **`Image.data` is deferred and must never be lazy-loaded** (an async session raises
+  `MissingGreenlet`). Code that needs the bytes selects `Image.data` explicitly; any new query on
+  `Image` must not load whole rows for lists. Plain `LargeBinary` would be a 64 KiB `BLOB` on
+  MySQL, hence the `LONGBLOB` variant.
 - `points_value` / `points_awarded` are floats (migration 003); some callers still annotate or
   cast them as `int`.

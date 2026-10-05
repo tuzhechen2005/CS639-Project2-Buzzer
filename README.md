@@ -423,6 +423,35 @@ The file format is:
 
 Question order is determined by array position; `order_index` is assigned automatically on import.
 
+**Images (T8).** A game that uses images is exported as `"version": 2` with a top-level `images`
+list; games without images are still written as version 1, and both versions import. Questions
+reference images through two optional `config` keys, `image_id` (a prompt image, or a Canvas
+background) and `option_image_ids` (multiple choice and multi-select only, one entry per option,
+`null` for a text-only option). In a file these hold keys of the `images` list; on import they
+become the new images' ids:
+
+```json
+{
+  "format": "buzzer/game",
+  "version": 2,
+  "game": { "title": "..." },
+  "images": [
+    { "key": "img1", "content_type": "image/png", "data_base64": "iVBORw0KGgo..." }
+  ],
+  "questions": [
+    {
+      "type": "multiple_choice",
+      "config": { "options": ["Cat", "Dog"], "image_id": "img1", "option_image_ids": [null, "img1"] },
+      "...": "..."
+    }
+  ]
+}
+```
+
+Limits: PNG, JPEG or WebP only, at most 2 MiB per image (larger photos are downscaled to 1600 px
+on upload), 50 images and 25 MiB per game, 40 MiB per file. Images are managed through
+`/api/games/{game_id}/images` and served without login from `/api/images/{image_id}`.
+
 ### Export session scores
 
 After a game session completes (or is abandoned), any HOST of its course (or an admin) can

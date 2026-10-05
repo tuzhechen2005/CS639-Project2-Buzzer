@@ -26,6 +26,8 @@ and access checks, scoring, Redis live state, roster import, and CSV/HTML export
     `reconcile_session_status`/`is_live` (liveness decided by the Redis room; a LOBBY/IN_PROGRESS
     session with no room key is marked ABANDONED → `GAME_LIVE` only for real rooms),
     `assert_questions_editable`, `check_can_delete_game`.
+  - T8 write protocol: `lock_game` (`SELECT … FOR UPDATE` on the games row) and
+    `relock_for_write` (lock, re-fetch the user, re-check the permission inside the lock).
   - Grants: `grant_game` (idempotent), `apply_creation_grants` (host → self; admin → every course
     HOST), `assert_can_grant_game` (`NOT_COURSE_HOST`).
   - **Scoring**: `calculate_score(question, answer_data) → ScoreResult`. COMPLETENESS gives full
@@ -50,8 +52,19 @@ and access checks, scoring, Redis live state, roster import, and CSV/HTML export
   without writing. Limit: 1000 rows.
 - `game_admin_service.py` — game and question CRUD shared by the neutral routers and the admin
   aliases: create/update (course moves: admin only)/duplicate/import/export, `delete_game_rows`
-  (MySQL only), questions with the locked/live checks, `sanitize_prompt`, `session_items` and
-  `finished_course_sessions`. Imports no routers/websocket code.
+  (MySQL only, images included), questions with the locked/live checks and the image reference
+  checks on the merged config, `sanitize_prompt`, `session_items` and
+  `finished_course_sessions`. Duplicate copies image rows and remaps references; export writes
+  bundle version 1, or 2 when images are referenced; import accepts both and validates
+  everything before writing. Imports no routers/websocket code.
+- `image_service.py` (T8, docs/plans/t8-image-support.md) — all image logic: limits (2 MiB,
+  1600 px, 16 MP, 50 images / 25 MiB per game, 40 MiB bundles, two decode and two bundle
+  semaphores), `normalise` (Pillow; PNG/JPEG/WebP only, stores clean files untouched, otherwise
+  re-encodes without metadata; pure and run in the threadpool), the aspect and quota rules,
+  `etag_matches`, the `config` convention (`validate_image_fields`, tolerant `image_ids`,
+  `remap_image_ids`, `export_config` cleanup), and the image rows (`store_upload`,
+  `replace_image`, `delete_image`, `used_by`, `assert_references_valid`). Write functions expect
+  the caller to hold the game row lock.
 - `export_service.py` — `build_session_csv` (Player, Q1..Qn, Total) and `build_canvas_csv`
   (Canvas import format, SIS Login ID = netid[@domain], optional per-question columns, optional
   `roster_only`).

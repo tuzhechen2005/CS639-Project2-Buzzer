@@ -14,8 +14,9 @@ and handlers, rate limiting, and structured logging setup.
 - `exceptions.py` — `BuzzerError(code, message, status_code)` and subclasses `NotFoundError`
   (404), `ForbiddenError` (403), `UnauthorizedError` (401), `ConflictError` (409).
   `register_exception_handlers` turns them into `{"error": CODE, "message": ...}`, turns validation
-  errors into 422 `{"error": "VALIDATION_ERROR", "detail": [...]}`, and turns anything else into
-  a generic 500.
+  errors into 422 `{"error": "VALIDATION_ERROR", "detail": [...]}`, turns a MySQL deadlock (1213)
+  or lock-wait timeout (1205) into 503 `TRY_AGAIN` (any other SQLAlchemy `OperationalError` gets
+  the same generic 500 as the catch-all), and turns anything else into a generic 500.
 - `rate_limit.py` — the slowapi `limiter`. In development every request gets a random key, so
   limits never fire. In production the key is the client IP, unless the request carries a
   matching `X-Stress-Key` header.
