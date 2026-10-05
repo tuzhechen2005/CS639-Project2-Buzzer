@@ -1,4 +1,7 @@
 import { useGame } from './GameLayout';
+import {
+  differenceLine, formatNumber, numericVerdict, outcomeLine, withUnit,
+} from '../../lib/numericEstimate';
 
 function describeAnswer(
   lastAnswerData: Record<string, unknown> | null,
@@ -17,6 +20,9 @@ function describeAnswer(
   }
   if (type === 'fill_in_the_blank') {
     return typeof lastAnswerData.text === 'string' ? lastAnswerData.text : null;
+  }
+  if (type === 'numeric_estimate') {
+    return typeof lastAnswerData.value === 'number' ? formatNumber(lastAnswerData.value) : null;
   }
   return null;
 }
@@ -40,6 +46,11 @@ export default function ResultsPage() {
   );
   const isCompleteness = answerReveal.type === 'completeness';
   const isFitb = answerReveal.type === 'fill_in_the_blank';
+  const numericReveal = answerReveal.type === 'numeric_estimate' ? answerReveal : null;
+  const verdict = numericReveal ? numericVerdict(numericReveal, yourPoints) : null;
+  const unit = currentQuestion?.config.unit;
+  const guess =
+    lastAnswerData && typeof lastAnswerData.value === 'number' ? lastAnswerData.value : null;
   const isCorrect = !isCompleteness && yourPoints > 0;
 
   const fitbAccepted: string[] =
@@ -51,7 +62,9 @@ export default function ResultsPage() {
       {/* Correct / Wrong / Recorded */}
       {isCompleteness ? (
         <p className="text-indigo-400 text-4xl font-black">Answer recorded!</p>
-      ) : isCorrect ? (
+      ) : verdict === 'close' ? (
+        <p className="text-amber-400 text-4xl font-black">Close!</p>
+      ) : verdict === 'correct' || (verdict === null && isCorrect) ? (
         <p className="text-green-400 text-4xl font-black">Correct!</p>
       ) : (
         <p className="text-red-400 text-4xl font-black">Incorrect</p>
@@ -69,6 +82,21 @@ export default function ResultsPage() {
         <p className="text-slate-400 text-base">
           Correct: <span className="text-green-400 font-semibold">{fitbAccepted.join(' / ')}</span>
         </p>
+      )}
+
+      {/* Numeric estimate: the target, how far off, and the band the server gave points for */}
+      {numericReveal && (
+        <div className="space-y-1">
+          <p className="text-slate-400 text-base">
+            Target: <span className="text-green-400 font-semibold">{withUnit(numericReveal.target, unit)}</span>
+          </p>
+          {guess !== null && (
+            <p className="text-slate-400 text-base">{differenceLine(guess, numericReveal.target, unit)}</p>
+          )}
+          <p className="text-slate-300 text-base font-semibold">
+            {outcomeLine(numericReveal, yourPoints, unit)}
+          </p>
+        </div>
       )}
 
       {/* Points for this question */}

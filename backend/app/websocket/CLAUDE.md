@@ -34,7 +34,7 @@ phase state machine, answer submission, question timers, and host-disconnect han
     - `RESULTS` → the next `new_question`, or `game_over` with summaries for the host and each
       player.
   - `on_submit_answer`: checks the phase, the lock, the question id and duplicates (Redis
-    answered set), plus bounds for multi_select; calls `game_service.record_answer`; emits
+    answered set), plus the type's `validate_answer`; calls `game_service.record_answer`; emits
     `answer_received` to the player and `answer_status` to the host, and `answer_phase_ended` +
     timer cancel when everyone has answered.
   - `on_lock_question`: toggles the lock and pauses or resumes the timer by shifting a "virtual"
@@ -46,7 +46,7 @@ phase state machine, answer submission, question timers, and host-disconnect han
     timers, makes its sids leave the room and host room and drops them from `_sid_ctx`, deletes
     its Redis state. No DB access; safe when the room is already gone.
   - Helpers: `_question_payload` (client-safe, **never** includes `answer_data`; adds
-    `editDistance` for FITB), `_answer_reveal`, `_host_room(code)` = `"{code}:host"`,
+    `payload_extras` such as `editDistance` for FITB), `_host_room(code)` = `"{code}:host"`,
     `_user_room(uid)` = `"user:{uid}"`.
 
 ## How it fits in
@@ -64,9 +64,10 @@ only), `_user_room` / `sid` (one player).
 - **Duplicate-answer race:** `has_answered` is checked before `record_answer`, and the answered
   set is updated only after the DB insert, with no DB unique constraint. Two concurrent submits
   from one player can both be scored.
-- **Only multi_select answers are shape-validated.** Other types trust `calculate_score` to cope,
-  and a malformed MC `selectedIndex` raises inside a handler that has no try/except.
-  New question types should validate `answer_data` here, following the multi_select pattern.
+- **Only multi_select answers are shape-validated.** `question_types.validate_answer` is called
+  here; the other existing types accept anything, so a malformed MC `selectedIndex` still
+  reaches `calculate_score` and raises inside a handler that has no try/except. A new question
+  type gets its answer validation by implementing `validate_answer` in its handler.
 - Any ADMIN is treated as host on `join_room` (role HOST) and **always** on `rejoin_room`, so an
   admin can't rejoin a room as a player.
 - Disconnected players stay in the players set, so "all answered" waits for them (the timer still
@@ -74,6 +75,5 @@ only), `_user_room` / `sid` (one player).
 - `sync_state.currentQuestion` differs by role: hosts get a full `_question_payload` +
   `startedAt`; players get the compact Redis record (ids and timing only) and rely on
   `new_question` for content.
-- `_answer_reveal` duplicates the logic in `services/game_service.py` and
-  `services/report_service.py`; keep them in sync.
-- `max_possible_score` in `game_over` is cast to `int`, which truncates fractional point values.
+- The answer reveal is built by `services/question_types.answer_reveal`, the single copy used by
+  the gateway, both game-over summaries and the report.

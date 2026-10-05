@@ -31,7 +31,9 @@ over) driven by Socket.io events from the backend.
   redirects if the game's `course_id` differs from the URL, has an editable details header
   (title, description, max players — editable even when locked), per-type `QuestionForm`
   (`formToPayload` / `questionToForm`), add / edit / delete / reorder, Export JSON. Locked games
-  are read-only with Duplicate. Answer keys are shown only here.
+  are read-only with Duplicate. Answer keys are shown only here. The numeric_estimate form (target,
+  mode, unit, 1-5 bands; `points_value` is the first band's points) validates inline with
+  `numericProblems`, mirroring `backend/app/services/question_types.py`; the server is the authority.
 - `course/RosterTab.tsx` — moved from the admin app. Client-side CSV wizard (`parseCSV`, Canvas
   auto-detection, column mapping) posting mapped rows to `POST /courses/:id/roster/import`, with
   an **Add only (default) / Replace** mode, a mandatory dry-run preview (`dry_run=true`) and, in

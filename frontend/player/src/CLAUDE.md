@@ -22,7 +22,9 @@ Subdirectories (each has its own `CLAUDE.md`):
   `useGame()` (including `emitAnswer`), and navigates when server events arrive.
 - `components/` — `ui/` primitives (`Button`, `Card`, `Input`, `TimerBar`), mobile-sized forks of
   the host's.
-- `lib/` — `api` (REST over `fetch`), `cn()`, and `isTokenExpired()`.
+- `lib/` — `api` (REST over `fetch`), `cn()`, `isTokenExpired()`, `parseNumber` (what a player types
+  into a number for numeric_estimate; unit-tested with vitest) and `numericEstimate` (display
+  helpers for that type).
 
 ## How it fits in
 ```
