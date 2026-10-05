@@ -1,0 +1,199 @@
+{
+  "format": "buzzer/game",
+  "version": 1,
+  "game": {
+    "title": "Databases & SQL Fundamentals",
+    "description": "A review of relational database basics: querying, joins, aggregation, keys, NULL semantics, transactions and indexes. Ends with three ungraded check-in questions for the instructor.",
+    "max_players": 150
+  },
+  "questions": [
+    {
+      "type": "multiple_choice",
+      "grading_type": "ACCURACY",
+      "prompt": "Which SQL clause filters individual rows <b>before</b> they are grouped?",
+      "config": {
+        "options": ["WHERE", "HAVING", "GROUP BY", "ORDER BY"]
+      },
+      "answer_data": {
+        "answer_points": [1.0, 0.0, 0.0, 0.0]
+      },
+      "time_limit_seconds": 20,
+      "points_value": 1.0
+    },
+    {
+      "type": "true_false",
+      "grading_type": "ACCURACY",
+      "prompt": "A column declared as a PRIMARY KEY may contain NULL values.",
+      "config": {},
+      "answer_data": {
+        "answer_points": {"true": 0.0, "false": 1.0}
+      },
+      "time_limit_seconds": 15,
+      "points_value": 1.0
+    },
+    {
+      "type": "multiple_choice",
+      "grading_type": "ACCURACY",
+      "prompt": "Which join returns <b>every</b> row from the left table, filling in NULLs where the right table has no match?",
+      "config": {
+        "options": ["INNER JOIN", "LEFT OUTER JOIN", "CROSS JOIN", "Self join"]
+      },
+      "answer_data": {
+        "answer_points": [0.0, 1.0, 0.0, 0.0]
+      },
+      "time_limit_seconds": 20,
+      "points_value": 1.0
+    },
+    {
+      "type": "fill_in_the_blank",
+      "grading_type": "ACCURACY",
+      "prompt": "Which SQL keyword, placed right after SELECT, removes duplicate rows from the result?",
+      "config": {},
+      "answer_data": {
+        "acceptedAnswers": ["DISTINCT", "SELECT DISTINCT"],
+        "answerPoints": [1.0, 1.0],
+        "editDistance": 1
+      },
+      "time_limit_seconds": 25,
+      "points_value": 1.0
+    },
+    {
+      "type": "multi_select",
+      "grading_type": "ACCURACY",
+      "prompt": "Which of these are <b>aggregate</b> functions (they combine many rows into one value)? Select all that apply.",
+      "config": {
+        "options": ["COUNT", "SUM", "UPPER", "AVG", "SUBSTRING"]
+      },
+      "answer_data": {
+        "answer_points": [1.0, 1.0, -1.0, 1.0, -1.0]
+      },
+      "time_limit_seconds": 30,
+      "points_value": 3.0
+    },
+    {
+      "type": "multiple_choice",
+      "grading_type": "ACCURACY",
+      "prompt": "You want the number of customers in each city, but only for cities with more than 5 customers. Which query is best?",
+      "config": {
+        "options": [
+          "SELECT city, COUNT(*) FROM customers GROUP BY city HAVING COUNT(*) > 5",
+          "SELECT city, COUNT(*) FROM customers WHERE COUNT(*) > 5 GROUP BY city",
+          "SELECT city, COUNT(*) FROM customers GROUP BY city",
+          "SELECT city FROM customers WHERE city > 5"
+        ]
+      },
+      "answer_data": {
+        "answer_points": [2.0, 0.0, 1.0, 0.0]
+      },
+      "time_limit_seconds": 40,
+      "points_value": 2.0
+    },
+    {
+      "type": "true_false",
+      "grading_type": "ACCURACY",
+      "prompt": "In standard SQL, the condition <i>NULL = NULL</i> evaluates to TRUE.",
+      "config": {},
+      "answer_data": {
+        "answer_points": {"true": 0.0, "false": 1.0}
+      },
+      "time_limit_seconds": 15,
+      "points_value": 1.0
+    },
+    {
+      "type": "fill_in_the_blank",
+      "grading_type": "ACCURACY",
+      "prompt": "In the ACID properties of a transaction, what does the <b>A</b> stand for?",
+      "config": {},
+      "answer_data": {
+        "acceptedAnswers": ["Atomicity", "Atomic"],
+        "answerPoints": [1.0, 1.0],
+        "editDistance": 2
+      },
+      "time_limit_seconds": 25,
+      "points_value": 1.0
+    },
+    {
+      "type": "multiple_choice",
+      "grading_type": "ACCURACY",
+      "prompt": "What is the main job of a FOREIGN KEY constraint?",
+      "config": {
+        "options": [
+          "Making lookups on the column faster",
+          "Guaranteeing every value in the column is unique",
+          "Ensuring each value refers to an existing row in another table",
+          "Encrypting the column's values at rest"
+        ]
+      },
+      "answer_data": {
+        "answer_points": [0.0, 0.0, 1.0, 0.0]
+      },
+      "time_limit_seconds": 25,
+      "points_value": 1.0
+    },
+    {
+      "type": "multi_select",
+      "grading_type": "ACCURACY",
+      "prompt": "Which statements belong to the Data Manipulation Language (DML), i.e. they change the rows stored in a table? Select all that apply.",
+      "config": {
+        "options": ["INSERT", "UPDATE", "DELETE", "CREATE TABLE", "DROP TABLE"]
+      },
+      "answer_data": {
+        "answer_points": [1.0, 1.0, 1.0, -1.0, -1.0]
+      },
+      "time_limit_seconds": 30,
+      "points_value": 3.0
+    },
+    {
+      "type": "multiple_choice",
+      "grading_type": "ACCURACY",
+      "prompt": "Adding an index to a frequently searched column usually has which trade-off?",
+      "config": {
+        "options": [
+          "Faster reads and faster writes",
+          "Faster reads, slower writes and more storage",
+          "Slower reads, faster writes",
+          "No effect unless the column is a primary key"
+        ]
+      },
+      "answer_data": {
+        "answer_points": [0.0, 1.0, 0.0, 0.0]
+      },
+      "time_limit_seconds": 25,
+      "points_value": 1.0
+    },
+    {
+      "type": "multiple_choice",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Check-in (not graded for correctness): how confident are you writing a query that joins three tables?",
+      "config": {
+        "options": [
+          "Very confident",
+          "Somewhat confident",
+          "I could do it with notes",
+          "Not yet"
+        ]
+      },
+      "answer_data": {},
+      "time_limit_seconds": 20,
+      "points_value": 1.0
+    },
+    {
+      "type": "true_false",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Check-in (not graded for correctness): I have used SQL outside this course, e.g. at work or in a personal project.",
+      "config": {},
+      "answer_data": {},
+      "time_limit_seconds": 15,
+      "points_value": 1.0
+    },
+    {
+      "type": "fill_in_the_blank",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Check-in (not graded for correctness): in one or two words, which topic from today should we review next class?",
+      "config": {},
+      "answer_data": {},
+      "time_limit_seconds": 30,
+      "points_value": 1.0
+    }
+  ]
+}
