@@ -547,6 +547,12 @@ export default function QuestionEditorPage() {
   }
 
   useEffect(() => {
+    // The page stays mounted when only gameId changes (Duplicate opens the copy in the same
+    // course), so drop the previous game: a failed load must not leave it on screen while
+    // edits post to the new id.
+    setGame(null);
+    setQuestions([]);
+    setError('');
     setLoading(true);
     setShowAddForm(false);
     setEditingId(null);
