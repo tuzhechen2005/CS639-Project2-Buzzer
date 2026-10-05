@@ -53,9 +53,10 @@ from ..services.game_service import (
     get_course_or_404,
     get_game_or_404,
     grant_game,
+    relock_for_write,
 )
 from ..services.roster_service import process_roster_csv, process_roster_rows
-from .games import delete_game_orchestrated
+from .games import delete_game_orchestrated, end_read_phase
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 logger = structlog.get_logger()
@@ -285,8 +286,8 @@ async def delete_game(
     redis=Depends(get_redis),
 ) -> None:
     """Admins may delete any game; live sessions are ended first (§B)."""
-    game = await get_game_or_404(db, game_id)
-    await delete_game_orchestrated(db, redis, admin, game)
+    await get_game_or_404(db, game_id)
+    await delete_game_orchestrated(db, redis, admin, game_id, admin_only=True)
 
 
 @router.get("/games/{game_id}/questions", response_model=list[QuestionResponse])
@@ -305,11 +306,13 @@ async def list_questions(
 async def create_question(
     game_id: int,
     body: QuestionCreate,
-    _: Annotated[User, Depends(require_admin)],
+    admin: Annotated[User, Depends(require_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis=Depends(get_redis),
 ) -> Question:
-    game = await get_game_or_404(db, game_id)
+    await get_game_or_404(db, game_id)
+    admin_id = await end_read_phase(db, admin)
+    _, game = await relock_for_write(db, admin_id, game_id, admin_only=True)
     question = await games.create_question(db, redis, game, body)
     await db.commit()
     return question
@@ -320,13 +323,18 @@ async def update_question(
     game_id: int,
     question_id: int,
     body: QuestionUpdate,
-    _: Annotated[User, Depends(require_admin)],
+    admin: Annotated[User, Depends(require_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
     redis=Depends(get_redis),
 ) -> Question:
-    game = await get_game_or_404(db, game_id)
-    question = await games.get_question_or_404(db, game.id, question_id)
-    return await games.update_question(db, redis, game, question, body)
+    await get_game_or_404(db, game_id)
+    await games.get_question_or_404(db, game_id, question_id)
+    admin_id = await end_read_phase(db, admin)
+    _, game = await relock_for_write(db, admin_id, game_id, admin_only=True)
+    question = await games.get_question_or_404(db, game_id, question_id)
+    question = await games.update_question(db, redis, game, question, body)
+    await db.commit()
+    return question
 
 
 @router.delete("/games/{game_id}/questions/{question_id}", status_code=204)
@@ -361,8 +369,8 @@ async def export_game(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> StreamingResponse:
     game = await get_game_or_404(db, game_id)
-    filename, content = games.export_bundle(
-        game, await games.list_questions(db, game.id)
+    filename, content = await games.export_bundle(
+        db, game, await games.list_questions(db, game.id)
     )
     return StreamingResponse(
         io.BytesIO(content),
@@ -379,7 +387,7 @@ async def import_game(
     course_id: int = Query(..., gt=0, description="Course the new game belongs to"),
 ) -> dict:
     course = await get_course_or_404(db, course_id)
-    game = await games.import_game(db, admin, course, await file.read())
+    game = await games.import_game(db, admin, course, await games.read_bundle(file))
     await db.commit()
     return {"game_id": game.id}
 

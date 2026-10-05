@@ -178,7 +178,7 @@ async def import_course_game(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> GameResponse:
     course = await _managed_course(db, user, course_id, system_ok=False)
-    game = await games.import_game(db, user, course, await file.read())
+    game = await games.import_game(db, user, course, await games.read_bundle(file))
     return games.game_response(game, locked=False)
 
 
