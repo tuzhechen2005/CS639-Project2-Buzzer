@@ -41,7 +41,11 @@ FITB_QUESTION = {
     "grading_type": "ACCURACY",
     "prompt": "Chemical symbol for gold?",
     "config": {},
-    "answer_data": {"acceptedAnswers": ["Au"], "answerPoints": [1.0], "editDistance": 0},
+    "answer_data": {
+        "acceptedAnswers": ["Au"],
+        "answerPoints": [1.0],
+        "editDistance": 0,
+    },
     "time_limit_seconds": 20,
     "points_value": 1.0,
 }
@@ -70,18 +74,38 @@ def test_error_bodies_carry_a_readable_message(world: World):
     for r in (
         w.req("GET", f"/courses/{w.course_a}/games", w.host_b),  # 403
         w.req("GET", "/games/999999999"),  # 404
-        w.req("POST", f"/admin/users/{w.host_b_id}/game-access", json={"game_id": w.game_a}),  # 409
+        w.req(
+            "POST",
+            f"/admin/users/{w.host_b_id}/game-access",
+            json={"game_id": w.game_a},
+        ),  # 409
     ):
         body = r.json()
         assert r.status_code in (403, 404, 409), r.text
         assert isinstance(body.get("error"), str) and body["error"]
         assert isinstance(body.get("message"), str) and body["message"].strip()
-    assert err(w.req("POST", f"/admin/users/{w.host_b_id}/game-access", json={"game_id": w.game_a})) == "NOT_COURSE_HOST"
+    assert (
+        err(
+            w.req(
+                "POST",
+                f"/admin/users/{w.host_b_id}/game-access",
+                json={"game_id": w.game_a},
+            )
+        )
+        == "NOT_COURSE_HOST"
+    )
 
-    r = w.req("POST", f"/courses/{w.course_a}/roster/import?mode=wipe", w.host_a, json={"rows": []})
+    r = w.req(
+        "POST",
+        f"/courses/{w.course_a}/roster/import?mode=wipe",
+        w.host_a,
+        json={"rows": []},
+    )
     assert r.status_code == 422
     detail = r.json()["detail"]
-    assert isinstance(detail, list) and all(isinstance(d.get("msg"), str) for d in detail)
+    assert isinstance(detail, list) and all(
+        isinstance(d.get("msg"), str) for d in detail
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +125,9 @@ def test_host_builds_edits_reorders_and_deletes_questions(world: World):
     w.track_game(g["id"])
     gid = g["id"]
     assert g["course_id"] == w.course_a and g["locked"] is False
-    assert gid in [x["id"] for x in w.ok("GET", f"/courses/{w.course_a}/games", w.host_a)]
+    assert gid in [
+        x["id"] for x in w.ok("GET", f"/courses/{w.course_a}/games", w.host_a)
+    ]
 
     # Add three questions; order follows creation.
     created = [
@@ -128,22 +154,41 @@ def test_host_builds_edits_reorders_and_deletes_questions(world: World):
     assert edited["answer_data"]["answer_points"] == [0.0, 1.0]
 
     # Reorder (reverse) and check the new order sticks.
-    w.ok("POST", f"/games/{gid}/questions/reorder", w.host_a, json={"order": ids[::-1]}, status=204)
-    assert [q["id"] for q in w.ok("GET", f"/games/{gid}/questions", w.host_a)] == ids[::-1]
+    w.ok(
+        "POST",
+        f"/games/{gid}/questions/reorder",
+        w.host_a,
+        json={"order": ids[::-1]},
+        status=204,
+    )
+    assert [q["id"] for q in w.ok("GET", f"/games/{gid}/questions", w.host_a)] == ids[
+        ::-1
+    ]
 
     # Delete one; the other two remain in order.
     w.ok("DELETE", f"/games/{gid}/questions/{ids[1]}", w.host_a, status=204)
-    assert [q["id"] for q in w.ok("GET", f"/games/{gid}/questions", w.host_a)] == [ids[2], ids[0]]
+    assert [q["id"] for q in w.ok("GET", f"/games/{gid}/questions", w.host_a)] == [
+        ids[2],
+        ids[0],
+    ]
 
     # Game details header.
     upd = w.ok(
-        "PUT", f"/games/{gid}", w.host_a, json={"title": "Renamed", "description": "", "max_players": 25}
+        "PUT",
+        f"/games/{gid}",
+        w.host_a,
+        json={"title": "Renamed", "description": "", "max_players": 25},
     )
     assert (upd["title"], upd["description"], upd["max_players"]) == ("Renamed", "", 25)
 
     # Another course's host can do none of this.
-    assert w.req("POST", f"/games/{gid}/questions", w.host_b, json=MC_QUESTION).status_code == 403
-    assert w.req("PUT", f"/games/{gid}", w.host_b, json={"title": "x"}).status_code == 403
+    assert (
+        w.req("POST", f"/games/{gid}/questions", w.host_b, json=MC_QUESTION).status_code
+        == 403
+    )
+    assert (
+        w.req("PUT", f"/games/{gid}", w.host_b, json={"title": "x"}).status_code == 403
+    )
 
 
 def test_export_then_import_round_trips_into_the_course(world: World):
@@ -168,7 +213,9 @@ def test_export_then_import_round_trips_into_the_course(world: World):
     src = w.ok("GET", f"/games/{w.game_a}/questions", w.host_a)
     dst = w.ok("GET", f"/games/{imported['id']}/questions", w.host_a)
     keys = ("type", "grading_type", "prompt", "config", "answer_data", "points_value")
-    assert [{k: q[k] for k in keys} for q in dst] == [{k: q[k] for k in keys} for q in src]
+    assert [{k: q[k] for k in keys} for q in dst] == [
+        {k: q[k] for k in keys} for q in src
+    ]
 
     # The importing host is granted the game; another course's host can't reach it.
     assert w.req("GET", f"/games/{imported['id']}", w.host_b).status_code == 403
@@ -181,19 +228,34 @@ def test_export_then_import_round_trips_into_the_course(world: World):
             w.host_a,
             files={"file": ("bad.json", raw, "application/json")},
         )
-        assert r.status_code == 400 and err(r) == "INVALID_IMPORT" and r.json()["message"]
+        assert (
+            r.status_code == 400 and err(r) == "INVALID_IMPORT" and r.json()["message"]
+        )
 
 
-def test_duplicate_copies_questions_in_order_and_grants_only_the_duplicator(world: World):
+def test_duplicate_copies_questions_in_order_and_grants_only_the_duplicator(
+    world: World,
+):
     w = world
     for q in (TF_QUESTION, FITB_QUESTION):
         w.ok("POST", f"/games/{w.game_a}/questions", w.host_a, json=q, status=201)
     ids = [q["id"] for q in w.ok("GET", f"/games/{w.game_a}/questions", w.host_a)]
-    w.ok("POST", f"/games/{w.game_a}/questions/reorder", w.host_a, json={"order": ids[::-1]}, status=204)
+    w.ok(
+        "POST",
+        f"/games/{w.game_a}/questions/reorder",
+        w.host_a,
+        json={"order": ids[::-1]},
+        status=204,
+    )
     original_prompts = _prompts(w, w.game_a, w.host_a)
 
     co_host, co_id = w.user(("HOST", w.course_a))
-    w.ok("POST", f"/admin/users/{co_id}/game-access", json={"game_id": w.game_a}, status=204)
+    w.ok(
+        "POST",
+        f"/admin/users/{co_id}/game-access",
+        json={"game_id": w.game_a},
+        status=204,
+    )
 
     copy = w.ok("POST", f"/games/{w.game_a}/duplicate", w.host_a, status=201)
     w.track_game(copy["id"])
@@ -243,7 +305,9 @@ def test_roster_csv_upload_preview_add_and_single_entry_toggle(world: World):
     # Real add-only upload.
     res = upload(netids)
     assert (res["imported"], res["updated"], res["deactivated"]) == (3, 0, 0)
-    entries = {e["netid"]: e for e in w.ok("GET", path, w.host_a) if e["netid"] in netids}
+    entries = {
+        e["netid"]: e for e in w.ok("GET", path, w.host_a) if e["netid"] in netids
+    }
     assert set(entries) == set(netids) and all(e["is_active"] for e in entries.values())
 
     # Replace with one student deactivates the other two (preview first, then for real).
@@ -260,7 +324,12 @@ def test_roster_csv_upload_preview_add_and_single_entry_toggle(world: World):
     assert off["is_active"] is False
 
     # Another course's host can't upload here.
-    r = w.req("POST", path, w.host_b, files={"file": ("r.csv", _canvas_csv(netids), "text/csv")})
+    r = w.req(
+        "POST",
+        path,
+        w.host_b,
+        files={"file": ("r.csv", _canvas_csv(netids), "text/csv")},
+    )
     assert r.status_code == 403
 
 
@@ -272,7 +341,10 @@ def test_roster_csv_upload_preview_add_and_single_entry_toggle(world: World):
 def test_admin_moves_game_to_another_course(world: World, system_course: int):
     w = world
     admin_view = {g["id"]: g for g in w.ok("GET", "/admin/games")}
-    assert admin_view[w.game_a]["course_id"] == w.course_a and admin_view[w.game_a]["locked"] is False
+    assert (
+        admin_view[w.game_a]["course_id"] == w.course_a
+        and admin_view[w.game_a]["locked"] is False
+    )
 
     # Moving into the system course is refused.
     r = w.req("PUT", f"/admin/games/{w.game_a}", json={"course_id": system_course})
@@ -282,8 +354,12 @@ def test_admin_moves_game_to_another_course(world: World, system_course: int):
     assert moved["course_id"] == w.course_b
 
     # Course B's hosts gain it; course A's host loses access (their grant is now inactive).
-    assert w.game_a in [g["id"] for g in w.ok("GET", f"/courses/{w.course_b}/games", w.host_b)]
-    assert w.game_a not in [g["id"] for g in w.ok("GET", f"/courses/{w.course_a}/games", w.host_a)]
+    assert w.game_a in [
+        g["id"] for g in w.ok("GET", f"/courses/{w.course_b}/games", w.host_b)
+    ]
+    assert w.game_a not in [
+        g["id"] for g in w.ok("GET", f"/courses/{w.course_a}/games", w.host_a)
+    ]
     assert w.req("GET", f"/games/{w.game_a}", w.host_a).status_code == 403
     assert w.game_a in w.ok("GET", f"/admin/users/{w.host_a_id}")["game_access"]
 
@@ -311,10 +387,15 @@ def test_system_course_roster_uploads_are_refused(world: World, system_course: i
     r = w.req(
         "POST",
         f"/courses/{sid}/roster/import",
-        json={"rows": [{"netid": f"sys{_tag()}", "full_name": "S", "email": "s@example.com"}]},
+        json={
+            "rows": [
+                {"netid": f"sys{_tag()}", "full_name": "S", "email": "s@example.com"}
+            ]
+        },
     )
     assert r.status_code == 409 and err(r) == "SYSTEM_COURSE"
     assert w.ok("GET", f"/admin/courses/{sid}/access") == []
+
 
 def test_revoking_host_leaves_an_inactive_grant_until_restored(world: World):
     w = world
@@ -322,7 +403,9 @@ def test_revoking_host_leaves_an_inactive_grant_until_restored(world: World):
     w.ok("DELETE", f"/admin/users/{w.host_a_id}/course-access/{w.course_a}", status=204)
 
     assert w.req("GET", f"/games/{w.game_a}", w.host_a).status_code == 403
-    assert w.course_a not in {c["id"] for c in w.ok("GET", "/game/my-courses", w.host_a)}
+    assert w.course_a not in {
+        c["id"] for c in w.ok("GET", "/game/my-courses", w.host_a)
+    }
     detail = w.ok("GET", f"/admin/users/{w.host_a_id}")
     assert w.game_a in detail["game_access"]  # shown as "inactive" in the admin UI
     assert all(ca["course_id"] != w.course_a for ca in detail["course_access"])
@@ -341,7 +424,11 @@ async def test_past_sessions_tab_lists_and_downloads_a_finished_session(world: W
     room, _, _ = await play_one_answer(w, w.game_a, w.course_a, finish=True)
     sid = room["session_id"]
 
-    items = [s for s in w.ok("GET", f"/courses/{w.course_a}/sessions", w.host_a) if s["session_id"] == sid]
+    items = [
+        s
+        for s in w.ok("GET", f"/courses/{w.course_a}/sessions", w.host_a)
+        if s["session_id"] == sid
+    ]
     assert len(items) == 1
     item = items[0]
     assert item["status"] == "COMPLETED" and item["player_count"] == 1
@@ -349,7 +436,9 @@ async def test_past_sessions_tab_lists_and_downloads_a_finished_session(world: W
     assert item["room_code"] == room["room_code"] and item["game_title"]
 
     report = w.req("GET", f"/sessions/{sid}/report", w.host_a)
-    assert report.status_code == 200 and report.headers["content-type"].startswith("text/html")
+    assert report.status_code == 200 and report.headers["content-type"].startswith(
+        "text/html"
+    )
 
     raw = w.req("GET", f"/sessions/{sid}/export?format=raw", w.host_a)
     assert raw.status_code == 200 and raw.headers["content-type"].startswith("text/csv")
@@ -363,7 +452,10 @@ async def test_past_sessions_tab_lists_and_downloads_a_finished_session(world: W
     )
     assert canvas.status_code == 200
     first = canvas.text.splitlines()[0]
-    assert first.startswith("Student,ID,SIS User ID,SIS Login ID,Section") and "Quiz 1 (42)" in first
+    assert (
+        first.startswith("Student,ID,SIS User ID,SIS Login ID,Section")
+        and "Quiz 1 (42)" in first
+    )
 
     # A played game is locked, but export still works (Export JSON stays available).
     assert w.ok("GET", f"/games/{w.game_a}", w.host_a)["locked"] is True
@@ -395,7 +487,9 @@ def test_guest_token_cannot_use_host_screens(world: World, path: str):
     room = w.room(w.game_a, w.course_a)
     try:
         guest = w.guest(room["room_code"])
-        r = w.req("GET", path.format(a=w.course_a, g=w.game_a, s=room["session_id"]), guest)
+        r = w.req(
+            "GET", path.format(a=w.course_a, g=w.game_a, s=room["session_id"]), guest
+        )
         assert r.status_code == 403
     finally:
         # A live room left behind would make later tests on game_a fail with GAME_LIVE.
