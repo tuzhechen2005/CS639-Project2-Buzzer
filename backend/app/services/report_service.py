@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.course import Course
 from ..models.game import Game, Question
 from ..models.session import GameSession, SessionScore
+from .question_types import answer_reveal, distribution_keys_for, label_for
 
 
 # ---------------------------------------------------------------------------
@@ -41,47 +42,6 @@ def _levenshtein(a: str, b: str) -> int:
             dp[j] = prev if a[i - 1] == b[j - 1] else 1 + min(prev, dp[j], dp[j - 1])
             prev = temp
     return dp[n]
-
-
-def _answer_reveal(q: Question) -> dict:
-    """Mirror of gateway._answer_reveal — derive correct-answer facts from answer_data."""
-    if q.grading_type == "COMPLETENESS":
-        return {"type": "completeness"}
-    if q.type == "multiple_choice":
-        pts: list[float] = q.answer_data.get("answer_points", [])
-        return {
-            "type": "multiple_choice",
-            "correctIndices": [i for i, p in enumerate(pts) if p >= q.points_value],
-        }
-    if q.type == "true_false":
-        pts_map: dict = q.answer_data.get("answer_points", {})
-        return {
-            "type": "true_false",
-            "correctValue": pts_map.get("true", 0) >= q.points_value,
-        }
-    if q.type == "fill_in_the_blank":
-        return {
-            "type": "fill_in_the_blank",
-            "acceptedAnswers": q.answer_data.get("acceptedAnswers", []),
-            "editDistance": q.answer_data.get("editDistance", 0),
-        }
-    return {}
-
-
-def _extract_answer_key(q_type: str, answer_data: dict | None) -> str | None:
-    """Convert a player's answer_data blob into the distribution key used for charting."""
-    if not answer_data:
-        return None
-    if q_type == "multiple_choice":
-        idx = answer_data.get("selectedIndex")
-        return str(idx) if idx is not None else None
-    if q_type == "true_false":
-        val = answer_data.get("selectedValue")
-        return "true" if val else "false" if val is not None else None
-    if q_type == "fill_in_the_blank":
-        text = answer_data.get("text", "").strip()
-        return text.lower() if text else None
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -146,6 +106,21 @@ def _render_bar_chart(
                 "correct": (i in reveal.get("correctIndices", []))
                 if reveal.get("type") == "multiple_choice"
                 else None,
+            }
+            for i, opt in enumerate(options)
+        ]
+    elif q.type == "multi_select":
+        points = (
+            reveal.get("answerPoints", [])
+            if reveal.get("type") == "multi_select"
+            else []
+        )
+        bars = [
+            {
+                "label": f"{_OPTION_LETTERS[i]} {_esc(opt)}",
+                "count": dist.get(str(i), 0),
+                # an option is "right" when picking it earns points
+                "correct": (points[i] > 0) if i < len(points) else None,
             }
             for i, opt in enumerate(options)
         ]
@@ -310,6 +285,7 @@ body{
 .badge-mc{background:#1e3a5f;color:#93c5fd}
 .badge-tf{background:#1a3a2a;color:#86efac}
 .badge-fitb{background:#3b2f1e;color:#fbbf24}
+.badge-ms{background:#2e1f4a;color:#c4b5fd}
 .badge-accuracy{background:#2e1b3d;color:#c084fc}
 .badge-completeness{background:#2d2d1a;color:#fde68a}
 .q-timing{margin-left:auto;color:#475569;font-size:0.78rem}
@@ -429,19 +405,19 @@ async def build_session_report(db: AsyncSession, session_id: str) -> tuple[str, 
 
         dist: dict[str, int] = defaultdict(int)
         for s in q_scores:
-            key = _extract_answer_key(q.type, s.answer_data)
-            if key is not None:
+            for key in distribution_keys_for(q, s.answer_data):
                 dist[key] += 1
 
-        reveal = _answer_reveal(q)
+        reveal = answer_reveal(q)
         is_accuracy = q.grading_type == "ACCURACY"
 
-        type_badge = {
-            "multiple_choice": ("Multiple Choice", "badge-mc"),
-            "true_false": ("True / False", "badge-tf"),
-            "fill_in_the_blank": ("Fill in the Blank", "badge-fitb"),
-        }.get(q.type, (q.type, ""))
-        type_label, type_class = type_badge
+        type_label = label_for(q.type)
+        type_class = {
+            "multiple_choice": "badge-mc",
+            "true_false": "badge-tf",
+            "fill_in_the_blank": "badge-fitb",
+            "multi_select": "badge-ms",
+        }.get(q.type, "")
 
         grading_label = "Accuracy" if is_accuracy else "Completeness"
         grading_class = "badge-accuracy" if is_accuracy else "badge-completeness"
@@ -449,7 +425,7 @@ async def build_session_report(db: AsyncSession, session_id: str) -> tuple[str, 
         pts_val = f"{q.points_value:g}"
         pts_label = f"{pts_val} pt{'s' if q.points_value != 1 else ''}"
 
-        if q.type in ("multiple_choice", "true_false"):
+        if q.type in ("multiple_choice", "true_false", "multi_select"):
             chart = _render_bar_chart(q, dict(dist), reveal, total_players)
         elif q.type == "fill_in_the_blank":
             chart = _render_word_cloud(q, dict(dist), reveal)

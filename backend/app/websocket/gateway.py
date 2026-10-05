@@ -32,6 +32,7 @@ from ..redis_client import get_redis
 from ..services import game_service
 from ..services import state_service as state
 from ..services.auth_service import get_user_by_id
+from ..services.question_types import answer_reveal, payload_extras, validate_answer
 from . import events as E
 from .middleware import authenticate_socket
 
@@ -113,8 +114,7 @@ def _question_payload(q: Question, number: int, total: int) -> dict:
         "questionNumber": number,
         "totalQuestions": total,
     }
-    if q.type == "fill_in_the_blank":
-        payload["editDistance"] = q.answer_data.get("editDistance", 0)
+    payload.update(payload_extras(q))
     return payload
 
 
@@ -132,35 +132,6 @@ async def _host_question_payload(db, current_q: dict | None) -> dict | None:
         "started_at"
     ]  # ISO timestamp so client can compute remaining time
     return payload
-
-
-def _answer_reveal(q: Question) -> dict:
-    """
-    Derive a client-safe correct-answer reveal from answer_data.
-    answer_data is NEVER forwarded directly — only derived facts are sent.
-    """
-    if q.grading_type == "COMPLETENESS":
-        return {"type": "completeness"}
-    if q.type == "multiple_choice":
-        pts: list[int] = q.answer_data.get("answer_points", [])
-        correct = [i for i, p in enumerate(pts) if p >= q.points_value]
-        return {"type": "multiple_choice", "correctIndices": correct}
-    if q.type == "true_false":
-        pts_map: dict = q.answer_data.get("answer_points", {})
-        correct_true = pts_map.get("true", 0) >= q.points_value
-        return {"type": "true_false", "correctValue": correct_true}
-    if q.type == "fill_in_the_blank":
-        return {
-            "type": "fill_in_the_blank",
-            "acceptedAnswers": q.answer_data.get("acceptedAnswers", []),
-            "editDistance": q.answer_data.get("editDistance", 0),
-        }
-    if q.type == "multi_select":
-        return {
-            "type": "multi_select",
-            "answerPoints": q.answer_data.get("answer_points", []),
-        }
-    return {}
 
 
 async def _emit_error(sid: str, message: str) -> None:
@@ -910,7 +881,7 @@ async def _on_host_advance_impl(sid: str) -> None:
                 await _emit_error(sid, "Question record missing")
                 return
 
-            reveal = _answer_reveal(question)
+            reveal = answer_reveal(question)
             answer_dist = await state.get_answer_dist(redis, session_id, question.id)
             leaderboard = await game_service.get_leaderboard(db, session_id)
             players = await state.get_all_players(redis, session_id)
@@ -1182,22 +1153,10 @@ async def on_submit_answer(sid: str, data: dict) -> None:
             await _emit_error(sid, "Question not found")
             return
 
-        if question.type == "multi_select":
-            indices = answer_data.get("selectedIndices")
-            if not isinstance(indices, list) or not all(
-                isinstance(i, int) for i in indices
-            ):
-                await _emit_error(
-                    sid,
-                    "multi_select answer must include selectedIndices as a list of integers",
-                )
-                return
-            num_opts = len(question.config.get("options", []))
-            if any(not (0 <= i < num_opts) for i in indices):
-                await _emit_error(
-                    sid, "selectedIndices contains an out-of-bounds index"
-                )
-                return
+        problem = validate_answer(question, answer_data)
+        if problem:
+            await _emit_error(sid, problem)
+            return
 
         result = await game_service.record_answer(
             db, redis, session_id, user_id, question, answer_data, answer_time_ms
