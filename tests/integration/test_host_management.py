@@ -529,6 +529,34 @@ async def test_stale_in_progress_session_becomes_downloadable(world: World):
     assert w.req("GET", f"/sessions/{room['session_id']}/export", w.host_a).status_code == 200
 
 
+async def test_exports_work_with_non_ascii_titles(world: World):
+    """A title in Chinese (alphanumeric, but not latin-1) used to make the download
+    endpoints fail with a 500 while building the Content-Disposition header."""
+    w = world
+    game = w.ok(
+        "POST", f"/courses/{w.course_a}/games", w.host_a, json={"title": "数据库基础"}, status=201
+    )
+    w.track_game(game["id"])
+    for path in (f"/games/{game['id']}/export", f"/admin/games/{game['id']}/export"):
+        r = w.req("GET", path, w.host_a if path.startswith("/games") else None)
+        assert r.status_code == 200, f"{path}: {r.status_code}"
+        r.headers["content-disposition"].encode("latin-1")
+        assert "数据库基础" in r.content.decode(), "the bundle itself keeps the real title"
+
+    # Canvas CSV with a Chinese assignment title (any readable session will do).
+    room, host, player = await play_one_answer(w, w.game_a, w.course_a, finish=False)
+    await host.disconnect()
+    await player.disconnect()
+    redis_del_room(room["room_code"])
+    r = w.req(
+        "GET",
+        f"/sessions/{room['session_id']}/export?format=canvas&title=数据库",
+        w.host_a,
+    )
+    assert r.status_code == 200, r.text
+    r.headers["content-disposition"].encode("latin-1")
+
+
 # ---------------------------------------------------------------------------
 # Deletes
 # ---------------------------------------------------------------------------
