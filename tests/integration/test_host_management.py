@@ -542,9 +542,24 @@ def test_host_delete_removes_empty_abandoned_lobby(world: World):
     assert room["session_id"] not in {s["session_id"] for s in w.ok("GET", "/admin/sessions")}
 
 
-async def test_admin_delete_ends_live_room(world: World):
-    w = world
-    game_id, _ = w.admin_game(w.course_a, time_limit=2)
+def backend_logged(event: str, session_id: str) -> bool:
+    """True if the backend logged `event` for this session. A cancelled question timer leaves
+    no socket trace (its host-room emit would need a socket still in the room), but a timer
+    that expires logs `question_timer_expired` with its session id."""
+    out = subprocess.run(
+        ["docker", "compose", "logs", "--no-color", "backend"],
+        cwd=_REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return any(event in line and session_id in line for line in out.splitlines())
+
+
+async def _start_timed_question(w: World, time_limit: int):
+    """Open a room on a fresh game and start its (short) question. Returns
+    (game_id, room, host, player); the caller disconnects both clients."""
+    game_id, _ = w.admin_game(w.course_a, time_limit=time_limit)
     room = w.room(game_id, w.course_a)
     code = room["room_code"]
     host = TestSocketClient(w.base, w.admin, "host")
@@ -555,17 +570,36 @@ async def test_admin_delete_ends_live_room(world: World):
     await player.connect()
     await player.emit("join_room", {"room_code": code, "role": "PLAYER"})
     await player.wait_for("sync_state")
+    await host.emit("host_advance", {})
+    await player.wait_for("new_question")
+    return game_id, room, host, player
+
+
+async def test_question_timer_expiry_is_visible_in_backend_logs(world: World):
+    """Control for the next test: without a delete, the timer expires and is logged, so
+    the log probe really can see a timer that fires."""
+    w = world
+    game_id, room, host, player = await _start_timed_question(w, time_limit=2)
     try:
-        # Start a question with a running timer, then delete the game mid-question.
-        await host.emit("host_advance", {})
-        q = await player.wait_for("new_question")
+        await host.wait_for("answer_phase_ended", timeout=6)
+        assert backend_logged("question_timer_expired", room["session_id"])
+    finally:
+        await player.disconnect()
+        await host.disconnect()
+
+
+async def test_admin_delete_ends_live_room(world: World):
+    w = world
+    game_id, room, host, player = await _start_timed_question(w, time_limit=2)
+    code = room["room_code"]
+    try:
         w.ok("DELETE", f"/admin/games/{game_id}", status=204)
         await player.wait_for("game_abandoned", timeout=5)
-        player.drain("question_results")
-        # The question's timer must not fire after the delete.
-        await asyncio.sleep(q["timeLimitSeconds"] + 2)
-        with pytest.raises(asyncio.TimeoutError):
-            await player.wait_for("question_results", timeout=0.5)
+        # The question's timer must not fire after the delete. Its only effects are an
+        # emit to the host room (which the host socket has left) and a log line, so the
+        # log is what we check, after the 2 s limit has passed.
+        await asyncio.sleep(4)
+        assert not backend_logged("question_timer_expired", room["session_id"])
     finally:
         await player.disconnect()
         await host.disconnect()
@@ -573,22 +607,18 @@ async def test_admin_delete_ends_live_room(world: World):
     assert w.req("GET", f"/admin/games/{game_id}").status_code == 404
 
 
-async def test_admin_delete_spares_reused_room_code(world: World):
-    """Room codes are reused once a room expires. Deleting a game must not abandon or
-    wipe a different session that now holds the old session's code."""
+async def test_admin_delete_leaves_a_room_key_owned_by_another_session(world: World):
+    """Guard in end_session_from_rest: the room key is only deleted while it still holds
+    this session's id. This cannot happen through the API today (game_sessions.room_code
+    is UNIQUE, so a code is never reused), so the other session's room key is made by hand
+    and only the key is asserted: no socket can be a bystander of a session that has no
+    MySQL row."""
     w = world
     room = w.room(w.game_a, w.course_a)
     code = room["room_code"]
     other = {"session_id": f"other-{_tag()}", "status": "LOBBY", "course_id": w.course_b}
-    redis_set_room(code, other)  # the code now belongs to someone else's live game
-    bystander = TestSocketClient(w.base, w.guest(code), "bystander")
-    await bystander.connect()
-    try:
-        w.ok("DELETE", f"/admin/games/{w.game_a}", status=204)
-        with pytest.raises(asyncio.TimeoutError):
-            await bystander.wait_for("game_abandoned", timeout=1)
-    finally:
-        await bystander.disconnect()
+    redis_set_room(code, other)
+    w.ok("DELETE", f"/admin/games/{w.game_a}", status=204)
     assert redis_get_room(code) == other
     redis_del_room(code)
 
