@@ -442,6 +442,47 @@ def test_roster_add_only_and_replace_dry_run(world: World):
     assert w.req("POST", f"{path}?mode=wipe", w.host_a, json={"rows": rows}).status_code == 422
 
 
+def test_replace_refuses_an_upload_cut_at_the_row_limit(world: World):
+    """Replace deactivates everyone missing from the upload; rows past the 1000-row limit
+    are not processed, so their students must not be deactivated. Dry runs only: nothing
+    is written either way."""
+    w = world
+    keep = f"keep{_tag()}"
+    path = f"/courses/{w.course_a}/roster/import"
+    w.ok(
+        "POST",
+        path,
+        w.host_a,
+        json={"rows": [{"netid": keep, "full_name": "Keep", "email": f"{keep}@example.com"}]},
+    )
+    rows = [{"netid": f"n{i}", "full_name": "S", "email": f"n{i}@example.com"} for i in range(1001)]
+
+    r = w.req("POST", f"{path}?mode=replace&dry_run=true", w.host_a, json={"rows": rows})
+    assert r.status_code == 422 and err(r) == "ROSTER_TOO_LARGE", r.text
+    r = w.req("POST", f"{path}?mode=replace", w.host_a, json={"rows": rows})
+    assert r.status_code == 422 and err(r) == "ROSTER_TOO_LARGE", r.text
+
+    csv_text = "Student,SIS Login ID\nPoints Possible,\n" + "".join(
+        f"Last{i}, First{i},n{i}@wisc.edu\n" for i in range(1001)
+    )
+    r = w.req(
+        "POST",
+        f"/courses/{w.course_a}/roster?mode=replace&dry_run=true",
+        w.host_a,
+        files={"file": ("roster.csv", csv_text.encode())},
+    )
+    assert r.status_code == 422 and err(r) == "ROSTER_TOO_LARGE", r.text
+
+    # add_only never deactivates anyone, so it keeps the old behaviour: process the first
+    # 1000 rows and report the rest.
+    res = w.ok("POST", f"{path}?mode=add_only&dry_run=true", w.host_a, json={"rows": rows})
+    assert res["imported"] == 1000 and res["deactivated"] == 0
+    assert any("1000-row limit" in e for e in res["errors"])
+
+    still = [e for e in w.ok("GET", f"/courses/{w.course_a}/roster", w.host_a) if e["netid"] == keep]
+    assert still and still[0]["is_active"], "the existing student must not be deactivated"
+
+
 # ---------------------------------------------------------------------------
 # Locked games, downloads
 # ---------------------------------------------------------------------------
