@@ -22,6 +22,8 @@ export default function HomePage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // Kept apart from `error` (session deletes) so a failed load doesn't claim "no courses"
+  const [loadFailed, setLoadFailed] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,6 +34,7 @@ export default function HomePage() {
       setCourses(c);
       setActiveSessions(s);
     }).catch((err) => {
+      setLoadFailed(true);
       setError(err instanceof Error ? err.message : 'Failed to load courses. Are you still logged in?');
     }).finally(() => setLoading(false));
   }, []);
@@ -121,7 +124,7 @@ export default function HomePage() {
           {error && <p className="text-red-400 text-sm">{error}</p>}
           {loading ? (
             <p className="text-slate-400 text-sm">Loading…</p>
-          ) : courses.length === 0 ? (
+          ) : loadFailed ? null : courses.length === 0 ? (
             <p className="text-slate-400 text-sm">
               You are not a host of any course yet. Ask an admin to grant you HOST access to a course.
             </p>
