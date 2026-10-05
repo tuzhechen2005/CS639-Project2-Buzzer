@@ -7,12 +7,18 @@ from datetime import datetime, timezone
 import structlog
 from rapidfuzz.distance import Levenshtein
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..common.exceptions import ConflictError, ForbiddenError, NotFoundError
-from ..models.course import CourseRoster, UserCourseAccess
+from ..common.exceptions import (
+    BuzzerError,
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+)
+from ..models.course import Course, CourseRoster, UserCourseAccess
 from ..models.game import Game, Question, UserGameAccess
 from ..models.session import GameSession, SessionScore
 from ..models.user import User
@@ -40,49 +46,246 @@ async def generate_room_code(redis: Redis) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Access validation helpers
+# Permission and integrity rules (docs/plans/t4-ui-restructuring.md §B)
+#
+# can_* are bool predicates; their assert_* twins raise ForbiddenError. Admins pass
+# every permission rule. The integrity rules (system course, locked, live) apply to
+# admins too and raise 409 with a specific error code.
 # ---------------------------------------------------------------------------
 
+_LIVE_STATUSES = ("LOBBY", "IN_PROGRESS")
+FINISHED_STATUSES = ("COMPLETED", "ABANDONED")
 
-async def assert_host_can_use_course(
-    db: AsyncSession, user: User, course_id: int
-) -> None:
-    """Admin can use any course; USER must have HOST role in user_course_access."""
-    if user.role == "ADMIN":
-        from ..models.course import Course
 
-        course = await db.get(Course, course_id)
-        if not course:
-            raise NotFoundError(f"Course {course_id} not found")
-        return
+def integrity_error(code: str, message: str) -> BuzzerError:
+    return BuzzerError(code, message, 409)
 
+
+async def get_course_or_404(db: AsyncSession, course_id: int) -> Course:
+    course = await db.get(Course, course_id)
+    if not course:
+        raise NotFoundError(f"Course {course_id} not found")
+    return course
+
+
+async def get_game_or_404(db: AsyncSession, game_id: int) -> Game:
+    game = await db.get(Game, game_id)
+    if not game:
+        raise NotFoundError(f"Game {game_id} not found")
+    return game
+
+
+async def is_course_host(db: AsyncSession, user_id: str, course_id: int) -> bool:
     result = await db.execute(
-        select(UserCourseAccess).where(
-            UserCourseAccess.user_id == user.id,
+        select(UserCourseAccess.user_id).where(
+            UserCourseAccess.user_id == user_id,
             UserCourseAccess.course_id == course_id,
             UserCourseAccess.role == "HOST",
         )
     )
-    if not result.scalar_one_or_none():
+    return result.first() is not None
+
+
+async def has_game_grant(db: AsyncSession, user_id: str, game_id: int) -> bool:
+    result = await db.execute(
+        select(UserGameAccess.user_id).where(
+            UserGameAccess.user_id == user_id, UserGameAccess.game_id == game_id
+        )
+    )
+    return result.first() is not None
+
+
+async def can_manage_course(db: AsyncSession, user: User, course_id: int) -> bool:
+    """ADMIN, or HOST of the course. Says nothing about the system course."""
+    if user.role == "ADMIN":
+        return True
+    return await is_course_host(db, user.id, course_id)
+
+
+async def assert_can_manage_course(
+    db: AsyncSession, user: User, course_id: int
+) -> None:
+    if not await can_manage_course(db, user, course_id):
         raise ForbiddenError("You do not have HOST access to this course")
 
 
-async def assert_host_can_use_game(db: AsyncSession, user: User, game_id: int) -> None:
-    """Admin can use any game; USER must have an entry in user_game_access."""
+async def can_use_game(db: AsyncSession, user: User, game: Game) -> bool:
+    """ADMIN, or (HOST of the game's course AND a game grant)."""
     if user.role == "ADMIN":
-        game = await db.get(Game, game_id)
-        if not game:
-            raise NotFoundError(f"Game {game_id} not found")
-        return
+        return True
+    return await is_course_host(db, user.id, game.course_id) and await has_game_grant(
+        db, user.id, game.id
+    )
 
+
+async def assert_can_use_game(db: AsyncSession, user: User, game: Game) -> None:
+    if not await can_use_game(db, user, game):
+        raise ForbiddenError("You do not have access to this game")
+
+
+async def granted_game_ids(
+    db: AsyncSession, user_id: str, game_ids: list[int]
+) -> set[int]:
+    """The subset of game_ids the user holds a grant for (one query)."""
+    if not game_ids:
+        return set()
     result = await db.execute(
-        select(UserGameAccess).where(
-            UserGameAccess.user_id == user.id,
-            UserGameAccess.game_id == game_id,
+        select(UserGameAccess.game_id).where(
+            UserGameAccess.user_id == user_id, UserGameAccess.game_id.in_(game_ids)
         )
     )
-    if not result.scalar_one_or_none():
-        raise ForbiddenError("You do not have access to this game")
+    return set(result.scalars().all())
+
+
+async def can_read_session(db: AsyncSession, user: User, session: GameSession) -> bool:
+    return await can_manage_course(db, user, session.course_id)
+
+
+async def assert_can_read_session(
+    db: AsyncSession, user: User, session: GameSession
+) -> None:
+    if not await can_read_session(db, user, session):
+        raise ForbiddenError("You do not have HOST access to this session's course")
+
+
+def assert_not_system_course(course: Course) -> None:
+    if course.is_system:
+        raise integrity_error(
+            "SYSTEM_COURSE",
+            "The Unassigned course can't be used for this. "
+            "Move the game to a real course first.",
+        )
+
+
+async def locked_game_ids(db: AsyncSession, game_ids: list[int]) -> set[int]:
+    """Games (of game_ids) with at least one recorded answer, in one grouped query."""
+    if not game_ids:
+        return set()
+    result = await db.execute(
+        select(GameSession.game_id)
+        .join(SessionScore, SessionScore.session_id == GameSession.id)
+        .where(GameSession.game_id.in_(game_ids))
+        .group_by(GameSession.game_id)
+    )
+    return set(result.scalars().all())
+
+
+async def is_locked(db: AsyncSession, game_id: int) -> bool:
+    return game_id in await locked_game_ids(db, [game_id])
+
+
+async def reconcile_session_status(
+    db: AsyncSession, redis: Redis, session: GameSession
+) -> bool:
+    """
+    Return whether a LOBBY/IN_PROGRESS session is really live, deciding by its Redis
+    room. A session whose room key is gone is marked ABANDONED (MySQL status goes stale
+    when a lobby expires or a restart loses the host-abandon timer). If Redis is
+    unreachable the session counts as live and nothing is written.
+    """
+    if session.status not in _LIVE_STATUSES:
+        return False
+    try:
+        room = await state.get_room_state(redis, session.room_code)
+    except (RedisError, OSError) as exc:
+        logger.warning(
+            "reconcile_redis_unreachable", session_id=session.id, error=str(exc)
+        )
+        return True
+    if room is None or room.get("session_id") not in (None, session.id):
+        session.status = "ABANDONED"
+        session.completed_at = session.completed_at or datetime.now(timezone.utc)
+        await db.flush()
+        logger.info("session_reconciled_abandoned", session_id=session.id)
+        return False
+    return room.get("status") in _LIVE_STATUSES
+
+
+async def is_live(db: AsyncSession, redis: Redis, game_id: int) -> bool:
+    result = await db.execute(
+        select(GameSession).where(
+            GameSession.game_id == game_id, GameSession.status.in_(_LIVE_STATUSES)
+        )
+    )
+    live = False
+    for session in result.scalars().all():
+        # Reconcile every session, not just until the first live one, so stale rows
+        # are cleaned up in one pass.
+        if await reconcile_session_status(db, redis, session):
+            live = True
+    return live
+
+
+async def assert_questions_editable(db: AsyncSession, redis: Redis, game: Game) -> None:
+    """Locked is checked before live, so is_live (and its ABANDONED write) runs only
+    for games without recorded answers."""
+    if await is_locked(db, game.id):
+        raise integrity_error(
+            "GAME_LOCKED",
+            "This game has been played, so its questions can't change. "
+            "Duplicate it to make an editable copy.",
+        )
+    if await is_live(db, redis, game.id):
+        raise integrity_error(
+            "GAME_LIVE", "This game has a room open right now. Try again when it ends."
+        )
+
+
+async def check_can_delete_game(
+    db: AsyncSession, redis: Redis, user: User, game: Game
+) -> list[GameSession]:
+    """
+    Step 1 of the router-orchestrated delete: check permission and the delete rules,
+    write nothing that matters, and return every session the router must end (step 2)
+    before the rows are deleted (step 3).
+    """
+    await assert_can_use_game(db, user, game)
+    if user.role != "ADMIN":
+        await assert_questions_editable(db, redis, game)
+    result = await db.execute(select(GameSession).where(GameSession.game_id == game.id))
+    return list(result.scalars().all())
+
+
+# ---------------------------------------------------------------------------
+# Game grants
+# ---------------------------------------------------------------------------
+
+
+async def grant_game(db: AsyncSession, user_id: str, game_id: int) -> None:
+    """Idempotent: an existing (user, game) row is left as is."""
+    if not await has_game_grant(db, user_id, game_id):
+        db.add(UserGameAccess(user_id=user_id, game_id=game_id))
+        await db.flush()
+
+
+async def grant_game_to_course_hosts(
+    db: AsyncSession, game_id: int, course_id: int
+) -> None:
+    result = await db.execute(
+        select(UserCourseAccess.user_id).where(
+            UserCourseAccess.course_id == course_id, UserCourseAccess.role == "HOST"
+        )
+    )
+    for user_id in result.scalars().all():
+        await grant_game(db, user_id, game_id)
+
+
+async def apply_creation_grants(db: AsyncSession, actor: User, game: Game) -> None:
+    """A host's new game is granted to that host; an admin's to every HOST of its course."""
+    if actor.role == "ADMIN":
+        await grant_game_to_course_hosts(db, game.id, game.course_id)
+    else:
+        await grant_game(db, actor.id, game.id)
+
+
+async def assert_can_grant_game(db: AsyncSession, user_id: str, game: Game) -> None:
+    course = await get_course_or_404(db, game.course_id)
+    assert_not_system_course(course)
+    if not await is_course_host(db, user_id, game.course_id):
+        raise integrity_error(
+            "NOT_COURSE_HOST",
+            "This user isn't a HOST of the game's course. Grant course HOST access first.",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -98,9 +301,14 @@ async def create_room(
     course_id: int,
     max_rooms: int = 50,
 ) -> GameSession:
-    # Validate access
-    await assert_host_can_use_course(db, host, course_id)
-    await assert_host_can_use_game(db, host, game_id)
+    # Check order (§B): 404 → 403 → 400 → 409. The course is the game's course.
+    game = await get_game_or_404(db, game_id)
+    await assert_can_use_game(db, host, game)
+    if course_id != game.course_id:
+        raise BuzzerError(
+            "COURSE_MISMATCH", "This game belongs to a different course", 400
+        )
+    assert_not_system_course(await get_course_or_404(db, game.course_id))
 
     # Enforce global room limit — count only LOBBY/IN_PROGRESS rooms.
     # COMPLETED/ABANDONED rooms may linger in Redis briefly for reconnection
@@ -120,7 +328,6 @@ async def create_room(
     if room_count >= max_rooms:
         raise ConflictError(f"Maximum of {max_rooms} concurrent rooms reached")
 
-    await db.get(Game, game_id)
     room_code = await generate_room_code(redis)
 
     session = GameSession(

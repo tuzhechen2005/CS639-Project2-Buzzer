@@ -305,6 +305,43 @@ async def _host_abandon_task(session_id: str, room_code: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Ending a session from REST (called only by routers — services never import this
+# module; see docs/plans/t4-ui-restructuring.md §B, "Ending a session from REST")
+# ---------------------------------------------------------------------------
+
+
+async def end_session_from_rest(session_id: str, room_code: str) -> None:
+    """
+    Step 2 of a router-orchestrated delete: end a session's live state without touching
+    MySQL. Safe to call when the room is long gone — each step is then a no-op.
+    """
+    redis = await get_redis()
+    room_state = await state.get_room_state(redis, room_code)
+
+    # a. Tell connected clients, unless they are on the game-over screen.
+    if not (room_state and room_state.get("status") == "COMPLETED"):
+        await sio.emit(E.GAME_ABANDONED, {}, to=room_code)
+
+    # b. Stop this process's timers for the session.
+    for tasks in (_timer_tasks, _abandon_tasks):
+        task = tasks.pop(session_id, None)
+        if task:
+            task.cancel()
+
+    # c. Detach its sockets from the room and host room. Sockets stay connected;
+    #    later events from them find no _sid_ctx entry and are ignored.
+    for sid, ctx in list(_sid_ctx.items()):
+        if ctx["session_id"] == session_id:
+            await sio.leave_room(sid, room_code)
+            await sio.leave_room(sid, _host_room(room_code))
+            _sid_ctx.pop(sid, None)
+
+    # d. Remove its Redis state.
+    await state.delete_room_state(redis, room_code, session_id)
+    logger.info("session_ended_from_rest", session_id=session_id, room=room_code)
+
+
+# ---------------------------------------------------------------------------
 # connect / disconnect
 # ---------------------------------------------------------------------------
 
