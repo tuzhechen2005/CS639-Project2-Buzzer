@@ -393,7 +393,10 @@ def test_course_sessions_list_is_course_scoped(world: World):
 def test_guest_token_cannot_use_host_screens(world: World, path: str):
     w = world
     room = w.room(w.game_a, w.course_a)
-    guest = w.guest(room["room_code"])
-    r = w.req("GET", path.format(a=w.course_a, g=w.game_a, s=room["session_id"]), guest)
-    assert r.status_code == 403
-    w.ok("DELETE", f"/game/sessions/{room['session_id']}", status=204)
+    try:
+        guest = w.guest(room["room_code"])
+        r = w.req("GET", path.format(a=w.course_a, g=w.game_a, s=room["session_id"]), guest)
+        assert r.status_code == 403
+    finally:
+        # A live room left behind would make later tests on game_a fail with GAME_LIVE.
+        w.ok("DELETE", f"/game/sessions/{room['session_id']}", status=204)
