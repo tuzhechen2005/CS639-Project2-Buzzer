@@ -33,6 +33,7 @@ from ..schemas.admin import (
     QuestionUpdate,
 )
 from . import game_service
+from .question_types import validate_definition
 from .game_service import (
     FINISHED_STATUSES,
     apply_creation_grants,
@@ -347,6 +348,12 @@ async def update_question(
         question.points_value = body.points_value
     if body.order_index is not None:
         question.order_index = body.order_index
+    # Update must enforce the same structure as create: validate the merged result, so a
+    # partial update (say, only `type`) cannot leave a config that does not match it.
+    try:
+        validate_definition(question)
+    except ValueError as exc:
+        raise BuzzerError("VALIDATION_ERROR", str(exc), 422) from exc
     await db.flush()
     await db.refresh(question)
     return question
