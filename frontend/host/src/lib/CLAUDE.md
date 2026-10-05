@@ -5,13 +5,14 @@ Tiny shared helpers for the host app: the REST client and the Tailwind class-mer
 
 ## Contents
 - `api.ts` — `api.get/post/put/patch/delete` over `fetch`, prefixed with `/api`, plus
-  `postForm(path, FormData)` (multipart upload; the browser sets the boundary) and
+  `postForm(path, FormData)` / `putForm` (multipart upload or replace; the browser sets the boundary) and
   `download(path)` (authenticated GET saved as a file, name from `Content-Disposition`). Attaches
   `Authorization: Bearer <localStorage.token>` when present and returns `{}` for empty bodies
   (204). Errors throw `Error(text)` where `text` is, in order: `body.message`, `body.detail` if a
   string, the joined `msg` fields of a 422 `detail` array, else `HTTP <status>`.
 - `utils.ts` — `cn(...)` = `twMerge(clsx(...))`, used by every `components/ui` primitive.
-- `images.ts` — (T8) `imageUrl(id)` → `/api/images/{id}`. Question `config` may carry
+- `images.ts` — (T8) `imageUrl(id, version?)` → `/api/images/{id}` (`?v=<sha256>` in the editor,
+  so a replaced image is not served from the 60 s browser cache). Question `config` may carry
   `image_id` and `option_image_ids` (parallel to `options`); see `types/game.ts` `QuestionConfig`.
 
 ## How it fits in

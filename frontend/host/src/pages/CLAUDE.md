@@ -34,6 +34,12 @@ over) driven by Socket.io events from the backend.
   are read-only with Duplicate. Answer keys are shown only here. The numeric_estimate form (target,
   mode, unit, 1-5 bands; `points_value` is the first band's points) validates inline with
   `numericProblems`, mirroring `backend/app/services/question_types.py`; the server is the authority.
+- `course/ImageLibrary.tsx` — (T8) `useImageLibrary(gameId)` (list, upload, replace, delete; 2 MB
+  checked before sending; server messages such as `IMAGE_IN_USE` shown as-is),
+  `ImageLibraryPanel` (thumbnails, size, "Used by Q…"/"Unused", Replace/Delete, disabled when the
+  game is locked) and `ImagePicker` (choose from the library, upload inline, or clear). The editor
+  keeps an option's picture on the option (`McOption.imageId`), so it moves with the option, and
+  writes `config.image_id` / `config.option_image_ids` only when set.
 - `course/RosterTab.tsx` — moved from the admin app. Client-side CSV wizard (`parseCSV`, Canvas
   auto-detection, column mapping) posting mapped rows to `POST /courses/:id/roster/import`, with
   an **Add only (default) / Replace** mode, a mandatory dry-run preview (`dry_run=true`) and, in
