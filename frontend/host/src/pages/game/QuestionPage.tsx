@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useGame } from './GameLayout';
 import { Button } from '../../components/ui/button';
 import { TimerBar } from '../../components/ui/TimerBar';
+import { QuestionImage } from '../../components/ui/QuestionImage';
 
 export default function QuestionPage() {
   const { currentQuestion, answeredCount, playerCount, allAnswered, answerPhaseEnded, questionLocked, lockedTimerSeconds, autoAdvance, emitAdvance, emitLockQuestion } = useGame();
@@ -74,6 +75,14 @@ export default function QuestionPage() {
         <h2 className="text-4xl font-bold text-slate-100 text-center max-w-3xl leading-tight">
           {currentQuestion.prompt}
         </h2>
+      )}
+
+      {!questionLocked && (
+        <QuestionImage
+          imageId={currentQuestion.config.image_id}
+          alt="Image for the question"
+          className="w-full max-w-3xl h-[40vh]"
+        />
       )}
 
       <div className="text-slate-300 text-xl">

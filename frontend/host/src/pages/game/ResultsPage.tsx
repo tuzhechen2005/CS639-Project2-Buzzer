@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useGame } from './GameLayout';
 import { Button } from '../../components/ui/button';
-import type { AnswerReveal } from '../../types/game';
+import { QuestionImage } from '../../components/ui/QuestionImage';
+import type { AnswerReveal, QuestionConfig } from '../../types/game';
 
 const RESULTS_DISPLAY_SECONDS = 10;
 
@@ -112,13 +113,15 @@ function WordCloud({ distribution, answerReveal, totalAnswered, totalPlayers }: 
 // ---------------------------------------------------------------------------
 
 interface BarChartProps {
-  bars: { label: string; count: number; correct: boolean | null }[];
+  bars: { label: string; count: number; correct: boolean | null; imageId?: string | null; imageAlt?: string }[];
   totalAnswered: number;
   totalPlayers: number;
 }
 
 function AnswerBarChart({ bars, totalAnswered, totalPlayers }: BarChartProps) {
   const maxCount = Math.max(...bars.map(b => b.count), 1);
+  // Keep the bars aligned when only some options have a picture.
+  const anyImage = bars.some(b => b.imageId);
 
   return (
     <div className="w-full max-w-2xl space-y-3">
@@ -136,6 +139,16 @@ function AnswerBarChart({ bars, totalAnswered, totalPlayers }: BarChartProps) {
             <span className="text-slate-300 font-bold font-mono w-8 text-right shrink-0">
               {bar.label}
             </span>
+            {anyImage && (
+              <span className="h-10 w-14 shrink-0">
+                <QuestionImage
+                  imageId={bar.imageId}
+                  alt={bar.imageAlt ?? bar.label}
+                  className="h-full w-full"
+                  fallbackText={null}
+                />
+              </span>
+            )}
             <div className="flex-1 bg-slate-800 rounded-full h-10 overflow-hidden">
               <div
                 className={`h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500 ${barColor}`}
@@ -166,14 +179,17 @@ function AnswerBarChart({ bars, totalAnswered, totalPlayers }: BarChartProps) {
 function buildBars(
   reveal: AnswerReveal,
   distribution: Record<string, number>,
-  options: string[] | undefined,
+  config: QuestionConfig | undefined,
 ): BarChartProps['bars'] {
+  const options = config?.options;
+  const image = (i: number, opt: string) => ({ imageId: config?.option_image_ids?.[i], imageAlt: opt });
   if (reveal.type === 'multiple_choice') {
     const opts = options ?? [];
     return opts.map((opt, i) => ({
       label: `${optionLabel(i)}  ${opt}`,
       count: distribution[String(i)] ?? 0,
       correct: reveal.correctIndices.includes(i),
+      ...image(i, opt),
     }));
   }
 
@@ -183,6 +199,7 @@ function buildBars(
       label: `${optionLabel(i)}  ${opt}`,
       count: distribution[String(i)] ?? 0,
       correct: (reveal.answerPoints[i] ?? 0) > 0,
+      ...image(i, opt),
     }));
   }
 
@@ -199,6 +216,7 @@ function buildBars(
       label: `${optionLabel(i)}  ${opt}`,
       count: distribution[String(i)] ?? 0,
       correct: null,
+      ...image(i, opt),
     }));
   }
 
@@ -243,7 +261,7 @@ export default function ResultsPage() {
       ? buildBars(
           questionResults.answerReveal,
           questionResults.answerDistribution,
-          currentQuestion?.config?.options,
+          currentQuestion?.config,
         )
       : [];
 
@@ -257,6 +275,14 @@ export default function ResultsPage() {
         <p className="text-slate-300 text-xl text-center max-w-2xl">
           {currentQuestion.prompt}
         </p>
+      )}
+
+      {currentQuestion && (
+        <QuestionImage
+          imageId={currentQuestion.config.image_id}
+          alt="Image for the question"
+          className="w-full max-w-md h-40"
+        />
       )}
 
       {questionResults && isFitb ? (
