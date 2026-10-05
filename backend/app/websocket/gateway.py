@@ -317,9 +317,20 @@ async def end_session_from_rest(session_id: str, room_code: str) -> None:
     """
     redis = await get_redis()
     room_state = await state.get_room_state(redis, room_code)
+    # Room codes are reused after a room expires. If the code now belongs to another
+    # session, leave the room key and the room's other sockets alone (same ownership
+    # rule as reconcile_session_status).
+    reused = room_state is not None and room_state.get("session_id") not in (
+        None,
+        session_id,
+    )
 
     # a. Tell connected clients, unless they are on the game-over screen.
-    if not (room_state and room_state.get("status") == "COMPLETED"):
+    if reused:
+        for sid, ctx in list(_sid_ctx.items()):
+            if ctx["session_id"] == session_id:
+                await sio.emit(E.GAME_ABANDONED, {}, to=sid)
+    elif not (room_state and room_state.get("status") == "COMPLETED"):
         await sio.emit(E.GAME_ABANDONED, {}, to=room_code)
 
     # b. Stop this process's timers for the session.
@@ -336,8 +347,10 @@ async def end_session_from_rest(session_id: str, room_code: str) -> None:
             await sio.leave_room(sid, _host_room(room_code))
             _sid_ctx.pop(sid, None)
 
-    # d. Remove its Redis state.
-    await state.delete_room_state(redis, room_code, session_id)
+    # d. Remove its Redis state (the room key only if it is still this session's).
+    await state.delete_room_state(
+        redis, room_code, session_id, delete_room_key=not reused
+    )
     logger.info("session_ended_from_rest", session_id=session_id, room=room_code)
 
 

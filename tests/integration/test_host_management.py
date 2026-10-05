@@ -12,6 +12,7 @@ as inert records, as in the rest of the suite). Redis room keys are removed thro
 from __future__ import annotations
 
 import asyncio
+import json
 import pathlib
 import subprocess
 import uuid
@@ -56,6 +57,40 @@ def redis_del_room(code: str) -> None:
         check=True,
         capture_output=True,
     )
+
+
+def redis_set_room(code: str, data: dict) -> None:
+    """Make a room key belong to a made-up session, as after a room code is reused."""
+    subprocess.run(
+        ["docker", "compose", "exec", "-T", "redis", "redis-cli", "SET", f"room:{code}", json.dumps(data)],
+        cwd=_REPO_ROOT,
+        check=True,
+        capture_output=True,
+    )
+
+
+def redis_get_room(code: str) -> dict | None:
+    out = subprocess.run(
+        ["docker", "compose", "exec", "-T", "redis", "redis-cli", "GET", f"room:{code}"],
+        cwd=_REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    return json.loads(out) if out else None
+
+
+def mysql(sql: str) -> str:
+    """Run SQL as root inside the mysql container (credentials come from its own env)."""
+    out = subprocess.run(
+        ["docker", "compose", "exec", "-T", "mysql", "sh", "-c",
+         'mysql -N -uroot -p"$MYSQL_ROOT_PASSWORD" buzzer -e "$0"', sql],
+        cwd=_REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return out.stdout.strip()
 
 
 def redis_room_exists(code: str) -> bool:
@@ -129,13 +164,16 @@ class World:
             status=204,
         )
 
-    def admin_game(self, course_id: int, questions: int = 1) -> tuple[int, list[int]]:
+    def admin_game(
+        self, course_id: int, questions: int = 1, time_limit: int = 30
+    ) -> tuple[int, list[int]]:
         g = self.ok(
             "POST", "/admin/games", json={"course_id": course_id, "title": f"T4 {_tag()}"}, status=201
         )
         self._games.append(g["id"])
         qids = [
-            self.ok("POST", f"/admin/games/{g['id']}/questions", json=MC_QUESTION, status=201)["id"]
+            self.ok("POST", f"/admin/games/{g['id']}/questions", json={**MC_QUESTION, "time_limit_seconds": time_limit}, status=201
+            )["id"]
             for _ in range(questions)
         ]
         return g["id"], qids
@@ -343,16 +381,22 @@ def test_room_course_must_match_game(world: World):
 # ---------------------------------------------------------------------------
 
 
-def _system_course(w: World) -> dict | None:
-    return next((c for c in w.ok("GET", "/admin/courses") if c["is_system"]), None)
+@pytest.fixture
+def system_course(world: World):
+    """A system course made directly in MySQL: the API can't create one, and a fresh
+    database only has one if migration 004 found a game that was never played."""
+    name = f"T4 Unassigned {_tag()}"
+    mysql(f"INSERT INTO courses (name, semester, is_system) VALUES ('{name}', 'n/a', 1)")
+    sid = int(mysql(f"SELECT id FROM courses WHERE name = '{name}'"))
+    yield sid
+    mysql(f"DELETE FROM games WHERE course_id = {sid}")
+    mysql(f"DELETE FROM courses WHERE id = {sid}")
 
 
-def test_system_course_rules(world: World):
+def test_system_course_rules(world: World, system_course: int):
     w = world
-    system = _system_course(w)
-    if system is None:
-        pytest.skip("This database has no system course (migration 004 found no unplayed games)")
-    sid = system["id"]
+    sid = system_course
+    assert any(c["id"] == sid and c["is_system"] for c in w.ok("GET", "/admin/courses"))
 
     r = w.req("GET", f"/courses/{sid}/roster")
     assert r.status_code == 409 and err(r) == "SYSTEM_COURSE"
@@ -365,10 +409,13 @@ def test_system_course_rules(world: World):
     r = w.req("POST", "/admin/games/import", files={"file": ("g.json", bundle)})
     assert r.status_code == 422
 
-    system_games = [g for g in w.ok("GET", "/admin/games") if g["course_id"] == sid]
-    if system_games:
-        r = w.req("POST", f"/games/{system_games[0]['id']}/duplicate")
-        assert r.status_code == 409 and err(r) == "SYSTEM_COURSE"
+    # A game living in the system course (as after the migration) can't be run or copied.
+    mysql(f"INSERT INTO games (title, description, course_id) VALUES ('T4 sys {_tag()}', '', {sid})")
+    gid = int(mysql(f"SELECT MAX(id) FROM games WHERE course_id = {sid}"))
+    r = w.req("POST", "/game/rooms", json={"game_id": gid, "course_id": sid})
+    assert r.status_code == 409 and err(r) == "SYSTEM_COURSE"
+    r = w.req("POST", f"/games/{gid}/duplicate")
+    assert r.status_code == 409 and err(r) == "SYSTEM_COURSE"
     assert all(c["id"] != sid for c in w.ok("GET", "/game/my-courses"))
 
 
@@ -497,19 +544,53 @@ def test_host_delete_removes_empty_abandoned_lobby(world: World):
 
 async def test_admin_delete_ends_live_room(world: World):
     w = world
-    room = w.room(w.game_a, w.course_a)
+    game_id, _ = w.admin_game(w.course_a, time_limit=2)
+    room = w.room(game_id, w.course_a)
     code = room["room_code"]
+    host = TestSocketClient(w.base, w.admin, "host")
     player = TestSocketClient(w.base, w.guest(code), "player")
+    await host.connect()
+    await host.emit("join_room", {"room_code": code, "role": "HOST"})
+    await host.wait_for("sync_state")
     await player.connect()
     await player.emit("join_room", {"room_code": code, "role": "PLAYER"})
     await player.wait_for("sync_state")
     try:
-        w.ok("DELETE", f"/admin/games/{w.game_a}", status=204)
+        # Start a question with a running timer, then delete the game mid-question.
+        await host.emit("host_advance", {})
+        q = await player.wait_for("new_question")
+        w.ok("DELETE", f"/admin/games/{game_id}", status=204)
         await player.wait_for("game_abandoned", timeout=5)
+        player.drain("question_results")
+        # The question's timer must not fire after the delete.
+        await asyncio.sleep(q["timeLimitSeconds"] + 2)
+        with pytest.raises(asyncio.TimeoutError):
+            await player.wait_for("question_results", timeout=0.5)
     finally:
         await player.disconnect()
+        await host.disconnect()
     assert not redis_room_exists(code)
-    assert w.req("GET", f"/admin/games/{w.game_a}").status_code == 404
+    assert w.req("GET", f"/admin/games/{game_id}").status_code == 404
+
+
+async def test_admin_delete_spares_reused_room_code(world: World):
+    """Room codes are reused once a room expires. Deleting a game must not abandon or
+    wipe a different session that now holds the old session's code."""
+    w = world
+    room = w.room(w.game_a, w.course_a)
+    code = room["room_code"]
+    other = {"session_id": f"other-{_tag()}", "status": "LOBBY", "course_id": w.course_b}
+    redis_set_room(code, other)  # the code now belongs to someone else's live game
+    bystander = TestSocketClient(w.base, w.guest(code), "bystander")
+    await bystander.connect()
+    try:
+        w.ok("DELETE", f"/admin/games/{w.game_a}", status=204)
+        with pytest.raises(asyncio.TimeoutError):
+            await bystander.wait_for("game_abandoned", timeout=1)
+    finally:
+        await bystander.disconnect()
+    assert redis_get_room(code) == other
+    redis_del_room(code)
 
 
 # ---------------------------------------------------------------------------
