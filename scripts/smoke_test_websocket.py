@@ -127,7 +127,12 @@ async def main() -> None:
             "post",
             "/admin/games",
             admin_token,
-            json={"title": "Smoke Test Game", "description": "", "max_players": 10},
+            json={
+                "course_id": course_id,
+                "title": "Smoke Test Game",
+                "description": "",
+                "max_players": 10,
+            },
         )
         game_id = game["id"]
         check(f"Game created (id={game_id})", True)
