@@ -359,17 +359,33 @@ Games (metadata + all questions including answer data) can be exported and re-im
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:8000/api/admin/games/{game_id}/export" \
+  "http://localhost:8000/api/games/{game_id}/export" \
   -o my_quiz.json
 ```
 
+Course HOSTs who hold a grant for the game can export it; admins can export any game (the old
+`/api/admin/games/{game_id}/export` path still works for admins).
+
 **Import** — from the Admin UI, click **Import JSON** on the Games page and pick a `.json` file. This always creates a *new* game — it never overwrites an existing one. Or via the API:
 
+Every game belongs to one course, and the file never names one: the course comes from the
+request. A course HOST imports into their course; admins can also use the admin path with a
+required `course_id` query parameter:
+
 ```bash
-curl -X POST "http://localhost:8000/api/admin/games/import" \
+# Course HOST (or admin)
+curl -X POST "http://localhost:8000/api/courses/{course_id}/games/import" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@my_quiz.json"
+
+# Admin alias
+curl -X POST "http://localhost:8000/api/admin/games/import?course_id={course_id}" \
   -H "Authorization: Bearer $TOKEN" \
   -F "file=@my_quiz.json"
 ```
+
+The importing host is granted the new game; a game an admin imports is granted to every HOST of
+the course.
 
 The file format is:
 
@@ -396,15 +412,26 @@ Question order is determined by array position; `order_index` is assigned automa
 
 ### Export session scores
 
-After a game session completes, the host (or an admin) can download a CSV of all player scores:
+After a game session completes (or is abandoned), any HOST of its course (or an admin) can
+download the scores as CSV, or a standalone HTML summary:
 
 ```bash
+# Per-player scores: Player, Q1, Q2, …, Qn, Total
 curl -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:8000/api/game/sessions/{session_id}/export" \
-  -o scores.csv
+  "http://localhost:8000/api/sessions/{session_id}/export" -o scores.csv
+
+# Canvas gradebook import format (same options as the admin export)
+curl -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:8000/api/sessions/{session_id}/export?format=canvas&title=Quiz%201&sis_domain=wisc.edu" \
+  -o canvas.csv
+
+# HTML summary (aggregate statistics, no player names)
+curl -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:8000/api/sessions/{session_id}/report" -o report.html
 ```
 
-Columns: `Player, Q1, Q2, …, Qn, Total`.
+A session that is still running returns 409. The legacy
+`/api/game/sessions/{session_id}/export` (session host or admin) still works.
 
 ### Import a course roster
 
@@ -417,10 +444,20 @@ TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"changeme123"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 
-curl -X POST "http://localhost:8000/api/admin/courses/{course_id}/roster" \
+# Preview first: counts only, nothing saved
+curl -X POST "http://localhost:8000/api/courses/{course_id}/roster?dry_run=true" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@sample_rosters/sample_roster_from_gradebook.csv"
+
+curl -X POST "http://localhost:8000/api/courses/{course_id}/roster" \
   -H "Authorization: Bearer $TOKEN" \
   -F "file=@sample_rosters/sample_roster_from_gradebook.csv"
 ```
+
+Any HOST of the course (or an admin) can upload. The `mode` query parameter controls what
+happens to students missing from the file: `add_only` (the default) deactivates nobody;
+`mode=replace` deactivates every active entry not in the upload. The legacy admin path
+`/api/admin/courses/{course_id}/roster` always uses `replace`.
 
 ### View structured logs
 

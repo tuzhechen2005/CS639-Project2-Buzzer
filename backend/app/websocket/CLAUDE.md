@@ -41,6 +41,10 @@ phase state machine, answer submission, question timers, and host-disconnect han
     `started_at`.
   - `disconnect`: the host auto-locks the question and starts a 5-min `_host_abandon_task`; a
     player is marked disconnected and the host is notified.
+  - `end_session_from_rest(session_id, room_code)`: called **only by routers** (game/session
+    deletes) — emits `game_abandoned` (unless the room is COMPLETED), cancels the session's
+    timers, makes its sids leave the room and host room and drops them from `_sid_ctx`, deletes
+    its Redis state. No DB access; safe when the room is already gone.
   - Helpers: `_question_payload` (client-safe, **never** includes `answer_data`; adds
     `editDistance` for FITB), `_answer_reveal`, `_host_room(code)` = `"{code}:host"`,
     `_user_room(uid)` = `"user:{uid}"`.
