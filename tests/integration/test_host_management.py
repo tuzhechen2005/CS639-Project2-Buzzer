@@ -442,6 +442,63 @@ def test_roster_add_only_and_replace_dry_run(world: World):
     assert w.req("POST", f"{path}?mode=wipe", w.host_a, json={"rows": rows}).status_code == 422
 
 
+def _active_netids(w: World, course_id: int, token: str | None = None) -> set[str]:
+    return {e["netid"] for e in w.ok("GET", f"/courses/{course_id}/roster", token) if e["is_active"]}
+
+
+def test_roster_replace_and_add_only_really_write(world: World):
+    """The preview test above never saves; these check what actually changes in the data."""
+    w = world
+    t = _tag()
+    rows = [{"netid": f"w{i}{t}", "full_name": f"S{i}", "email": f"w{i}{t}@example.com"} for i in range(3)]
+    path = f"/courses/{w.course_a}/roster/import"
+    netids = {r["netid"] for r in rows}
+
+    res = w.ok("POST", path, w.host_a, json={"rows": rows})
+    assert res["imported"] == 3 and _active_netids(w, w.course_a, w.host_a) == netids
+
+    res = w.ok("POST", f"{path}?mode=replace", w.host_a, json={"rows": rows[:1]})
+    assert res["deactivated"] == 2
+    assert _active_netids(w, w.course_a, w.host_a) == {rows[0]["netid"]}
+
+    # add_only reactivates what it is given and deactivates nobody.
+    res = w.ok("POST", f"{path}?mode=add_only", w.host_a, json={"rows": rows[1:]})
+    assert res["deactivated"] == 0
+    assert _active_netids(w, w.course_a, w.host_a) == netids
+
+
+def test_admin_roster_alias_keeps_replace_behaviour(world: World):
+    w = world
+    t = _tag()
+    rows = [{"netid": f"a{i}{t}", "full_name": f"S{i}", "email": f"a{i}{t}@example.com"} for i in range(3)]
+    w.ok("POST", f"/admin/courses/{w.course_a}/roster/import", json={"rows": rows})
+    assert _active_netids(w, w.course_a, w.host_a) == {r["netid"] for r in rows}
+    res = w.ok("POST", f"/admin/courses/{w.course_a}/roster/import", json={"rows": rows[:1]})
+    assert res["deactivated"] == 2, "the admin alias is replace-only, as before T4"
+    assert _active_netids(w, w.course_a, w.host_a) == {rows[0]["netid"]}
+
+
+def test_roster_csv_upload_parses_a_canvas_export(world: World):
+    w = world
+    t = _tag()
+    csv_text = (
+        "Student,ID,SIS Login ID,Section\n"
+        "    Points Possible,,,\n"
+        f'"Doe, Jane Q",1,JDOE{t}@WISC.EDU,001\n'
+        f'"Roe, Rich",2,rroe{t}@wisc.edu,001\n'
+    )
+    res = w.ok(
+        "POST",
+        f"/courses/{w.course_a}/roster",
+        w.host_a,
+        files={"file": ("roster.csv", csv_text.encode())},
+    )
+    assert res["imported"] == 2 and not res["errors"]
+    by_netid = {e["netid"]: e for e in w.ok("GET", f"/courses/{w.course_a}/roster", w.host_a)}
+    assert by_netid[f"jdoe{t}"]["full_name"] == "Jane Q", "given name taken from 'Last, First'"
+    assert by_netid[f"jdoe{t}"]["email"] == f"jdoe{t}@wisc.edu"
+
+
 # ---------------------------------------------------------------------------
 # Locked games, downloads
 # ---------------------------------------------------------------------------
@@ -527,6 +584,88 @@ async def test_stale_in_progress_session_becomes_downloadable(world: World):
     assert match and match[0]["status"] == "ABANDONED"
     assert w.req("GET", f"/sessions/{room['session_id']}/report", w.host_a).status_code == 200
     assert w.req("GET", f"/sessions/{room['session_id']}/export", w.host_a).status_code == 200
+
+
+def test_admin_moving_a_game_grants_the_new_courses_hosts(world: World):
+    w = world
+    game, _ = w.admin_game(w.course_a)
+    assert w.req("GET", f"/games/{game}", w.host_b).status_code == 403
+    w.ok("PUT", f"/admin/games/{game}", json={"course_id": w.course_b})
+    moved = w.ok("GET", f"/games/{game}", w.host_b)
+    assert moved["course_id"] == w.course_b, "a HOST of the new course got a grant automatically"
+    assert w.req("GET", f"/games/{game}", w.host_a).status_code == 403, "the old course's host lost access"
+
+
+def test_admin_move_is_refused_for_live_games_unknown_and_system_courses(world: World, system_course: int):
+    w = world
+    game, _ = w.admin_game(w.course_a)
+    r = w.req("PUT", f"/admin/games/{game}", json={"course_id": 99999999})
+    assert r.status_code == 404
+    r = w.req("PUT", f"/admin/games/{game}", json={"course_id": system_course})
+    assert r.status_code == 409 and err(r) == "SYSTEM_COURSE"
+
+    room = w.room(game, w.course_a)
+    r = w.req("PUT", f"/admin/games/{game}", json={"course_id": w.course_b})
+    assert r.status_code == 409 and err(r) == "GAME_LIVE"
+    assert w.ok("GET", f"/admin/games/{game}")["course_id"] == w.course_a
+    redis_del_room(room["room_code"])
+
+
+def test_only_admins_move_games(world: World):
+    w = world
+    r = w.req("PUT", f"/games/{w.game_a}", w.host_a, json={"course_id": w.course_b})
+    assert r.status_code == 403
+
+
+def test_question_prompts_are_sanitized_on_every_write_path(world: World):
+    w = world
+    dirty = "<script>alert(1)</script>Pick <b>A</b> <img src=x onerror=alert(2)>"
+    created = w.ok(
+        "POST", f"/games/{w.game_a}/questions", w.host_a, json={**MC_QUESTION, "prompt": dirty}, status=201
+    )
+    updated = w.ok(
+        "PUT", f"/games/{w.game_a}/questions/{w.question_a}", w.host_a, json={"prompt": dirty}
+    )
+    bundle = {
+        "format": "buzzer/game",
+        "version": 1,
+        "game": {"title": f"T4 import {_tag()}"},
+        "questions": [{**MC_QUESTION, "prompt": dirty}],
+    }
+    imported = w.ok(
+        "POST",
+        f"/courses/{w.course_a}/games/import",
+        w.host_a,
+        files={"file": ("g.json", json.dumps(bundle).encode())},
+        status=201,
+    )
+    w.track_game(imported["id"])
+    imported_q = w.ok("GET", f"/games/{imported['id']}/questions", w.host_a)[0]
+    for prompt in (created["prompt"], updated["prompt"], imported_q["prompt"]):
+        assert "<script" not in prompt and "onerror" not in prompt and "<img" not in prompt, prompt
+        assert "Pick" in prompt
+
+
+async def test_host_deleting_a_session_ends_its_room(world: World):
+    w = world
+    room = w.room(w.game_a, w.course_a, w.host_a)
+    code = room["room_code"]
+    player = TestSocketClient(w.base, w.guest(code), "player")
+    await player.connect()
+    await player.emit("join_room", {"room_code": code, "role": "PLAYER"})
+    await player.wait_for("sync_state")
+    try:
+        w.ok("DELETE", f"/game/sessions/{room['session_id']}", w.host_a, status=204)
+        await player.wait_for("game_abandoned", timeout=5)
+    finally:
+        await player.disconnect()
+    assert not redis_room_exists(code)
+    sessions = w.ok("GET", f"/courses/{w.course_a}/sessions", w.host_a)
+    assert all(s["session_id"] != room["session_id"] for s in sessions)
+    # Another course's host can't delete it.
+    other = w.room(w.game_a, w.course_a, w.host_a)
+    assert w.req("DELETE", f"/game/sessions/{other['session_id']}", w.host_b).status_code == 403
+    redis_del_room(other["room_code"])
 
 
 # ---------------------------------------------------------------------------
