@@ -31,8 +31,9 @@ and access checks, scoring, Redis live state, roster import, and CSV/HTML export
 - `state_service.py` — the Redis live-state layer. Key layout is documented in the module
   docstring: `room:{code}` (JSON, 90-min TTL refreshed on activity), and
   `session:{id}:players | player:{uid} | question | answered:{qid} | dist:{qid}`.
-  `delete_room_state` removes all of them. `restore_from_mysql` rebuilds scores and the next
-  question after a Redis loss.
+  `delete_room_state` removes all of them. `restore_from_mysql` (rebuilds scores and the next
+  question after a Redis loss) is defined but has no callers, so nothing recovers a live game
+  whose Redis keys are lost.
 - `roster_service.py` — `process_roster_csv` parses a Canvas gradebook export (`Student`
   "Last, First" becomes the given name; `SIS Login ID` becomes netid/email; the "Points Possible"
   row is skipped). `process_roster_rows` handles pre-mapped rows. Both upsert and then
