@@ -148,6 +148,11 @@ export default function RosterTab() {
   const [preview, setPreview] = useState<UploadResult | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [confirmReplace, setConfirmReplace] = useState(false);
+  // Replace mode with skipped or rejected rows: those students count as "not in this file"
+  const [confirmSkipped, setConfirmSkipped] = useState(false);
+  // Bumped whenever the mapping or mode changes, so a dry run that was still in flight for
+  // the old settings is ignored instead of showing (and unlocking Import with) stale counts
+  const previewSeq = useRef(0);
 
   async function load() {
     try {
@@ -164,8 +169,10 @@ export default function RosterTab() {
 
   // Any change to the mapping or mode invalidates the dry-run preview
   useEffect(() => {
+    previewSeq.current += 1;
     setPreview(null);
     setConfirmReplace(false);
+    setConfirmSkipped(false);
   }, [mode, netidCol, nameCol, emailCol, skipRow2, stripDomain, reverseName, rawRows]);
 
   // ── File selected: parse + auto-detect ───────────────────────────────────
@@ -227,6 +234,21 @@ export default function RosterTab() {
     return result;
   }
 
+  // Data rows the mapping drops (a required field is empty). They are never sent, so in
+  // Replace mode those students would be deactivated without any error from the server.
+  // Numbered like the raw preview's data rows (parseCSV already drops blank lines).
+  function getSkippedRows(): { row: number; text: string }[] {
+    const first = skipRow2 ? 2 : 1;
+    const dataRows = skipRow2 ? rawRows.slice(1) : rawRows;
+    const skipped: { row: number; text: string }[] = [];
+    dataRows.forEach((row, i) => {
+      if (!mapRow(row, headers, netidCol, nameCol, emailCol, true, stripDomain, reverseName)) {
+        skipped.push({ row: first + i, text: row.filter((c) => c.trim()).join(', ') });
+      }
+    });
+    return skipped;
+  }
+
   // ── Import: always a dry run first, then the real import ──────────────────
   function importPath(dryRun: boolean): string {
     return `/courses/${courseId}/roster/import?mode=${mode}&dry_run=${dryRun}`;
@@ -235,13 +257,17 @@ export default function RosterTab() {
   async function handlePreview() {
     const rows = getMappedRows();
     if (rows.length === 0) { setError('No valid rows to import with the current mapping.'); return; }
+    const seq = previewSeq.current;
     setPreviewing(true);
     setError('');
     try {
-      setPreview(await api.post<UploadResult>(importPath(true), { rows }));
+      const result = await api.post<UploadResult>(importPath(true), { rows });
+      if (seq !== previewSeq.current) return; // settings changed meanwhile; preview again
+      setPreview(result);
       setConfirmReplace(false);
+      setConfirmSkipped(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Preview failed');
+      if (seq === previewSeq.current) setError(err instanceof Error ? err.message : 'Preview failed');
     } finally {
       setPreviewing(false);
     }
@@ -273,6 +299,7 @@ export default function RosterTab() {
     setMode('add_only');
     setPreview(null);
     setConfirmReplace(false);
+    setConfirmSkipped(false);
     setError('');
     if (fileRef.current) fileRef.current.value = '';
   }
@@ -317,6 +344,9 @@ export default function RosterTab() {
   const mappedRows = step === 'mapping' ? getMappedRows() : [];
   const previewRows = mappedRows.slice(0, 3);
   const totalRows = mappedRows.length;
+  const skippedRows = step === 'mapping' ? getSkippedRows() : [];
+  const replaceNeedsSkipConfirm =
+    mode === 'replace' && preview !== null && (skippedRows.length > 0 || preview.errors.length > 0);
 
   const active = entries.filter((e) => e.is_active);
   const inactive = entries.filter((e) => !e.is_active);
@@ -490,6 +520,7 @@ export default function RosterTab() {
                       name="roster-mode"
                       checked={mode === m.value}
                       onChange={() => setMode(m.value)}
+                      disabled={previewing || importing}
                       className="mt-1 accent-indigo-500"
                     />
                     <span>
@@ -515,6 +546,30 @@ export default function RosterTab() {
                     {preview.errors.map((e, i) => <li key={i}>{e}</li>)}
                   </ul>
                 )}
+                {skippedRows.length > 0 && (
+                  <div className="text-xs text-amber-300 space-y-1">
+                    <p>
+                      {skippedRows.length} row{skippedRows.length !== 1 ? 's were' : ' was'} skipped
+                      (missing netid, name or email) and won't be imported:
+                    </p>
+                    <ul className="space-y-0.5 text-amber-200/80">
+                      {skippedRows.slice(0, 5).map((r) => <li key={r.row}>Data row {r.row}: {r.text}</li>)}
+                      {skippedRows.length > 5 && <li>…and {skippedRows.length - 5} more</li>}
+                    </ul>
+                  </div>
+                )}
+                {replaceNeedsSkipConfirm && (
+                  <label className="flex items-center gap-2 text-sm text-red-300 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={confirmSkipped}
+                      onChange={(e) => setConfirmSkipped(e.target.checked)}
+                      className="rounded border-slate-600 bg-slate-800 accent-red-500"
+                    />
+                    I understand that students in the skipped or rejected rows count as not in this
+                    file, so Replace will deactivate them if they are on the roster.
+                  </label>
+                )}
                 {mode === 'replace' && preview.deactivated > 0 && (
                   <label className="flex items-center gap-2 text-sm text-red-300 cursor-pointer select-none">
                     <input
@@ -537,6 +592,7 @@ export default function RosterTab() {
                   disabled={
                     importing || totalRows === 0
                     || (mode === 'replace' && preview.deactivated > 0 && !confirmReplace)
+                    || (replaceNeedsSkipConfirm && !confirmSkipped)
                   }
                 >
                   {importing ? 'Importing…' : `Import ${totalRows} row${totalRows !== 1 ? 's' : ''}`}
