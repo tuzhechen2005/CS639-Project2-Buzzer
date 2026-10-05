@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import CourseLayout from './pages/course/CourseLayout';
@@ -13,8 +13,16 @@ import ResultsPage from './pages/game/ResultsPage';
 import GameOverPage from './pages/game/GameOverPage';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  if (!localStorage.getItem('token')) return <Navigate to="/login" replace />;
+  const location = useLocation();
+  // Remember the page so LoginPage can return to it (e.g. a bookmarked roster URL).
+  if (!localStorage.getItem('token')) return <Navigate to="/login" replace state={{ from: location }} />;
   return <>{children}</>;
+}
+
+// `/` and unknown paths: the course picker when signed in (the apps share the token on
+// :8080, so an admin arriving from the admin app is already signed in), else login.
+function DefaultRoute() {
+  return <Navigate to={localStorage.getItem('token') ? '/home' : '/login'} replace />;
 }
 
 export default function App() {
@@ -36,7 +44,7 @@ export default function App() {
           <Route path="results" element={<ResultsPage />} />
           <Route path="gameover" element={<GameOverPage />} />
         </Route>
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<DefaultRoute />} />
       </Routes>
     </BrowserRouter>
   );

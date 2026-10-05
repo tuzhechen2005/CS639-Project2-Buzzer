@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -12,6 +12,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  // Set by RequireAuth: the page the user asked for before being sent here.
+  const from = (useLocation().state as { from?: { pathname: string; search: string; hash: string } } | null)?.from;
+  const afterLogin = from ? `${from.pathname}${from.search}${from.hash}` : '/home';
 
   // Handle return from OAuth2 — exchange temp token for full access token
   useEffect(() => {
@@ -61,7 +64,7 @@ export default function LoginPage() {
     try {
       const data = await api.post<{ access_token: string }>('/auth/login', { username, password });
       localStorage.setItem('token', data.access_token);
-      navigate('/home');
+      navigate(afterLogin, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
