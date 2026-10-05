@@ -54,8 +54,12 @@ Cross-app ones. Each app's `CLAUDE.md` files have the details.
   can silently fall out of date when `backend/app/websocket/gateway.py` or the schemas change.
 - **Auth is thin everywhere:** route guards only check that a token exists in
   `localStorage['token']` (admin doesn't check the role), there is no token refresh, and an expired
-  token shows up as error messages rather than a redirect. All three apps on the same origin
+  token shows up as an error rather than a redirect. All three apps on the same origin
   (:8080) share that one `localStorage` key, so logging into one app replaces the others' token.
+- **Backend error messages never reach the user.** All three `lib/api.ts` copies read
+  `body.detail`, but the backend's own errors send `{error, message}`, so screens show bare
+  `HTTP 401` / `HTTP 403` / `HTTP 404` (and 422 validation errors show `[object Object]`).
+  Fixing it means changing all three copies (or the backend's error shape).
 - **Reconnect is incomplete** in both live apps: a reload restores the current question but not
   results or game-over screens, and players who reload after answering wait on the lobby screen.
 - **Admin-only features (T4):** roster import, game and question authoring, the HTML report and
