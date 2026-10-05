@@ -355,7 +355,14 @@ async def test_question_references(world: World):
     assert (r.status_code, err(r)) == (422, "INVALID_IMAGE_REFERENCE")
     # Changing only the type also re-checks the merged config.
     w.ok("PUT", f"/games/{gid}/questions/{qid}", w.host_a, json={"config": {"options": ["A", "B"], "option_image_ids": [opt["id"], None]}})
-    r = w.req("PUT", f"/games/{gid}/questions/{qid}", w.host_a, json={"type": "true_false"})
+    # (fill_in_the_blank + COMPLETENESS passes the type's own structure check, if T7's
+    # update validation is present, so only the image rule can refuse it.)
+    r = w.req(
+        "PUT",
+        f"/games/{gid}/questions/{qid}",
+        w.host_a,
+        json={"type": "fill_in_the_blank", "grading_type": "COMPLETENESS"},
+    )
     assert (r.status_code, err(r)) == (422, "INVALID_IMAGE_REFERENCE")
     after = w.ok("GET", f"/games/{gid}/questions")[0]
     assert after["type"] == before["type"] == "multiple_choice"
