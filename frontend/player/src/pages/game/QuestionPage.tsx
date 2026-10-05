@@ -1,6 +1,8 @@
 import { useRef, useState, useCallback } from 'react';
 import { useGame } from './GameLayout';
 import { TimerBar } from '../../components/ui/TimerBar';
+import { parseNumber } from '../../lib/parseNumber';
+import { formatNumber } from '../../lib/numericEstimate';
 
 const OPTION_COLORS = [
   'bg-red-600 hover:bg-red-500 border-red-500',
@@ -204,6 +206,88 @@ export default function QuestionPage() {
         )}
         {submitted && <p className="text-center text-slate-400 text-sm mt-4">Answer submitted — waiting for results…</p>}
         {!submitted && questionLocked && lockedMsg}
+      </div>
+    );
+  }
+
+  if (currentQuestion.type === 'numeric_estimate') {
+    const unit = currentQuestion.config.unit;
+    const parsed = parseNumber(inputValue);
+    const empty = inputValue.trim() === '';
+    const canSubmit = parsed !== null && !submitted && !questionLocked;
+
+    function toggleMinus() {
+      setInputValue((v) => {
+        const t = v.trim();
+        return t.startsWith('-') ? t.slice(1) : `-${t}`;
+      });
+    }
+
+    return (
+      <div className="py-6 px-4 flex flex-col gap-4">
+        <div className="pb-2">
+          {questionLabel}
+          <TimerBar key={currentQuestion.questionId} totalSeconds={currentQuestion.timeLimitSeconds} paused={questionLocked} />
+        </div>
+
+        {submitted ? (
+          <div className="flex flex-col items-center gap-3">
+            <div className="text-5xl">🔒</div>
+            <p className="text-slate-100 text-xl font-bold">Answer locked in!</p>
+            {parsed !== null && (
+              <p className="text-slate-400 text-base italic">
+                {formatNumber(parsed)}{unit ? ` ${unit}` : ''}
+              </p>
+            )}
+            <p className="text-slate-500 text-sm mt-2">Waiting for results…</p>
+          </div>
+        ) : questionLocked ? (
+          <div className="flex flex-col items-center gap-3 mt-4">{lockedMsg}</div>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (parsed !== null) submit({ value: parsed });
+            }}
+            className="flex flex-col gap-3"
+          >
+            <p className="text-center text-slate-400 text-sm">Enter your best estimate</p>
+            <div className="flex items-stretch gap-2">
+              <button
+                type="button"
+                onClick={toggleMinus}
+                aria-label="Toggle minus sign"
+                className="w-14 shrink-0 rounded-xl bg-slate-700 text-white text-2xl font-black active:scale-95 hover:bg-slate-600"
+              >
+                ±
+              </button>
+              <input
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                autoFocus
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder="0"
+                aria-label="Your estimate"
+                className="min-w-0 flex-1 rounded-xl px-4 py-4 text-slate-900 text-2xl bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              {unit && <span className="self-center text-slate-300 text-lg shrink-0">{unit}</span>}
+            </div>
+            <p className={`text-center text-sm min-h-5 ${parsed === null && !empty ? 'text-amber-400' : 'text-slate-400'}`}>
+              {parsed !== null
+                ? `= ${formatNumber(parsed)}${unit ? ` ${unit}` : ''}`
+                : empty ? '' : 'Enter a number'}
+            </p>
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              className="w-full rounded-2xl py-5 text-white font-black text-2xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Submit
+            </button>
+          </form>
+        )}
       </div>
     );
   }
