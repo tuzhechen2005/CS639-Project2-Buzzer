@@ -63,10 +63,11 @@ Cross-cutting ones. Each subdirectory's `CLAUDE.md` has the details.
   host-facing endpoints use `require_user` + per-resource checks in `services/game_service.py`.
   Integrity rules (system course, locked = has recorded answers, live = Redis room exists) apply
   to admins too and return 409 with specific error codes.
-- **Adding a question type (T7)** touches `schemas/` (regex + validator, **on update too**),
-  `services/game_service.py` (score, distribution, reveal ×2), `services/report_service.py`,
-  and `websocket/gateway.py` (reveal, payload, answer validation). The reveal logic is
-  copy-pasted in 4 places.
+- **Adding a question type (T7)** means writing one handler in `services/question_types.py`
+  (the registry: structure rules, answer validation, score, reveal, distribution keys, payload
+  extras). Scoring, the gateway, the summaries, the schemas and the report all call it. The
+  report's badge colour and chart choice (`services/report_service.py`) are the only per-type
+  presentation left outside it. `QuestionUpdate` still has no structural validation.
 - **Single-process assumption:** the gateway keeps sid context and timers in process memory, so
   the app can't scale past one worker even with the Redis socket.io manager.
 - **Deletes are two-datastore problems:** MySQL FKs mostly don't cascade. Game and session

@@ -32,8 +32,10 @@ structural validation** live — including the per-question-type rules for `conf
 | `fill_in_the_blank` | — | `acceptedAnswers`: non-empty strings; `answerPoints`: same length; `editDistance`: int ≥ 0 |
 | `multi_select` | `options`: list, ≥2 | `answer_points`: numbers (negatives allowed as penalties), same length as options |
 
-COMPLETENESS questions skip the `answer_data` checks. The allowed `type` values are also a regex
-on both `QuestionCreate.type` and `QuestionUpdate.type`.
+COMPLETENESS questions skip the `answer_data` checks. The structure rules themselves live in
+`services/question_types.py` (`validate_definition`); `QuestionCreate` calls it from its
+`model_validator`, and the allowed `type` values come from `known_types()` (a `field_validator`
+on `QuestionCreate.type` and `QuestionUpdate.type`), so a new type is registered in one place.
 
 ## How it fits in
 Routers declare these as parameters/`response_model`. `QuestionCreate` is reused by the game JSON
@@ -45,8 +47,8 @@ question is.
   `config`/`answer_data` with anything. The T7 instructions flag this asymmetry explicitly. When
   adding question types, validate on update too (e.g. merge with the stored question and re-run
   the create validator).
-- Adding a question type means updating **both** `type` regexes and the validator, and the
-  scoring/reveal/distribution code in `services/` and `websocket/` (see those CLAUDE.md files).
+- Adding a question type means adding one handler to `services/question_types.py` (see
+  `services/CLAUDE.md`); nothing in this directory needs editing for it.
 - Key naming is inconsistent by type: `answer_points` (snake) vs `acceptedAnswers`/`answerPoints`/
   `editDistance` (camel). Existing JSON files depend on these exact names.
 - Games: `GameCreate` (no `course_id`; the neutral endpoint takes it from the path, and
