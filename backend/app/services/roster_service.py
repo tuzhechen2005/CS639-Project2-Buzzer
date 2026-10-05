@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+from typing import Literal
 
 import structlog
 from sqlalchemy import select
@@ -17,6 +18,8 @@ STUDENT_COL = "student"  # "Last, First [Middle]"
 SIS_LOGIN_COL = "sis login id"  # "NETID@WISC.EDU"
 
 MAX_ROWS = 1000
+
+RosterMode = Literal["replace", "add_only"]
 
 
 def _is_metadata_row(row: dict[str, str]) -> bool:
@@ -50,7 +53,12 @@ def _parse_sis_login(raw: str) -> tuple[str, str]:
 
 
 async def process_roster_csv(
-    db: AsyncSession, course_id: int, file_bytes: bytes
+    db: AsyncSession,
+    course_id: int,
+    file_bytes: bytes,
+    *,
+    mode: RosterMode = "replace",
+    dry_run: bool = False,
 ) -> RosterUploadResult:
     """
     Parse a Canvas gradebook CSV export, upsert rows into course_rosters,
@@ -61,7 +69,7 @@ async def process_roster_csv(
       'SIS Login ID' — "NETID@WISC.EDU"
 
     Row 2 ('Points Possible') is automatically skipped.
-    All other columns are ignored.
+    All other columns are ignored. See `_apply_rows` for `mode` and `dry_run`.
     """
     try:
         text = file_bytes.decode("utf-8-sig")
@@ -96,8 +104,8 @@ async def process_roster_csv(
     student_header = col_map[STUDENT_COL]
     sis_header = col_map[SIS_LOGIN_COL]
 
-    imported = updated = 0
     errors: list[str] = []
+    rows: list[dict[str, str]] = []
     seen_netids: set[str] = set()
     csv_row = 1  # row 1 = header; incremented before each data row
 
@@ -138,62 +146,10 @@ async def process_roster_csv(
             break
 
         seen_netids.add(netid)
+        rows.append({"netid": netid, "full_name": display_name, "email": email})
 
-        result = await db.execute(
-            select(CourseRoster).where(
-                CourseRoster.course_id == course_id,
-                CourseRoster.netid == netid,
-            )
-        )
-        existing = result.scalar_one_or_none()
-
-        if existing:
-            existing.full_name = display_name
-            existing.email = email
-            existing.is_active = True
-            updated += 1
-        else:
-            db.add(
-                CourseRoster(
-                    course_id=course_id,
-                    netid=netid,
-                    full_name=display_name,
-                    email=email,
-                    is_active=True,
-                )
-            )
-            imported += 1
-
-    await db.flush()
-
-    # Deactivate entries not present in this upload
-    deactivated = 0
-    if seen_netids:
-        result = await db.execute(
-            select(CourseRoster).where(
-                CourseRoster.course_id == course_id,
-                CourseRoster.netid.not_in(seen_netids),
-                CourseRoster.is_active == True,  # noqa: E712
-            )
-        )
-        for entry in result.scalars().all():
-            entry.is_active = False
-            deactivated += 1
-
-    logger.info(
-        "roster_uploaded",
-        course_id=course_id,
-        imported=imported,
-        updated=updated,
-        deactivated=deactivated,
-        error_count=len(errors),
-    )
-
-    return RosterUploadResult(
-        imported=imported,
-        updated=updated,
-        deactivated=deactivated,
-        errors=errors,
+    return await _apply_rows(
+        db, course_id, rows, errors, mode=mode, dry_run=dry_run, event="roster_uploaded"
     )
 
 
@@ -201,14 +157,16 @@ async def process_roster_rows(
     db: AsyncSession,
     course_id: int,
     rows: list[dict[str, str]],
+    *,
+    mode: RosterMode = "replace",
+    dry_run: bool = False,
 ) -> RosterUploadResult:
     """
     Process pre-mapped roster rows (already resolved to netid/full_name/email
-    by the frontend column-mapping wizard).  Upserts into course_rosters and
-    deactivates entries whose netid was absent from this upload.
+    by the frontend column-mapping wizard). See `_apply_rows` for `mode` and `dry_run`.
     """
-    imported = updated = 0
     errors: list[str] = []
+    clean: list[dict[str, str]] = []
     seen_netids: set[str] = set()
 
     for i, row in enumerate(rows, start=1):
@@ -227,50 +185,90 @@ async def process_roster_rows(
             break
 
         seen_netids.add(netid)
+        clean.append({"netid": netid, "full_name": full_name, "email": email})
 
-        result = await db.execute(
-            select(CourseRoster).where(
-                CourseRoster.course_id == course_id,
-                CourseRoster.netid == netid,
+    return await _apply_rows(
+        db,
+        course_id,
+        clean,
+        errors,
+        mode=mode,
+        dry_run=dry_run,
+        event="roster_imported_rows",
+    )
+
+
+async def _apply_rows(
+    db: AsyncSession,
+    course_id: int,
+    rows: list[dict[str, str]],
+    errors: list[str],
+    *,
+    mode: RosterMode,
+    dry_run: bool,
+    event: str,
+) -> RosterUploadResult:
+    """
+    Upsert `rows` into the course roster.
+
+    mode="replace": also deactivate every active entry whose netid is not in `rows`
+                    (the original behaviour; kept by the admin aliases).
+    mode="add_only": deactivate nobody (default on the host-facing endpoints).
+    dry_run=True:    compute the same counts but write nothing.
+
+    An upload with no valid rows never deactivates anyone, in either mode.
+    """
+    existing = {
+        e.netid: e
+        for e in (
+            await db.execute(
+                select(CourseRoster).where(CourseRoster.course_id == course_id)
             )
         )
-        existing = result.scalar_one_or_none()
+        .scalars()
+        .all()
+    }
 
-        if existing:
-            existing.full_name = full_name
-            existing.email = email
-            existing.is_active = True
+    imported = updated = 0
+    planned_new: dict[str, CourseRoster] = {}
+    for row in rows:
+        entry = existing.get(row["netid"]) or planned_new.get(row["netid"])
+        if entry is not None:
             updated += 1
-        else:
-            db.add(
-                CourseRoster(
-                    course_id=course_id,
-                    netid=netid,
-                    full_name=full_name,
-                    email=email,
-                    is_active=True,
-                )
-            )
-            imported += 1
-
-    await db.flush()
+            if not dry_run:
+                entry.full_name = row["full_name"]
+                entry.email = row["email"]
+                entry.is_active = True
+            continue
+        imported += 1
+        new_entry = CourseRoster(
+            course_id=course_id,
+            netid=row["netid"],
+            full_name=row["full_name"],
+            email=row["email"],
+            is_active=True,
+        )
+        planned_new[row["netid"]] = new_entry
+        if not dry_run:
+            db.add(new_entry)
 
     deactivated = 0
-    if seen_netids:
-        result = await db.execute(
-            select(CourseRoster).where(
-                CourseRoster.course_id == course_id,
-                CourseRoster.netid.not_in(seen_netids),
-                CourseRoster.is_active == True,  # noqa: E712
-            )
-        )
-        for entry in result.scalars().all():
-            entry.is_active = False
-            deactivated += 1
+    if mode == "replace" and rows:
+        seen = {r["netid"] for r in rows}
+        for netid, entry in existing.items():
+            if netid not in seen and entry.is_active:
+                deactivated += 1
+                if not dry_run:
+                    entry.is_active = False
+
+    if not dry_run:
+        await db.flush()
 
     logger.info(
-        "roster_imported_rows",
+        event,
         course_id=course_id,
+        mode=mode,
+        dry_run=dry_run,
         imported=imported,
         updated=updated,
         deactivated=deactivated,
