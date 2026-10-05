@@ -288,6 +288,34 @@ def test_admin_moves_game_to_another_course(world: World, system_course: int):
     assert w.game_a in w.ok("GET", f"/admin/users/{w.host_a_id}")["game_access"]
 
 
+def test_admin_cannot_move_a_live_game(world: World):
+    w = world
+    room = w.room(w.game_a, w.course_a)
+    try:
+        r = w.req("PUT", f"/admin/games/{w.game_a}", json={"course_id": w.course_b})
+        assert r.status_code == 409 and err(r) == "GAME_LIVE"
+        assert w.ok("GET", f"/admin/games/{w.game_a}")["course_id"] == w.course_a
+    finally:
+        w.ok("DELETE", f"/game/sessions/{room['session_id']}", status=204)
+
+
+def test_system_course_roster_uploads_are_refused(world: World, system_course: int):
+    w = world
+    sid = system_course
+    r = w.req(
+        "POST",
+        f"/courses/{sid}/roster",
+        files={"file": ("roster.csv", _canvas_csv([f"sys{_tag()}"]), "text/csv")},
+    )
+    assert r.status_code == 409 and err(r) == "SYSTEM_COURSE"
+    r = w.req(
+        "POST",
+        f"/courses/{sid}/roster/import",
+        json={"rows": [{"netid": f"sys{_tag()}", "full_name": "S", "email": "s@example.com"}]},
+    )
+    assert r.status_code == 409 and err(r) == "SYSTEM_COURSE"
+    assert w.ok("GET", f"/admin/courses/{sid}/access") == []
+
 def test_revoking_host_leaves_an_inactive_grant_until_restored(world: World):
     w = world
     w.ok("GET", f"/games/{w.game_a}", w.host_a)
@@ -349,11 +377,23 @@ def test_course_sessions_list_is_course_scoped(world: World):
     assert isinstance(w.ok("GET", f"/courses/{w.course_b}/sessions", w.host_b), list)
 
 
-@pytest.mark.parametrize("path", ["/courses/{a}/roster", "/courses/{a}/games", "/courses/{a}/sessions"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/courses/{a}/roster",
+        "/courses/{a}/games",
+        "/courses/{a}/sessions",
+        "/games/{g}",
+        "/games/{g}/questions",
+        "/games/{g}/export",
+        "/sessions/{s}/report",
+        "/sessions/{s}/export",
+    ],
+)
 def test_guest_token_cannot_use_host_screens(world: World, path: str):
     w = world
     room = w.room(w.game_a, w.course_a)
     guest = w.guest(room["room_code"])
-    r = w.req("GET", path.format(a=w.course_a), guest)
+    r = w.req("GET", path.format(a=w.course_a, g=w.game_a, s=room["session_id"]), guest)
     assert r.status_code == 403
     w.ok("DELETE", f"/game/sessions/{room['session_id']}", status=204)
