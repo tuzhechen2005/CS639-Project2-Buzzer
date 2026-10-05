@@ -38,6 +38,9 @@ route guard; `GameLayout` does the token check itself. Pages use `../lib`, `../c
 answer reveal after the question closes; the full distribution goes only to the host.
 
 ## Gotchas
+- Images (T8): MC and multi-select option buttons show the option's image above its text
+  (`OptionContent`); the text alone remains if it fails. The phone never shows the prompt image
+  during a question; the game-over list does.
 - **Adding a question type (T7)** touches `../types/game.ts` (`QuestionPayload.type`,
   `PlayerAnswerReveal`, `QuestionSummaryItem.playerAnswer`), `QuestionPage` (a new branch; unknown
   types fall through to "Unsupported question type"), `ResultsPage` (`describeAnswer`) and
