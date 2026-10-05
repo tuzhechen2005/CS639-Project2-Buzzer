@@ -7,8 +7,11 @@ over) driven by Socket.io events from the backend.
 
 ## Contents
 - `LoginPage.tsx` — username/password login (`POST /auth/login`) plus "Sign in with UW NetID":
-  on return (`?from=oauth2`, `#oauth2_data=`) it exchanges the temp token at `/auth/exchange-temp`.
-  Stores the access token in `localStorage`.
+  on return (`?from=oauth2`, `#oauth2_data=`) it exchanges the temp token at `/auth/exchange-temp`
+  (its error text is read as `message`, then `detail`). Stores the access token in
+  `localStorage`, then returns to the page `RequireAuth` remembered (`state.from`), else `/home`;
+  the SSO round trip always lands on `/home`. It does not skip itself when a token exists, so
+  the form stays reachable with an expired token.
 - `HomePage.tsx` — the **course picker**: lists `GET /game/my-courses` (courses the user hosts;
   admins see all, never the system course) and opens `/courses/:id/games`. Keeps the "Active
   Sessions" card (Rejoin / Delete); the Delete confirm warns that recorded scores (grades) are
@@ -32,8 +35,10 @@ over) driven by Socket.io events from the backend.
 - `course/RosterTab.tsx` — moved from the admin app. Client-side CSV wizard (`parseCSV`, Canvas
   auto-detection, column mapping) posting mapped rows to `POST /courses/:id/roster/import`, with
   an **Add only (default) / Replace** mode, a mandatory dry-run preview (`dry_run=true`) and, in
-  Replace mode with deactivations, a confirm naming how many students will be deactivated. Inline
-  entry edit via `PATCH /courses/:id/roster/:entryId`.
+  Replace mode with deactivations, a confirm naming how many students will be deactivated. Rows
+  the mapping skips (an empty netid, name or email) are listed after the preview; in Replace
+  mode, skipped or server-rejected rows need a second confirm. Inline entry edit via
+  `PATCH /courses/:id/roster/:entryId`.
 - `course/SessionsTab.tsx` — `GET /courses/:id/sessions` (completed and abandoned) with Summary
   (HTML, `/sessions/:id/report`), Scores (CSV, `/sessions/:id/export?format=raw`) and Canvas CSV
   (form: title, assignment id, SIS domain, roster-only, per-question). Downloads only, no delete.
@@ -73,8 +78,13 @@ what comes next. The host receives the full answer distribution and reveal; play
 - **Locked / live games:** the server returns 409 `GAME_LOCKED` / `GAME_LIVE` for question changes;
   the editor shows the message and reloads after any failed question change, so a game that
   became locked while open switches to the read-only view at that point (not before).
-- **Roster replace mode deactivates everyone missing from the file**; the dry-run preview and
-  confirm are the only guard, so keep them if you change the wizard.
+- **Roster replace mode deactivates everyone missing from the file**, including rows the wizard
+  skipped (they are never sent). The dry-run preview and the two confirms are the only guard,
+  so keep them if you change the wizard. The preview is tied to the settings it was run with:
+  `previewSeq` is bumped on every mapping or mode change, and a dry-run reply for older
+  settings is dropped, so stale counts can't unlock Import. Canvas exports usually contain a
+  "Test Student" row with no SIS login, which is why skipped rows need a confirm rather than
+  blocking Replace.
 - **`points_value` is computed in the editor** for accuracy questions (MC / FITB: highest option;
   TF: higher of the two; multi-select: sum of positive options); only completeness questions use
   the typed-in value. Imported or API-created questions don't go through this.

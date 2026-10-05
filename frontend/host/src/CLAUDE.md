@@ -13,7 +13,9 @@ Top-level files:
   `/courses/:courseId/{games,roster,sessions}` and `/courses/:courseId/games/:gameId/questions`
   (nested under `CourseLayout`), and `/game/:code/{lobby,question,results,gameover}` (nested
   under `GameLayout`); everything except login is wrapped in `RequireAuth`, which only checks
-  that `localStorage.token` exists. Unknown paths redirect to `/login`.
+  that `localStorage.token` exists and otherwise sends you to `/login`, remembering the page
+  (`state.from`). `/` and unknown paths go to `/home` when a token exists (an admin arriving
+  from the admin app's Host & Play link is already signed in), else to `/login`.
   `basename` is `import.meta.env.BASE_URL` (`/host/` in production builds, `/` in dev).
 - `index.css` — Tailwind directives plus the global dark background (`#0f172a`).
 - `types/game.ts` — hand-written TypeScript shapes for every Socket.io payload the host receives

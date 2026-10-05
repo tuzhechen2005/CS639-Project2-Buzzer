@@ -23,8 +23,8 @@ client created in `pages/game/GameLayout.tsx`. `/api` is relative, so it works b
 - The error-text order above matches the backend's two error shapes (`{error, message}` from
   `BuzzerError`, `{error, detail: [...]}` from validation; see `backend/app/common/CLAUDE.md`).
   Keep it in sync with the admin and player copies.
-- `download` reads the whole file into memory before saving and revokes the object URL right
-  after `click()`.
+- `download` reads the whole file into memory before saving. It adds the link to the document
+  and revokes the object URL a second after `click()`; Firefox needs both.
 - No 401 handling or token refresh. An expired token surfaces as a page-level error message;
   `App.tsx`'s `RequireAuth` only checks that a token *exists*.
 - The token lives in `localStorage['token']`, shared with the Socket.io auth callback. Logout

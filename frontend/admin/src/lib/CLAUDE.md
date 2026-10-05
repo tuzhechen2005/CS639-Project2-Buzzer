@@ -26,7 +26,7 @@ Every admin page talks to the backend only through `api`; almost all paths are u
 - No 401 handling or refresh: an expired or non-admin token shows up as a per-page error (e.g.
   "Admin access required"), not a redirect to login. `App.tsx`'s `RequireAdmin` only checks that
   *a* token exists, so a host's login gets into the dashboard and then fails on every page.
-- `download` reads the whole file into memory as a blob before saving, and revokes the object URL
-  immediately after `click()`.
+- `download` reads the whole file into memory as a blob before saving. It adds the link to the
+  document and revokes the object URL a second after `click()`; Firefox needs both.
 - The host app has an equivalent copy (same methods); the player's is smaller. They are copies,
   not shared code.
