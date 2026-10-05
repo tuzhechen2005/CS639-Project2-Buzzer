@@ -77,4 +77,3 @@ only), `_user_room` / `sid` (one player).
   `new_question` for content.
 - The answer reveal is built by `services/question_types.answer_reveal`, the single copy used by
   the gateway, both game-over summaries and the report.
-- `max_possible_score` in `game_over` is cast to `int`, which truncates fractional point values.

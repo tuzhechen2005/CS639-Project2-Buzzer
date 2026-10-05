@@ -291,3 +291,12 @@ async def test_numeric_report_has_badge_and_missed_bar(game_setup, base_url, adm
     assert '<span class="bar-label">Within 5 %</span>' in page
     assert '<span class="bar-label">Within 30 %</span>' in page
     assert '<span class="bar-label">Missed</span>' in page
+
+
+async def test_fractional_points_keep_max_possible_score(game_setup, base_url, admin_token):
+    """maxPossibleScore was cast to int, so a 7.5-point question reported 7."""
+    bands = [{"within": 5, "points": 7.5}, {"within": 15, "points": 2.5}]
+    question = {**NUMERIC, "points_value": 7.5, "answer_data": {**NUMERIC["answer_data"], "bands": bands}}
+    _, _, received, _, over = await _play(base_url, admin_token, game_setup, question, [{"value": 1665}])
+    assert received[0]["pointsAwarded"] == 7.5
+    assert over["maxPossibleScore"] == 7.5
