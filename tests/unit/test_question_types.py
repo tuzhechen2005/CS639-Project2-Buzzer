@@ -44,7 +44,9 @@ MS = q("multi_select", config={"options": ["A", "B", "C"]},
 
 
 def test_known_types_and_labels():
-    assert known_types() == {"multiple_choice", "true_false", "fill_in_the_blank", "multi_select"}
+    assert known_types() == {
+        "multiple_choice", "true_false", "fill_in_the_blank", "multi_select", "numeric_estimate",
+    }
     assert label_for("multi_select") == "Multi Select"
     assert label_for("something_else") == "something_else"
 
@@ -213,3 +215,144 @@ def test_validate_definition_accepts_valid_and_completeness():
     validate_definition(q("multiple_choice", "COMPLETENESS", {"options": ["A", "B"]}))
     with pytest.raises(ValueError):
         validate_definition(q("multiple_choice", "COMPLETENESS", {"options": ["A"]}))
+
+
+# ---------------------------------------------------------------------------
+# numeric_estimate
+# ---------------------------------------------------------------------------
+
+BANDS = [{"within": 5, "points": 100}, {"within": 15, "points": 50}, {"within": 30, "points": 25}]
+
+
+def ne(target=1665, mode="relative", bands=None, grading="ACCURACY", points=None, unit="steps"):
+    bands = bands if bands is not None else BANDS
+    return q(
+        "numeric_estimate",
+        grading,
+        config={"unit": unit} if unit else {},
+        answer_data={"target": target, "mode": mode, "bands": bands},
+        points=points if points is not None else (bands[0]["points"] if bands else 1),
+    )
+
+
+NE = ne()
+
+
+@pytest.mark.parametrize(
+    "value, points, correct, key",
+    [
+        (1665, 100, True, "0"),
+        (1700, 100, True, "0"),  # 2.1 %
+        (1900, 50, False, "1"),  # 14.1 %
+        (2300, 0, False, "miss"),  # 38.1 %
+        (0, 0, False, "miss"),
+        (10**12, 0, False, "miss"),
+        (1665 * 1.05, 100, True, "0"),  # exactly on the first boundary: inside
+        (1665 * 1.150, 50, False, "1"),  # exactly on the second boundary
+        (1665 * 1.31, 0, False, "miss"),  # just outside the last band
+    ],
+)
+def test_numeric_relative_scoring(value, points, correct, key):
+    result = score_answer(NE, {"value": value})
+    assert (result.points_awarded, result.is_correct) == (points, correct)
+    assert distribution_keys_for(NE, {"value": value}) == [key]
+
+
+def test_numeric_absolute_and_negative_targets():
+    year = ne(target=1789, mode="absolute",
+              bands=[{"within": 1, "points": 10}, {"within": 5, "points": 5}], unit=None)
+    assert score_answer(year, {"value": 1790}).points_awarded == 10
+    assert score_answer(year, {"value": 1794}).points_awarded == 5
+    assert score_answer(year, {"value": 1796}).points_awarded == 0
+    cold = ne(target=-40, mode="relative")  # percentages use |target|
+    assert score_answer(cold, {"value": -41}).points_awarded == 100
+    zero = ne(target=0, mode="absolute", bands=[{"within": 2, "points": 4}], unit=None)
+    assert score_answer(zero, {"value": -2}).points_awarded == 4
+    assert score_answer(zero, {"value": 3}).points_awarded == 0
+
+
+def test_numeric_float_noise_on_a_boundary():
+    tenth = ne(target=0.1, bands=[{"within": 5, "points": 1}], unit=None)
+    assert score_answer(tenth, {"value": 0.1 * 1.05}).points_awarded == 1
+
+
+def test_numeric_malformed_values_never_raise():
+    for bad in (None, "12", True, [], {}, float("nan"), float("inf"), 10**400):
+        result = score_answer(NE, {"value": bad})
+        assert result.points_awarded == 0
+        assert distribution_keys_for(NE, {"value": bad}) == ["miss"]
+    assert score_answer(NE, {"other": 1}).points_awarded == 0
+
+
+def test_numeric_completeness():
+    c = q("numeric_estimate", "COMPLETENESS", {"unit": "steps"}, {}, points=3)
+    assert score_answer(c, {"value": 7}).points_awarded == 3
+    assert distribution_keys_for(c, {"value": 7}) == []
+    assert answer_reveal(c) == {"type": "completeness"}
+    validate_definition(c)
+
+
+def test_numeric_reveal_has_exactly_the_documented_keys():
+    reveal = answer_reveal(NE)
+    assert reveal == {"type": "numeric_estimate", "target": 1665, "mode": "relative", "bands": BANDS}
+    assert reveal["bands"] is not NE.answer_data["bands"]
+
+
+@pytest.mark.parametrize(
+    "value, ok",
+    [(5, True), (-5, True), (0, True), (1.5, True), (1e15, True), (-1e15, True),
+     (1e16, False), (float("nan"), False), (float("inf"), False), (10**400, False),
+     (True, False), ("5", False), (None, False)],
+)
+def test_numeric_validate_answer(value, ok):
+    expected = None if ok else "numeric_estimate answer must include a finite numeric value"
+    assert validate_answer(NE, {"value": value}) == expected
+
+
+def test_numeric_validate_answer_shapes():
+    msg = "numeric_estimate answer must include a finite numeric value"
+    for bad in ({}, {"val": 1}, "5", 5, None, []):
+        assert validate_answer(NE, bad) == msg
+
+
+@pytest.mark.parametrize(
+    "question, message",
+    [
+        (ne(target=True), "numeric_estimate target must be a finite number with absolute value at most 1e15"),
+        (ne(target=float("nan")), "numeric_estimate target must be a finite number with absolute value at most 1e15"),
+        (ne(target=2e15), "numeric_estimate target must be a finite number with absolute value at most 1e15"),
+        (ne(target="5"), "numeric_estimate target must be a finite number with absolute value at most 1e15"),
+        (ne(mode="log"), "numeric_estimate mode must be 'relative' or 'absolute'"),
+        (ne(target=0, mode="relative"), "relative mode needs a non-zero target"),
+        (ne(bands=[]), "bands must be a list of 1 to 5 items"),
+        (ne(bands=[{"within": i + 1, "points": 10 - i} for i in range(6)], points=10),
+         "bands must be a list of 1 to 5 items"),
+        (ne(bands=[{"within": 0, "points": 5}]), "each band needs numeric within > 0 and points > 0"),
+        (ne(bands=[{"within": 5, "points": 0}], points=0), "each band needs numeric within > 0 and points > 0"),
+        (ne(bands=[{"within": True, "points": 5}], points=5), "each band needs numeric within > 0 and points > 0"),
+        (ne(bands=["x"], points=1), "each band needs numeric within > 0 and points > 0"),
+        (ne(bands=[{"within": 5, "points": 10}, {"within": 5, "points": 5}], points=10),
+         "band within values must strictly increase"),
+        (ne(bands=[{"within": 5, "points": 10}, {"within": 9, "points": 10}], points=10),
+         "band points must strictly decrease"),
+        (ne(points=99), "points_value must equal the first band's points"),
+        (ne(unit="x" * 21), "unit must be a non-empty string of at most 20 characters"),
+        (ne(unit=5), "unit must be a non-empty string of at most 20 characters"),
+    ],
+)
+def test_numeric_validate_definition_rejects(question, message):
+    with pytest.raises(ValueError) as exc:
+        validate_definition(question)
+    assert str(exc.value) == message
+
+
+def test_numeric_validate_definition_accepts():
+    validate_definition(NE)
+    validate_definition(ne(target=1789, mode="absolute", bands=[{"within": 2, "points": 3}], unit=None))
+    validate_definition(ne(target=-5, mode="relative"))
+    validate_definition(ne(points=100.0))  # float points_value equal to the first band
+    # a bad unit is rejected even without an answer key
+    with pytest.raises(ValueError):
+        validate_definition(q("numeric_estimate", "COMPLETENESS", {"unit": ""}))
+    assert "numeric_estimate" in known_types()
+    assert label_for("numeric_estimate") == "Numeric Estimate"

@@ -18,6 +18,7 @@ Design: docs/plans/t7-numeric-estimate.md (A1).
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any, Callable, Protocol
 
@@ -298,6 +299,126 @@ def _ms_keys(q: Any, answer_data: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# numeric_estimate
+# ---------------------------------------------------------------------------
+# A guess scored by banded tolerance around a hidden target (docs/plans/t7-numeric-estimate.md).
+# answer_data (ACCURACY): {"target": n, "mode": "relative"|"absolute",
+#                          "bands": [{"within": w, "points": p}, ...]}
+# For "relative", `within` is a percentage; for "absolute" it is in the question's units.
+
+_NUMERIC_LIMIT = 1e15
+_MAX_BANDS = 5
+
+
+def _is_number(v: Any) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _in_range(v: Any) -> bool:
+    """A JSON number within +-1e15. Compares first (valid for arbitrarily large ints, so no
+    OverflowError); NaN fails every comparison and infinities fall outside the range."""
+    return _is_number(v) and -_NUMERIC_LIMIT <= v <= _NUMERIC_LIMIT
+
+
+def _finite_positive(v: Any) -> bool:
+    return _is_number(v) and 0 < v <= _NUMERIC_LIMIT
+
+
+def _numeric_validate_definition(q: Any) -> None:
+    config = q.config if isinstance(q.config, dict) else {}
+    if "unit" in config:
+        unit = config["unit"]
+        if not isinstance(unit, str) or not unit or len(unit) > 20:
+            raise ValueError("unit must be a non-empty string of at most 20 characters")
+    if q.grading_type != "ACCURACY":
+        return
+    data = _answer_data(q)
+    target = data.get("target")
+    if not _in_range(target):
+        raise ValueError(
+            "numeric_estimate target must be a finite number with absolute value at most 1e15"
+        )
+    mode = data.get("mode")
+    if mode not in ("relative", "absolute"):
+        raise ValueError("numeric_estimate mode must be 'relative' or 'absolute'")
+    if mode == "relative" and target == 0:
+        raise ValueError("relative mode needs a non-zero target")
+    bands = data.get("bands")
+    if not isinstance(bands, list) or not 1 <= len(bands) <= _MAX_BANDS:
+        raise ValueError("bands must be a list of 1 to 5 items")
+    for band in bands:
+        if not (
+            isinstance(band, dict)
+            and _finite_positive(band.get("within"))
+            and _finite_positive(band.get("points"))
+        ):
+            raise ValueError("each band needs numeric within > 0 and points > 0")
+    withins = [b["within"] for b in bands]
+    points = [b["points"] for b in bands]
+    if any(b <= a for a, b in zip(withins, withins[1:])):
+        raise ValueError("band within values must strictly increase")
+    if any(b >= a for a, b in zip(points, points[1:])):
+        raise ValueError("band points must strictly decrease")
+    if not math.isclose(float(q.points_value), float(points[0]), abs_tol=1e-9):
+        raise ValueError("points_value must equal the first band's points")
+
+
+def _numeric_validate_answer(q: Any, answer_data: Any) -> str | None:
+    if isinstance(answer_data, dict) and _in_range(answer_data.get("value")):
+        return None
+    return "numeric_estimate answer must include a finite numeric value"
+
+
+def _numeric_band_index(q: Any, answer_data: dict) -> int | None:
+    """Index of the first band the guess falls in, or None for a miss (also for a value
+    that is not a usable number: never raises)."""
+    value = answer_data.get("value")
+    data = _answer_data(q)
+    if not _in_range(value) or not _in_range(data.get("target")):
+        return None
+    target = data["target"]
+    error = abs(value - target)
+    if data.get("mode") == "relative":
+        if target == 0:
+            return None
+        error = error / abs(target) * 100
+    for i, band in enumerate(data.get("bands", [])):
+        within = band.get("within") if isinstance(band, dict) else None
+        if _is_number(within) and error <= within + 1e-9 * max(1.0, within):
+            return i
+    return None
+
+
+def _numeric_score(q: Any, answer_data: dict) -> ScoreResult:
+    index = _numeric_band_index(q, answer_data)
+    if index is None:
+        return _zero()
+    points = _answer_data(q)["bands"][index]["points"]
+    return ScoreResult(points_awarded=points, is_correct=(index == 0))
+
+
+def _numeric_reveal(q: Any) -> dict:
+    data = _answer_data(q)
+    return {
+        "type": "numeric_estimate",
+        "target": data.get("target"),
+        "mode": data.get("mode"),
+        "bands": [
+            {"within": b.get("within"), "points": b.get("points")}
+            for b in data.get("bands", [])
+            if isinstance(b, dict)
+        ],
+    }
+
+
+def _numeric_keys(q: Any, answer_data: dict) -> list[str]:
+    if q.grading_type != "ACCURACY":
+        return []
+    index = _numeric_band_index(q, answer_data)
+    return ["miss"] if index is None else [str(index)]
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -342,6 +463,16 @@ _TYPES: dict[str, QuestionType] = {
             score=_ms_score,
             reveal=_ms_reveal,
             distribution_keys=_ms_keys,
+            payload_extras=_no_extras,
+        ),
+        QuestionType(
+            key="numeric_estimate",
+            label="Numeric Estimate",
+            validate_definition=_numeric_validate_definition,
+            validate_answer=_numeric_validate_answer,
+            score=_numeric_score,
+            reveal=_numeric_reveal,
+            distribution_keys=_numeric_keys,
             payload_extras=_no_extras,
         ),
     )

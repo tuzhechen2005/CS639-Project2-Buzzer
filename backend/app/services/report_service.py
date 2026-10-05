@@ -93,6 +93,21 @@ def _build_histogram(scores: list[float], max_possible: float) -> list[dict]:
 _OPTION_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
+def _fmt_number(value: object) -> str:
+    """A host-authored number for a label: thousands separators, no rounding, no trailing
+    zeros (1665 -> 1,665; 5.0 -> 5; 0.5 -> 0.5)."""
+    from decimal import Decimal, InvalidOperation
+
+    try:
+        d = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        return _esc(value)
+    text = format(d, ",f")
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text
+
+
 def _render_bar_chart(
     q: Question, dist: dict[str, int], reveal: dict, total_players: int
 ) -> str:
@@ -124,6 +139,24 @@ def _render_bar_chart(
             }
             for i, opt in enumerate(options)
         ]
+    elif q.type == "numeric_estimate" and reveal.get("type") == "numeric_estimate":
+        unit = q.config.get("unit") if isinstance(q.config, dict) else None
+        relative = reveal.get("mode") == "relative"
+        bars = []
+        for i, band in enumerate(reveal.get("bands", [])):
+            within = _fmt_number(band.get("within"))
+            if relative:
+                label = f"Within {within} %"
+            else:
+                label = f"Within ±{within}" + (f" {_esc(unit)}" if unit else "")
+            bars.append(
+                {
+                    "label": label,
+                    "count": dist.get(str(i), 0),
+                    "correct": i == 0 or None,
+                }
+            )
+        bars.append({"label": "Missed", "count": dist.get("miss", 0), "correct": None})
     elif q.type == "true_false":
         cv = reveal.get("correctValue") if reveal.get("type") == "true_false" else None
         bars = [
@@ -286,6 +319,7 @@ body{
 .badge-tf{background:#1a3a2a;color:#86efac}
 .badge-fitb{background:#3b2f1e;color:#fbbf24}
 .badge-ms{background:#2e1f4a;color:#c4b5fd}
+.badge-ne{background:#3a1f2e;color:#f9a8d4}
 .badge-accuracy{background:#2e1b3d;color:#c084fc}
 .badge-completeness{background:#2d2d1a;color:#fde68a}
 .q-timing{margin-left:auto;color:#475569;font-size:0.78rem}
@@ -417,6 +451,7 @@ async def build_session_report(db: AsyncSession, session_id: str) -> tuple[str, 
             "true_false": "badge-tf",
             "fill_in_the_blank": "badge-fitb",
             "multi_select": "badge-ms",
+            "numeric_estimate": "badge-ne",
         }.get(q.type, "")
 
         grading_label = "Accuracy" if is_accuracy else "Completeness"
@@ -425,7 +460,12 @@ async def build_session_report(db: AsyncSession, session_id: str) -> tuple[str, 
         pts_val = f"{q.points_value:g}"
         pts_label = f"{pts_val} pt{'s' if q.points_value != 1 else ''}"
 
-        if q.type in ("multiple_choice", "true_false", "multi_select"):
+        if q.type in (
+            "multiple_choice",
+            "true_false",
+            "multi_select",
+            "numeric_estimate",
+        ):
             chart = _render_bar_chart(q, dict(dist), reveal, total_players)
         elif q.type == "fill_in_the_blank":
             chart = _render_word_cloud(q, dict(dist), reveal)
