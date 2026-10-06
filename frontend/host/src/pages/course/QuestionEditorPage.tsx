@@ -8,8 +8,13 @@ import { Card, CardContent, CardHeader } from '../../components/ui/card';
 import type { Game } from './GamesTab';
 import { ImageLibraryPanel, ImagePicker, useImageLibrary, type ImageLibraryState } from './ImageLibrary';
 import { QuestionImage } from '../../components/ui/QuestionImage';
+import {
+  PP_DEFAULT_TIME, PlotPointFields, buildPpPayload, plotProblems, ppDefaultForm, ppFromQuestion,
+  ppListSummary, ppPointsValue, type PpForm,
+} from './PlotPointEditor';
 
-type QuestionType = 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'multi_select' | 'numeric_estimate';
+type QuestionType =
+  | 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'multi_select' | 'numeric_estimate' | 'plot_point';
 type GradingType = 'ACCURACY' | 'COMPLETENESS';
 
 interface Question {
@@ -129,7 +134,8 @@ function buildNePayload(form: FormState) {
 
 // ---- QuestionForm subcomponent ----
 
-interface FormState {
+// plot_point fields (pp…) and their rules live in PlotPointEditor.tsx.
+interface FormState extends PpForm {
   type: QuestionType;
   grading: GradingType;
   prompt: string;
@@ -170,6 +176,7 @@ const defaultForm = (): FormState => ({
   neMode: 'relative',
   neUnit: '',
   neBands: neDefaultBands(),
+  ...ppDefaultForm(),
 });
 
 function questionToForm(q: Question): FormState {
@@ -215,6 +222,8 @@ function questionToForm(q: Question): FormState {
     base.neBands = bands.length
       ? bands.map((b) => ({ within: String(b.within), points: String(b.points) }))
       : neDefaultBands();
+  } else if (q.type === 'plot_point') {
+    Object.assign(base, ppFromQuestion(q.config, q.answer_data));
   }
   return base;
 }
@@ -238,6 +247,10 @@ function formToPayload(form: FormState) {
     const p = buildNePayload(form);
     config = p.config;
     answer_data = p.answer_data;
+  } else if (form.type === 'plot_point') {
+    const p = buildPpPayload(form, form.grading === 'ACCURACY');
+    config = p.config;
+    answer_data = p.answer_data;
   } else {
     const p = buildFibPayload(form.fibAnswers.filter((a) => a.text.trim()), form.fibEditDistance);
     config = p.config;
@@ -255,6 +268,8 @@ function formToPayload(form: FormState) {
       ? form.msOptions.reduce((sum, o) => sum + (o.points > 0 ? o.points : 0), 0)
       : form.type === 'numeric_estimate'
       ? Number(form.neBands[0]?.points ?? 0) // the first (best) band
+      : form.type === 'plot_point'
+      ? ppPointsValue(form)
       : Math.max(0, ...form.fibAnswers.map((a) => a.points));
   return {
     type: form.type,
@@ -302,7 +317,11 @@ function QuestionForm({
                 type,
                 // typing a number takes longer than tapping: raise the untouched default
                 timeLimitSeconds:
-                  type === 'numeric_estimate' && prev.timeLimitSeconds === 30 ? NE_DEFAULT_TIME : prev.timeLimitSeconds,
+                  type === 'numeric_estimate' && prev.timeLimitSeconds === 30
+                    ? NE_DEFAULT_TIME
+                    : type === 'plot_point' && prev.timeLimitSeconds === 30
+                    ? PP_DEFAULT_TIME
+                    : prev.timeLimitSeconds,
               }));
             }}
           >
@@ -311,6 +330,7 @@ function QuestionForm({
             <option value="fill_in_the_blank">Fill in the Blank</option>
             <option value="multi_select">Multi-Select (Select All That Apply)</option>
             <option value="numeric_estimate">Numeric Estimate (closest guess)</option>
+            <option value="plot_point">Plot the Point (tap a coordinate plane)</option>
           </select>
         </div>
         <div className="flex-1">
@@ -338,12 +358,15 @@ function QuestionForm({
           required
         />
         <div className="flex items-center gap-2 mt-2">
-          <span className="text-xs text-slate-400">Prompt image (optional)</span>
+          {/* plot_point: the same config.image_id is the plane's background (Decision 9). */}
+          <span className="text-xs text-slate-400">
+            {form.type === 'plot_point' ? 'Background image (optional)' : 'Prompt image (optional)'}
+          </span>
           <ImagePicker
             library={library}
             value={form.imageId}
             onChange={(id) => set('imageId', id)}
-            label="Prompt image"
+            label={form.type === 'plot_point' ? 'Background image' : 'Prompt image'}
           />
         </div>
       </div>
@@ -720,6 +743,15 @@ function QuestionForm({
         </div>
       )}
 
+      {form.type === 'plot_point' && (
+        <PlotPointFields
+          form={form}
+          accuracy={form.grading === 'ACCURACY'}
+          imageId={form.imageId}
+          onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+        />
+      )}
+
       {/* Time + points */}
       <div className="flex gap-4">
         <div>
@@ -753,7 +785,11 @@ function QuestionForm({
         <Button
           type="button"
           onClick={() => onSave(formToPayload(form))}
-          disabled={saving || (form.type === 'numeric_estimate' && numericProblems(form).length > 0)}
+          disabled={
+            saving
+            || (form.type === 'numeric_estimate' && numericProblems(form).length > 0)
+            || (form.type === 'plot_point' && plotProblems(form, form.grading === 'ACCURACY').length > 0)
+          }
         >
           {saving ? 'Saving…' : 'Save Question'}
         </Button>
@@ -947,6 +983,7 @@ export default function QuestionEditorPage() {
     fill_in_the_blank: 'Fill',
     multi_select: 'Multi',
     numeric_estimate: 'Num',
+    plot_point: 'Plot',
   };
 
   if (loading) return <div className="text-slate-400">Loading…</div>;
@@ -1118,7 +1155,7 @@ export default function QuestionEditorPage() {
                     <QuestionImage
                       imageId={q.config['image_id']}
                       version={library.byId(q.config['image_id'])?.sha256}
-                      alt="Prompt image"
+                      alt={q.type === 'plot_point' ? 'Background image' : 'Prompt image'}
                       className="h-16 w-28 mt-2"
                       align="left"
                     />
@@ -1193,6 +1230,12 @@ export default function QuestionEditorPage() {
                       ) : (
                         <div>Any number earns full points{q.config['unit'] ? ` (${String(q.config['unit'])})` : ''}</div>
                       )}
+                    </div>
+                  )}
+
+                  {q.type === 'plot_point' && (
+                    <div className="mt-2 text-xs text-slate-400">
+                      {ppListSummary(q.config, q.answer_data, q.grading_type === 'ACCURACY')}
                     </div>
                   )}
 

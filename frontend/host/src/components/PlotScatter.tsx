@@ -6,6 +6,7 @@ import {
   graphToGrid,
   gridSize,
   gridToPixel,
+  pixelToGrid,
   type GridPoint,
   type PlotConfig,
   type PlotLayout,
@@ -24,6 +25,8 @@ interface PlotScatterProps {
   scale?: number;
   /** Sizes the box; its height is capped at what the plane needs at its width. */
   className?: string;
+  /** The editor preview: a click picks the nearest grid point (clamped to the plane). */
+  onPick?: (p: GridPoint) => void;
 }
 
 /** "col,row" buckets that are grid points of this plane; anything else is ignored. */
@@ -136,11 +139,14 @@ function drawStar(ctx: CanvasRenderingContext2D, l: PlotLayout, target: GridPoin
  * by count; with an ACCURACY reveal, the target as a star and each band as a square around it,
  * labelled with its points. Fills its box with square cells and redraws on resize.
  */
-export function PlotScatter({ config, imageId, distribution, reveal, scale = 1, className = 'w-full h-full' }: PlotScatterProps) {
+export function PlotScatter({
+  config, imageId, distribution, reveal, scale = 1, className = 'w-full h-full', onPick,
+}: PlotScatterProps) {
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const [layout, setLayout] = useState<PlotLayout | null>(null);
 
   useEffect(() => {
     const box = boxRef.current;
@@ -176,6 +182,7 @@ export function PlotScatter({ config, imageId, distribution, reveal, scale = 1, 
     const l = plotLayoutFor(config, size.width, size.height, scale);
     const palette = plotPalette();
     drawPlane(ctx, config, l, palette, size.width, size.height, image, scale);
+    setLayout(l);
     if (l.cellPx <= 0) return;
     const target = reveal ? graphToGrid(config, reveal.target) : null;
     if (target && reveal) drawBands(ctx, l, target, reveal.bands, palette, scale);
@@ -200,8 +207,20 @@ export function PlotScatter({ config, imageId, distribution, reveal, scale = 1, 
         role="img"
         aria-label={label}
         data-testid="plot-scatter"
+        data-plot-left={layout?.left}
+        data-plot-top={layout?.top}
+        data-cell-px={layout?.cellPx}
+        onClick={
+          onPick
+            ? (e) => {
+                if (!layout || layout.cellPx <= 0) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                onPick(pixelToGrid(layout, { px: e.clientX - rect.left, py: e.clientY - rect.top }));
+              }
+            : undefined
+        }
         style={{ width: size.width, height: size.height }}
-        className="absolute inset-0 block"
+        className={`absolute inset-0 block ${onPick ? 'cursor-crosshair' : ''}`}
       />
     </div>
   );
