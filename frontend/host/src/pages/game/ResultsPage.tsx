@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Check } from 'lucide-react';
 import { useGame } from './GameLayout';
 import { Button } from '../../components/ui/button';
 import { QuestionImage } from '../../components/ui/QuestionImage';
@@ -77,35 +78,42 @@ function WordCloud({ distribution, answerReveal, totalAnswered, totalPlayers }: 
   return (
     <div className="w-full max-w-3xl flex flex-col gap-4">
       {isAccuracy && acceptedAnswers.length > 0 && (
-        <p className="text-center text-slate-400 text-base">
+        <p className="text-center text-fg-muted text-base">
           Correct answer:{' '}
-          <span className="text-green-400 font-semibold">
+          <span className="text-success-text font-semibold">
             {(answerReveal as { acceptedAnswers: string[] }).acceptedAnswers.join(' / ')}
             {editDistance > 0 && (
-              <span className="text-slate-500 font-normal text-sm ml-1">(±{editDistance})</span>
+              <span className="text-fg-subtle font-normal text-sm ml-1">(±{editDistance})</span>
             )}
           </span>
         </p>
       )}
 
-      <div className="flex flex-wrap gap-x-5 gap-y-3 justify-center items-center min-h-32 p-4 bg-slate-800/40 rounded-2xl">
+      <div className="flex flex-wrap gap-x-5 gap-y-3 justify-center items-center min-h-32 p-4 bg-surface rounded-2xl">
         {entries.map(([word, count]) => (
           <span
             key={word}
             title={`${count} player${count !== 1 ? 's' : ''}`}
             className={`${sizeClass(count)} transition-colors ${
-              isCorrectWord(word) ? 'text-green-400' : 'text-slate-300'
+              isCorrectWord(word) ? 'text-success-text' : 'text-fg-muted'
             }`}
           >
+            {/* Not colour alone: a correct word also gets a check mark and a spoken label. */}
+            {isCorrectWord(word) && (
+              <>
+                <Check aria-hidden className="inline h-[0.75em] w-[0.75em] mr-1 align-baseline" strokeWidth={3} />
+                <span className="sr-only">Correct: </span>
+              </>
+            )}
             {word}
           </span>
         ))}
         {entries.length === 0 && (
-          <p className="text-slate-600 text-sm">No answers submitted</p>
+          <p className="text-fg-subtle text-sm">No answers submitted</p>
         )}
       </div>
 
-      <p className="text-slate-500 text-sm text-right">
+      <p className="text-fg-subtle text-sm text-right">
         {totalAnswered} / {totalPlayers} answered
       </p>
     </div>
@@ -131,16 +139,23 @@ function AnswerBarChart({ bars, totalAnswered, totalPlayers, wideLabels }: BarCh
     <div className="w-full max-w-2xl space-y-3">
       {bars.map((bar, i) => {
         const pct = Math.round((bar.count / maxCount) * 100);
+        // Fill and the count printed inside it (docs/plans/t9-theming.md, host result bars).
         const barColor =
           bar.correct === true
-            ? 'bg-green-500'
+            ? 'bg-success'
             : bar.correct === false
-            ? 'bg-slate-600'
-            : 'bg-indigo-500';
+            ? 'bg-fg-subtle'
+            : 'bg-accent';
+        const countColor =
+          bar.correct === true
+            ? 'text-on-success'
+            : bar.correct === false
+            ? 'text-surface'
+            : 'text-on-accent';
 
         return (
           <div key={i} className="flex items-center gap-3">
-            <span className={`text-slate-300 font-bold font-mono text-right shrink-0 ${wideLabels ? 'w-44' : 'w-8'}`}>
+            <span className={`text-fg-muted font-bold font-mono text-right shrink-0 ${wideLabels ? 'w-44' : 'w-8'}`}>
               {bar.label}
             </span>
             {anyImage && (
@@ -153,27 +168,27 @@ function AnswerBarChart({ bars, totalAnswered, totalPlayers, wideLabels }: BarCh
                 />
               </span>
             )}
-            <div className="flex-1 bg-slate-800 rounded-full h-10 overflow-hidden">
+            <div className="flex-1 bg-surface-raised rounded-full h-10 overflow-hidden">
               <div
                 className={`h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500 ${barColor}`}
                 style={{ width: `${Math.max(pct, bar.count > 0 ? 4 : 0)}%` }}
               >
                 {bar.count > 0 && (
-                  <span className="text-white font-bold text-sm">{bar.count}</span>
+                  <span className={`font-bold text-sm ${countColor}`}>{bar.count}</span>
                 )}
               </div>
             </div>
             {bar.correct === true && (
-              <span className="text-green-400 text-sm font-semibold shrink-0">✓ Correct</span>
+              <span className="text-success-text text-sm font-semibold shrink-0">✓ Correct</span>
             )}
             {bar.count === 0 && bar.correct !== true && (
-              <span className="text-slate-600 text-sm shrink-0">0</span>
+              <span className="text-fg-subtle text-sm shrink-0">0</span>
             )}
           </div>
         );
       })}
 
-      <p className="text-slate-500 text-sm text-right pt-1">
+      <p className="text-fg-subtle text-sm text-right pt-1">
         {totalAnswered} / {totalPlayers} answered
       </p>
     </div>
@@ -285,12 +300,12 @@ export default function ResultsPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8 gap-8">
-      <h2 className="text-3xl font-bold text-slate-100">
+      <h2 className="text-3xl font-bold text-fg">
         Question {currentQuestion?.questionNumber} Results
       </h2>
 
       {currentQuestion && (
-        <p className="text-slate-300 text-xl text-center max-w-2xl">
+        <p className="text-fg-muted text-xl text-center max-w-2xl">
           <PromptText prompt={currentQuestion.prompt} />
         </p>
       )}
@@ -306,11 +321,11 @@ export default function ResultsPage() {
       {questionResults && plotConfig ? (
         <>
           {plotReveal ? (
-            <p className="text-slate-100 text-3xl font-bold">
-              Target: <span className="text-green-400">{targetText(plotConfig, plotReveal)}</span>
+            <p className="text-fg text-3xl font-bold">
+              Target: <span className="text-success-text">{targetText(plotConfig, plotReveal)}</span>
             </p>
           ) : (
-            <p className="text-slate-300 text-xl font-semibold">Class responses</p>
+            <p className="text-fg-muted text-xl font-semibold">Class responses</p>
           )}
           <PlotScatter
             config={plotConfig}
@@ -320,7 +335,7 @@ export default function ResultsPage() {
             scale={1.5}
             className="w-full max-w-4xl h-[60vh]"
           />
-          <p className="text-slate-400 text-lg">
+          <p className="text-fg-muted text-lg">
             {questionResults.totalAnswered} / {questionResults.totalPlayers} answered
           </p>
         </>
@@ -334,8 +349,8 @@ export default function ResultsPage() {
       ) : questionResults ? (
         <>
         {numericReveal && (
-          <p className="text-slate-100 text-3xl font-bold">
-            Target: <span className="text-green-400">{withUnit(numericReveal.target, unit)}</span>
+          <p className="text-fg text-3xl font-bold">
+            Target: <span className="text-success-text">{withUnit(numericReveal.target, unit)}</span>
           </p>
         )}
         <AnswerBarChart
@@ -352,7 +367,7 @@ export default function ResultsPage() {
           {isLast ? 'Show Final Results' : 'Next Question'}
         </Button>
         {autoAdvance && (
-          <p className="text-slate-500 text-sm tabular-nums">
+          <p className="text-fg-subtle text-sm tabular-nums">
             Auto-advancing in {countdown}s
           </p>
         )}

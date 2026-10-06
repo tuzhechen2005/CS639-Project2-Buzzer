@@ -125,7 +125,7 @@ export default function GamesTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-100">Games</h2>
+        <h2 className="text-xl font-semibold text-fg">Games</h2>
         <div className="flex gap-2">
           <input ref={fileRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
           <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={importing}>
@@ -138,11 +138,11 @@ export default function GamesTab() {
         </div>
       </div>
 
-      {error && <p className="text-red-400 text-sm">{error}</p>}
+      {error && <p className="text-danger-text text-sm">{error}</p>}
 
       {showForm && (
         <Card>
-          <CardHeader><h3 className="text-lg font-semibold text-slate-100">Create Game</h3></CardHeader>
+          <CardHeader><h3 className="text-lg font-semibold text-fg">Create Game</h3></CardHeader>
           <CardContent>
             <form onSubmit={handleCreate} className="space-y-3">
               <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} required />
@@ -150,11 +150,11 @@ export default function GamesTab() {
                 placeholder="Description (optional)"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                className="w-full rounded-lg border border-line-strong bg-surface-raised px-3 py-2 text-fg placeholder:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page resize-none"
                 rows={3}
               />
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Max players</label>
+                <label className="block text-xs text-fg-muted mb-1">Max players</label>
                 <Input
                   type="number"
                   value={maxPlayers}
@@ -174,9 +174,9 @@ export default function GamesTab() {
       )}
 
       {loading ? (
-        <p className="text-slate-400">Loading…</p>
+        <p className="text-fg-muted">Loading…</p>
       ) : games.length === 0 ? (
-        <p className="text-slate-400">
+        <p className="text-fg-muted">
           No games yet. Create one, or ask an admin to grant you access to this course's existing games.
         </p>
       ) : (
@@ -185,18 +185,18 @@ export default function GamesTab() {
             <Card key={g.id} className="flex items-center justify-between gap-4 px-6 py-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold text-slate-100 truncate">{g.title}</p>
+                  <p className="font-semibold text-fg truncate">{g.title}</p>
                   {g.locked && (
                     <span
-                      className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-900/50 text-amber-300"
+                      className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-warning-subtle text-warning-text"
                       title="This game has recorded answers, so its questions can't change. Duplicate it to edit."
                     >
                       <Lock size={11} /> Played — locked
                     </span>
                   )}
                 </div>
-                {g.description && <p className="text-slate-400 text-sm mt-0.5 line-clamp-1">{g.description}</p>}
-                <p className="text-slate-500 text-xs mt-0.5">Max {g.max_players} players</p>
+                {g.description && <p className="text-fg-muted text-sm mt-0.5 line-clamp-1">{g.description}</p>}
+                <p className="text-fg-subtle text-xs mt-0.5">Max {g.max_players} players</p>
               </div>
               <div className="flex gap-2 shrink-0">
                 <Button size="sm" onClick={() => void startRoom(g)} disabled={busyId === g.id}>

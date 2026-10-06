@@ -40,21 +40,21 @@ export default function CourseLayout() {
 
   const tabClass = ({ isActive }: { isActive: boolean }) =>
     `px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-      isActive ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-100'
+      isActive ? 'bg-accent text-on-accent' : 'text-fg-muted hover:text-fg'
     }`;
 
   if (state === 'loading') {
-    return <div className="p-8 text-slate-400">Loading…</div>;
+    return <div className="p-8 text-fg-muted">Loading…</div>;
   }
 
   if (state !== 'ready' || !course) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center space-y-4">
-          <p className="text-slate-300 text-lg">
+          <p className="text-fg-muted text-lg">
             {state === 'error' ? error : "You don't have access to this course."}
           </p>
-          <Link to="/home" className="text-indigo-400 underline">Back to your courses</Link>
+          <Link to="/home" className="text-accent-text underline">Back to your courses</Link>
         </div>
       </div>
     );
@@ -66,16 +66,16 @@ export default function CourseLayout() {
         <div className="space-y-3">
           <Link
             to={onEditor ? `/courses/${course.id}/games` : '/home'}
-            className="inline-flex items-center gap-2 text-slate-400 hover:text-slate-100 text-sm"
+            className="inline-flex items-center gap-2 text-fg-muted hover:text-fg text-sm"
           >
             <ArrowLeft size={14} /> {onEditor ? 'Back to Games' : 'All courses'}
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-slate-100">{course.name}</h1>
-            <p className="text-slate-400 text-sm">{course.semester}</p>
+            <h1 className="text-2xl font-bold text-fg">{course.name}</h1>
+            <p className="text-fg-muted text-sm">{course.semester}</p>
           </div>
           {!onEditor && (
-            <nav className="inline-flex gap-1 bg-slate-800 rounded-lg p-1">
+            <nav className="inline-flex gap-1 bg-surface-raised rounded-lg p-1">
               <NavLink to="games" className={tabClass}>Games</NavLink>
               <NavLink to="roster" className={tabClass}>Roster</NavLink>
               <NavLink to="sessions" className={tabClass}>Past Sessions</NavLink>

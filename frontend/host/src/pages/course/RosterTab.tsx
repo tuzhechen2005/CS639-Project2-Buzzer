@@ -354,7 +354,7 @@ export default function RosterTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-slate-100">Roster</h2>
+        <h2 className="text-xl font-semibold text-fg">Roster</h2>
         {step === 'idle' && (
           <>
             <input
@@ -371,28 +371,28 @@ export default function RosterTab() {
         )}
       </div>
 
-      {error && <p className="text-red-400 mb-4 text-sm">{error}</p>}
+      {error && <p className="text-danger-text mb-4 text-sm">{error}</p>}
 
       {/* ── Column-mapping wizard ── */}
       {step === 'mapping' && (
         <Card className="mb-6">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-slate-100">Map Columns — {fileName}</h3>
-              <button onClick={resetWizard} className="text-slate-400 hover:text-slate-100"><X size={16} /></button>
+              <h3 className="text-lg font-semibold text-fg">Map Columns — {fileName}</h3>
+              <button onClick={resetWizard} className="text-fg-muted hover:text-fg"><X size={16} /></button>
             </div>
           </CardHeader>
           <CardContent className="space-y-5">
 
             {/* Raw CSV preview */}
             <div>
-              <p className="text-xs text-slate-400 mb-2">
+              <p className="text-xs text-fg-muted mb-2">
                 Raw preview — {rawRows.length} data row{rawRows.length !== 1 ? 's' : ''} detected:
               </p>
-              <div className="overflow-x-auto rounded border border-slate-700">
-                <table className="text-xs text-slate-300 w-full">
+              <div className="overflow-x-auto rounded border border-line">
+                <table className="text-xs text-fg-muted w-full">
                   <thead>
-                    <tr className="bg-slate-700/50">
+                    <tr className="bg-surface-raised">
                       {headers.map((h, i) => (
                         <th key={i} className="px-3 py-2 text-left font-medium whitespace-nowrap">{h}</th>
                       ))}
@@ -402,7 +402,7 @@ export default function RosterTab() {
                     {rawRows.slice(0, 4).map((row, ri) => (
                       <tr
                         key={ri}
-                        className={`border-t border-slate-700/50 ${ri === 0 && skipRow2 ? 'opacity-30 line-through' : ''}`}
+                        className={`border-t border-line ${ri === 0 && skipRow2 ? 'opacity-30 line-through' : ''}`}
                       >
                         {headers.map((_, ci) => (
                           <td key={ci} className="px-3 py-1.5 max-w-[180px] truncate">{row[ci] ?? ''}</td>
@@ -422,11 +422,11 @@ export default function RosterTab() {
                 { label: 'Email column', value: emailCol, set: setEmailCol },
               ] as const).map(({ label, value, set }) => (
                 <div key={label}>
-                  <label className="text-xs text-slate-400 block mb-1">{label}</label>
+                  <label className="text-xs text-fg-muted block mb-1">{label}</label>
                   <select
                     value={value}
                     onChange={(e) => set(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-surface-raised border border-line-strong rounded px-2 py-1.5 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                   >
                     {headers.map((h) => <option key={h} value={h}>{h}</option>)}
                   </select>
@@ -456,29 +456,29 @@ export default function RosterTab() {
                   label: 'Name is in "Last, First" format — extract given name only',
                 },
               ] as const).map(({ id, checked, set, label }) => (
-                <label key={id} className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer select-none">
+                <label key={id} className="flex items-center gap-2 text-sm text-fg-muted cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={(e) => set(e.target.checked)}
-                    className="rounded border-slate-600 bg-slate-800 accent-indigo-500"
+                    className="rounded border-line-strong bg-surface-raised accent-accent"
                   />
                   {label}
                 </label>
               ))}
             </div>
-            <p className="text-xs text-slate-500">Rows missing any required field after mapping are automatically skipped.</p>
+            <p className="text-xs text-fg-subtle">Rows missing any required field after mapping are automatically skipped.</p>
 
             {/* Mapped preview */}
             {previewRows.length > 0 && (
               <div>
-                <p className="text-xs text-slate-400 mb-2">
+                <p className="text-xs text-fg-muted mb-2">
                   Mapped preview — {totalRows} row{totalRows !== 1 ? 's' : ''} will be imported:
                 </p>
-                <div className="rounded border border-slate-700 overflow-hidden">
-                  <table className="text-xs text-slate-300 w-full">
+                <div className="rounded border border-line overflow-hidden">
+                  <table className="text-xs text-fg-muted w-full">
                     <thead>
-                      <tr className="bg-slate-700/50">
+                      <tr className="bg-surface-raised">
                         <th className="px-3 py-2 text-left">netid</th>
                         <th className="px-3 py-2 text-left">full_name</th>
                         <th className="px-3 py-2 text-left">email</th>
@@ -486,7 +486,7 @@ export default function RosterTab() {
                     </thead>
                     <tbody>
                       {previewRows.map((r, i) => (
-                        <tr key={i} className="border-t border-slate-700/50">
+                        <tr key={i} className="border-t border-line">
                           <td className="px-3 py-1.5">{r.netid}</td>
                           <td className="px-3 py-1.5">{r.full_name}</td>
                           <td className="px-3 py-1.5">{r.email}</td>
@@ -500,7 +500,7 @@ export default function RosterTab() {
 
             {/* Import mode */}
             <div>
-              <p className="text-xs text-slate-400 mb-2">Import mode</p>
+              <p className="text-xs text-fg-muted mb-2">Import mode</p>
               <div className="space-y-2">
                 {([
                   {
@@ -514,18 +514,18 @@ export default function RosterTab() {
                     hint: 'Also deactivate every student who is not in this file.',
                   },
                 ] as const).map((m) => (
-                  <label key={m.value} className="flex items-start gap-2 text-sm text-slate-300 cursor-pointer select-none">
+                  <label key={m.value} className="flex items-start gap-2 text-sm text-fg-muted cursor-pointer select-none">
                     <input
                       type="radio"
                       name="roster-mode"
                       checked={mode === m.value}
                       onChange={() => setMode(m.value)}
                       disabled={previewing || importing}
-                      className="mt-1 accent-indigo-500"
+                      className="mt-1 accent-accent"
                     />
                     <span>
-                      <span className="font-medium text-slate-100">{m.label}</span>
-                      <span className="block text-xs text-slate-500">{m.hint}</span>
+                      <span className="font-medium text-fg">{m.label}</span>
+                      <span className="block text-xs text-fg-subtle">{m.hint}</span>
                     </span>
                   </label>
                 ))}
@@ -534,49 +534,49 @@ export default function RosterTab() {
 
             {/* Dry-run counts */}
             {preview && (
-              <div className="rounded border border-slate-700 bg-slate-800/50 px-4 py-3 space-y-2">
-                <p className="text-sm text-slate-200">
+              <div className="rounded border border-line bg-surface px-4 py-3 space-y-2">
+                <p className="text-sm text-fg">
                   This import will add <strong>{preview.imported}</strong>, update{' '}
                   <strong>{preview.updated}</strong> and deactivate{' '}
-                  <strong className={preview.deactivated > 0 ? 'text-red-400' : ''}>{preview.deactivated}</strong>{' '}
+                  <strong className={preview.deactivated > 0 ? 'text-danger-text' : ''}>{preview.deactivated}</strong>{' '}
                   student{preview.deactivated !== 1 ? 's' : ''}.
                 </p>
                 {preview.errors.length > 0 && (
-                  <ul className="text-red-400 text-xs space-y-1">
+                  <ul className="text-danger-text text-xs space-y-1">
                     {preview.errors.map((e, i) => <li key={i}>{e}</li>)}
                   </ul>
                 )}
                 {skippedRows.length > 0 && (
-                  <div className="text-xs text-amber-300 space-y-1">
+                  <div className="text-xs text-warning-text space-y-1">
                     <p>
                       {skippedRows.length} row{skippedRows.length !== 1 ? 's were' : ' was'} skipped
                       (missing netid, name or email) and won't be imported:
                     </p>
-                    <ul className="space-y-0.5 text-amber-200/80">
+                    <ul className="space-y-0.5 text-warning-text">
                       {skippedRows.slice(0, 5).map((r) => <li key={r.row}>Data row {r.row}: {r.text}</li>)}
                       {skippedRows.length > 5 && <li>…and {skippedRows.length - 5} more</li>}
                     </ul>
                   </div>
                 )}
                 {replaceNeedsSkipConfirm && (
-                  <label className="flex items-center gap-2 text-sm text-red-300 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 text-sm text-danger-text cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={confirmSkipped}
                       onChange={(e) => setConfirmSkipped(e.target.checked)}
-                      className="rounded border-slate-600 bg-slate-800 accent-red-500"
+                      className="rounded border-line-strong bg-surface-raised accent-danger"
                     />
                     I understand that students in the skipped or rejected rows count as not in this
                     file, so Replace will deactivate them if they are on the roster.
                   </label>
                 )}
                 {mode === 'replace' && preview.deactivated > 0 && (
-                  <label className="flex items-center gap-2 text-sm text-red-300 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 text-sm text-danger-text cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={confirmReplace}
                       onChange={(e) => setConfirmReplace(e.target.checked)}
-                      className="rounded border-slate-600 bg-slate-800 accent-red-500"
+                      className="rounded border-line-strong bg-surface-raised accent-danger"
                     />
                     I understand that {preview.deactivated} student{preview.deactivated !== 1 ? 's' : ''} not
                     in this file will be deactivated and can no longer join this course's games.
@@ -611,36 +611,36 @@ export default function RosterTab() {
 
       {/* ── Result banner ── */}
       {step === 'result' && uploadResult && (
-        <Card className="mb-6 p-4 border-green-700 bg-green-900/20">
+        <Card className="mb-6 p-4 border-success bg-success-subtle">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-green-400 text-sm font-medium">
+              <p className="text-success-text text-sm font-medium">
                 Import complete &mdash; {uploadResult.imported} imported, {uploadResult.updated} updated,{' '}
                 {uploadResult.deactivated} deactivated
               </p>
               {uploadResult.errors.length > 0 && (
-                <ul className="mt-2 text-red-400 text-xs space-y-1">
+                <ul className="mt-2 text-danger-text text-xs space-y-1">
                   {uploadResult.errors.map((e, i) => <li key={i}>{e}</li>)}
                 </ul>
               )}
             </div>
-            <button onClick={resetWizard} className="text-slate-400 hover:text-slate-100 ml-4"><X size={16} /></button>
+            <button onClick={resetWizard} className="text-fg-muted hover:text-fg ml-4"><X size={16} /></button>
           </div>
         </Card>
       )}
 
       {/* ── Roster table ── */}
       {loading ? (
-        <p className="text-slate-400">Loading…</p>
+        <p className="text-fg-muted">Loading…</p>
       ) : entries.length === 0 ? (
-        <p className="text-slate-500 text-sm">No roster entries yet. Upload a CSV to get started.</p>
+        <p className="text-fg-subtle text-sm">No roster entries yet. Upload a CSV to get started.</p>
       ) : (
         <>
-          <p className="text-slate-400 text-sm mb-4">{active.length} active &middot; {inactive.length} inactive</p>
-          <div className="rounded-lg border border-slate-700 overflow-hidden">
+          <p className="text-fg-muted text-sm mb-4">{active.length} active &middot; {inactive.length} inactive</p>
+          <div className="rounded-lg border border-line overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-800/60 text-xs text-slate-400 border-b border-slate-700">
+                <tr className="bg-surface text-xs text-fg-muted border-b border-line">
                   <th className="text-left px-4 py-3 font-medium">Full Name</th>
                   <th className="text-left px-4 py-3 font-medium">NetID</th>
                   <th className="text-left px-4 py-3 font-medium">Email</th>
@@ -653,7 +653,7 @@ export default function RosterTab() {
                 {entries.map((entry) =>
                   editingId === entry.id && editDraft ? (
                     // ── Edit row ──
-                    <tr key={entry.id} className="border-t border-slate-700 bg-slate-700/30">
+                    <tr key={entry.id} className="border-t border-line bg-surface-raised">
                       <td className="px-3 py-2">
                         <Input
                           value={editDraft.full_name}
@@ -681,12 +681,12 @@ export default function RosterTab() {
                             type="checkbox"
                             checked={editDraft.is_active}
                             onChange={(e) => setEditDraft({ ...editDraft, is_active: e.target.checked })}
-                            className="rounded border-slate-600 bg-slate-800 accent-indigo-500"
+                            className="rounded border-line-strong bg-surface-raised accent-accent"
                           />
-                          <span className="text-slate-300 text-xs">Active</span>
+                          <span className="text-fg-muted text-xs">Active</span>
                         </label>
                       </td>
-                      <td className="px-4 py-2 text-slate-500 text-xs whitespace-nowrap">
+                      <td className="px-4 py-2 text-fg-subtle text-xs whitespace-nowrap">
                         {new Date(entry.imported_at).toLocaleDateString()}
                       </td>
                       <td className="px-3 py-2">
@@ -704,23 +704,23 @@ export default function RosterTab() {
                     // ── View row ──
                     <tr
                       key={entry.id}
-                      className={`border-t border-slate-700/60 hover:bg-slate-800/30 transition-colors ${
+                      className={`border-t border-line hover:bg-surface-raised transition-colors ${
                         !entry.is_active ? 'opacity-50' : ''
                       }`}
                     >
-                      <td className="px-4 py-3 font-medium text-slate-100">{entry.full_name}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-300">{entry.netid}</td>
-                      <td className="px-4 py-3 text-slate-400">{entry.email}</td>
+                      <td className="px-4 py-3 font-medium text-fg">{entry.full_name}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-fg-muted">{entry.netid}</td>
+                      <td className="px-4 py-3 text-fg-muted">{entry.email}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${
                           entry.is_active
-                            ? 'bg-green-900/50 text-green-400'
-                            : 'bg-slate-700 text-slate-400'
+                            ? 'bg-success-subtle text-success-text'
+                            : 'bg-surface-raised text-fg-muted'
                         }`}>
                           {entry.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                      <td className="px-4 py-3 text-fg-subtle text-xs whitespace-nowrap">
                         {new Date(entry.imported_at).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-3 text-right">

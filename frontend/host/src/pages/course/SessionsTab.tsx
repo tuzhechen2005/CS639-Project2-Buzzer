@@ -96,14 +96,14 @@ export default function SessionsTab() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold text-slate-100">Past Sessions</h2>
+      <h2 className="text-xl font-semibold text-fg">Past Sessions</h2>
 
-      {error && <p className="text-red-400 text-sm">{error}</p>}
+      {error && <p className="text-danger-text text-sm">{error}</p>}
 
       {loading ? (
-        <p className="text-slate-400">Loading…</p>
+        <p className="text-fg-muted">Loading…</p>
       ) : sessions.length === 0 ? (
-        <p className="text-slate-400">No finished sessions yet. Sessions appear here once a game ends.</p>
+        <p className="text-fg-muted">No finished sessions yet. Sessions appear here once a game ends.</p>
       ) : (
         <div className="space-y-2">
           {sessions.map((s) => {
@@ -114,15 +114,15 @@ export default function SessionsTab() {
                 <div className="flex items-center gap-4 px-5 py-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-slate-100">{s.game_title}</span>
+                      <span className="font-medium text-fg">{s.game_title}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        s.status === 'COMPLETED' ? 'bg-indigo-900 text-indigo-300' : 'bg-red-900 text-red-400'
+                        s.status === 'COMPLETED' ? 'bg-accent-subtle text-accent-text' : 'bg-danger-subtle text-danger-text'
                       }`}>
                         {s.status === 'COMPLETED' ? 'Completed' : 'Abandoned'}
                       </span>
                     </div>
-                    <p className="text-slate-500 text-xs mt-0.5">
-                      Room <span className="font-mono text-slate-400">{s.room_code}</span>
+                    <p className="text-fg-subtle text-xs mt-0.5">
+                      Room <span className="font-mono text-fg-muted">{s.room_code}</span>
                       {' · '}{s.player_count} player{s.player_count !== 1 ? 's' : ''}
                       {' · '}{fmtDate(s.created_at)}
                       {s.host_display_name && <span> · hosted by {s.host_display_name}</span>}
@@ -161,10 +161,10 @@ export default function SessionsTab() {
                 </div>
 
                 {canvasOpen && (
-                  <div className="border-t border-slate-700 bg-slate-800/50 px-5 py-4 space-y-4">
+                  <div className="border-t border-line bg-surface px-5 py-4 space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Assignment name</label>
+                        <label className="block text-xs text-fg-muted mb-1">Assignment name</label>
                         <Input
                           value={opts.title}
                           onChange={(e) => setOpt(s, 'title', e.target.value)}
@@ -173,8 +173,8 @@ export default function SessionsTab() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">
-                          Canvas assignment ID <span className="text-slate-500">(optional)</span>
+                        <label className="block text-xs text-fg-muted mb-1">
+                          Canvas assignment ID <span className="text-fg-subtle">(optional)</span>
                         </label>
                         <Input
                           value={opts.assignmentId}
@@ -185,8 +185,8 @@ export default function SessionsTab() {
                       </div>
                     </div>
                     <div className="max-w-xs">
-                      <label className="block text-xs text-slate-400 mb-1">
-                        SIS Login ID domain <span className="text-slate-500">(appended to netid)</span>
+                      <label className="block text-xs text-fg-muted mb-1">
+                        SIS Login ID domain <span className="text-fg-subtle">(appended to netid)</span>
                       </label>
                       <Input
                         value={opts.sisDomain}
@@ -201,11 +201,11 @@ export default function SessionsTab() {
                           type="checkbox"
                           checked={opts.rosterOnly}
                           onChange={(e) => setOpt(s, 'rosterOnly', e.target.checked)}
-                          className="rounded border-slate-600 accent-indigo-500"
+                          className="rounded border-line-strong accent-accent"
                         />
-                        <span className="text-sm text-slate-300">
+                        <span className="text-sm text-fg-muted">
                           Roster-matched players only
-                          <span className="text-slate-500 ml-1 text-xs">(skip guests and local accounts without a netid)</span>
+                          <span className="text-fg-subtle ml-1 text-xs">(skip guests and local accounts without a netid)</span>
                         </span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -213,11 +213,11 @@ export default function SessionsTab() {
                           type="checkbox"
                           checked={opts.perQuestion}
                           onChange={(e) => setOpt(s, 'perQuestion', e.target.checked)}
-                          className="rounded border-slate-600 accent-indigo-500"
+                          className="rounded border-line-strong accent-accent"
                         />
-                        <span className="text-sm text-slate-300">
+                        <span className="text-sm text-fg-muted">
                           Per-question breakdown
-                          <span className="text-slate-500 ml-1 text-xs">(one column per question, otherwise total only)</span>
+                          <span className="text-fg-subtle ml-1 text-xs">(one column per question, otherwise total only)</span>
                         </span>
                       </label>
                     </div>
