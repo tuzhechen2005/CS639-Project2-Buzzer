@@ -49,10 +49,16 @@ Cross-app ones. Each app's `CLAUDE.md` files have the details.
     `GameOverPage` (`describePlayerAnswer`, `describeCorrectAnswer`)
   The editor's `answer_data` keys, the player's `submit_answer` shape and both `types/game.ts`
   files must all match the backend exactly. Today `answer_data` mixes snake_case and camelCase.
+  A type with a lot of UI can live in its own modules that those files wire in, as `plot_point`
+  does (player `components/PlotPointAnswer`, host `components/PlotScatter` and
+  `pages/course/PlotPointEditor`).
 - **Copied code that has drifted.** `lib/api.ts` (host and admin have the same methods, player
   only `get`/`post`; all three share the same error-text logic), `components/ui/` (admin = host byte-for-byte; player is a mobile-sized fork, and its
   `TimerBar` lacks `initialSeconds`), and `types/game.ts` (host and player differ). A bug fix in
-  one copy doesn't reach the others.
+  one copy doesn't reach the others. The one exception is `lib/plotGeometry.ts` (T7 plot_point):
+  host and player copies must stay **byte-identical**, and `tests/unit/test_plot_geometry_copies.py`
+  fails if they drift. `lib/plotDraw.ts` is copied too but differs on purpose (the host's has a
+  projector `scale`).
 - **Nothing checks the frontend types against the backend.** Payload types are hand-written and
   can silently fall out of date when `backend/app/websocket/gateway.py` or the schemas change.
 - **Auth is thin everywhere:** route guards only check that a token exists in
@@ -75,4 +81,6 @@ Cross-app ones. Each app's `CLAUDE.md` files have the details.
 - **Build gotchas apply to all three:** `dist/` is a snapshot (empty means nginx 403s), `tsc -b`
   leaves compiled `vite.config.js` / `tailwind.config.js` that shadow the `.ts` configs, and CI's
   `frontend-typecheck` (`npx tsc --noEmit`) is the only automated check. The player app has a
-  small vitest suite (`npm test` in `frontend/player`, for the number parser) that CI does not run.
+  vitest suite (`npm test` in `frontend/player`: the number parser, numeric_estimate text, and the
+  plot_point geometry and typed-coordinate rules) that CI does not run. The host has no test
+  runner; its plot_point screens are covered by the Playwright tests in `tests/e2e/`.
