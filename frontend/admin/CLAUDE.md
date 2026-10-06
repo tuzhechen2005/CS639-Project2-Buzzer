@@ -9,13 +9,18 @@ app works.
 ## Contents
 - `src/` — all application code; see `src/CLAUDE.md`.
 - `index.html` — Vite entry page (title "Buzzer Admin"), loads `/src/main.tsx`.
+  Before any script loads, a small inline script sets `<html data-theme>` and `color-scheme`
+  from `localStorage['buzzer-theme']` (else the OS preference) so there is no flash of the wrong
+  theme; `<meta name="theme-color" content="">` starts empty and `initTheme()` fills it. (T9)
 - `package.json` — scripts `dev` (Vite on :5175), `build` (`tsc -b && vite build`), `preview`.
   Dependencies are the host's minus `qrcode.react` and `socket.io-client`: react 18,
   react-router-dom 6, lucide-react, clsx + tailwind-merge.
 - `vite.config.ts` — `base` is `/admin/` for production builds and `/` in dev; the dev server
   proxies only `/api` to `http://localhost:8000` (no `/socket.io`, since the admin app is REST-only).
 - `tsconfig.json` / `tsconfig.node.json` / `tailwind.config.ts` / `postcss.config.js` — identical
-  to the host's (strict TypeScript with unused-variable errors; Tailwind scans `index.html` + `src/`).
+  to the host's (strict TypeScript with unused-variable errors; Tailwind scans `index.html` +
+  `src/`, adds the theme colours from `src/theme/colors.js` and sets
+  `future.hoverOnlyWhenSupported`).
 - `dist/` — build output (git-ignored), bind-mounted into the nginx container.
 
 ## How it fits in
@@ -26,6 +31,8 @@ nginx serves it under `/admin/` with an SPA fallback to `/admin/index.html`. Log
 `ADMIN_USERNAME` / `ADMIN_PASSWORD` the backend bootstraps from `.env`.
 
 ## Gotchas
+- **The theme script in `index.html` must match `src/theme/theme.ts`** (same storage key, only
+  `light` / `dark` count). It writes no colour values: a hex there fails the raw-colour test.
 - **No socket support by design.** If a future admin feature needs live updates, it must add
   `socket.io-client` and a `/socket.io` proxy entry in `vite.config.ts`; neither exists today.
 - **`dist/` is a snapshot.** :8080 shows the last build; rerun `npm run build`. An empty `dist/`
