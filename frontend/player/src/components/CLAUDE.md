@@ -23,8 +23,9 @@ The big answer buttons and option colours of the other types are built inline in
   browser test.
 - `PlotPointAnswer.tsx` — the whole plot_point answer screen: canvas, `aria-live` readout, Submit,
   and the collapsed "Type coordinates" panel (rules in `lib/plotPoint.ts`). Controls sit below the
-  canvas in portrait and in a column to its right in landscape. Rendered by `QuestionPage` with
-  `key={questionId}`; the point survives lock/unlock.
+  canvas in portrait and in a column to its right in landscape, as **one** element tree whose
+  classes change on rotation (two trees would remount the timer and the canvas). Rendered by
+  `QuestionPage` with `key={questionId}`; the point survives lock/unlock and rotation.
 
 ## How it fits in
 Used by the pages in `pages/`. Styling is Tailwind via `lib/utils.ts`'s `cn`; callers can
@@ -37,4 +38,6 @@ override with `className`.
   from `totalSeconds`. Late joiners still see the right time only because the backend rewrites
   `timeLimitSeconds` to the remaining time (minimum 5 s) in the `new_question` it sends them.
 - `TimerBar` starts its interval once on mount; the parent must pass `key={questionId}` to reset it.
+  Any remount restarts it at full time (it has no remaining-time input), so never move it between
+  element trees mid-question.
 - The timer is display-only; the server decides when the question closes.
