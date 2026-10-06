@@ -4,6 +4,8 @@ import { QuestionImage } from '../../components/ui/QuestionImage';
 import { Button } from '../../components/ui/button';
 import type { AnswerReveal, HostQuestionSummaryItem } from '../../types/game';
 import { buildNumericBars, withUnit, type NumericReveal } from '../../lib/numericEstimate';
+import { PlotScatter } from '../../components/PlotScatter';
+import { plotConfigOf, plotRevealOf, targetText } from '../../lib/plotPoint';
 
 const TARGET_BUCKETS = 8;
 
@@ -87,7 +89,12 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
     fill_in_the_blank: 'Fill in the Blank',
     multi_select: 'Multi-Select',
     numeric_estimate: 'Numeric Estimate',
+    plot_point: 'Plot the Point',
   };
+
+  // plot_point: a smaller class scatter; its image is the plane's background, not a prompt image.
+  const plotConfig = type === 'plot_point' ? plotConfigOf(config) : null;
+  const plotReveal = plotRevealOf(answerReveal);
 
   const answeredPct = totalPlayers > 0 ? Math.round((totalAnswered / totalPlayers) * 100) : 0;
   const correctPct = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
@@ -138,7 +145,9 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
 
       {/* Prompt */}
       <p className="text-slate-100 text-lg font-semibold leading-snug">{prompt}</p>
-      <QuestionImage imageId={config.image_id} alt="Image for the question" className="h-32 w-full max-w-sm" align="left" />
+      {!plotConfig && (
+        <QuestionImage imageId={config.image_id} alt="Image for the question" className="h-32 w-full max-w-sm" align="left" />
+      )}
 
       {/* Distribution */}
       <div className="space-y-2">
@@ -200,6 +209,25 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
                 />
               </div>
             ))}
+          </div>
+        )}
+
+        {plotConfig && (
+          <div className="space-y-2">
+            <p className="text-slate-100 text-base font-semibold">
+              {plotReveal ? (
+                <>Target: <span className="text-green-400">{targetText(plotConfig, plotReveal)}</span></>
+              ) : (
+                'Class responses'
+              )}
+            </p>
+            <PlotScatter
+              config={plotConfig}
+              imageId={config.image_id}
+              distribution={answerDistribution}
+              reveal={plotReveal}
+              className="w-full max-w-md h-72"
+            />
           </div>
         )}
 

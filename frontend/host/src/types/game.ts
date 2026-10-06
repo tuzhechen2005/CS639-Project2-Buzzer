@@ -6,6 +6,30 @@ export interface QuestionConfig {
   unit?: string; // numeric_estimate
   image_id?: string | null;
   option_image_ids?: (string | null)[];
+  // plot_point (docs/plans/t7-plot-the-point.md): the plane and what is drawn on it
+  xMin?: number;
+  xMax?: number;
+  xStep?: number;
+  yMin?: number;
+  yMax?: number;
+  yStep?: number;
+  xLabel?: string | null;
+  yLabel?: string | null;
+  overlays?: PlotOverlayConfig[] | null;
+}
+
+/** An overlay drawn on a plot_point plane: a point, an infinite line through two points, or a
+ * polynomial y = c0 + c1 x + c2 x^2 + c3 x^3. */
+export interface PlotOverlayConfig {
+  kind: string;
+  x?: number;
+  y?: number;
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
+  coefficients?: number[];
+  label?: string | null;
 }
 
 export interface PlayerInfo {
@@ -39,7 +63,8 @@ export type QuestionType =
   | 'true_false'
   | 'fill_in_the_blank'
   | 'multi_select'
-  | 'numeric_estimate';
+  | 'numeric_estimate'
+  | 'plot_point';
 
 export interface QuestionPayload {
   questionId: number;
@@ -87,6 +112,11 @@ export type AnswerReveal =
       type: 'numeric_estimate';
       target: number;
       mode: 'relative' | 'absolute';
+      bands: { within: number; points: number }[];
+    }
+  | {
+      type: 'plot_point';
+      target: { x: number; y: number };
       bands: { within: number; points: number }[];
     }
   | Record<string, never>;

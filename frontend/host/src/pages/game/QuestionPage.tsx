@@ -1,8 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useGame } from './GameLayout';
 import { Button } from '../../components/ui/button';
 import { TimerBar } from '../../components/ui/TimerBar';
 import { QuestionImage } from '../../components/ui/QuestionImage';
+import { PlotScatter } from '../../components/PlotScatter';
+import { plotConfigOf } from '../../lib/plotPoint';
 
 export default function QuestionPage() {
   const { currentQuestion, answeredCount, playerCount, allAnswered, answerPhaseEnded, questionLocked, lockedTimerSeconds, autoAdvance, emitAdvance, emitLockQuestion } = useGame();
@@ -12,6 +14,12 @@ export default function QuestionPage() {
     const id = setTimeout(emitAdvance, 1500);
     return () => clearTimeout(id);
   }, [autoAdvance, answerPhaseEnded, emitAdvance]);
+
+  // plot_point: the plane replaces the prompt image (one config object per question).
+  const plotConfig = useMemo(
+    () => (currentQuestion?.type === 'plot_point' ? plotConfigOf(currentQuestion.config) : null),
+    [currentQuestion],
+  );
 
   if (!currentQuestion) {
     return (
@@ -27,6 +35,7 @@ export default function QuestionPage() {
     fill_in_the_blank: 'Fill in the Blank',
     multi_select: 'Multi-Select',
     numeric_estimate: 'Numeric Estimate',
+    plot_point: 'Plot the Point',
   };
 
   function editDistanceLabel(d: number): string {
@@ -82,7 +91,16 @@ export default function QuestionPage() {
         <p className="text-slate-400 text-lg">Answer in {currentQuestion.config.unit}</p>
       )}
 
-      {!questionLocked && (
+      {!questionLocked && plotConfig && (
+        <PlotScatter
+          config={plotConfig}
+          imageId={currentQuestion.config.image_id}
+          scale={1.5}
+          className="w-full max-w-4xl h-[55vh]"
+        />
+      )}
+
+      {!questionLocked && !plotConfig && (
         <QuestionImage
           imageId={currentQuestion.config.image_id}
           alt="Image for the question"

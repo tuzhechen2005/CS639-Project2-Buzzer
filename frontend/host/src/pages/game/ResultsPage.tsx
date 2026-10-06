@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useGame } from './GameLayout';
 import { Button } from '../../components/ui/button';
 import { QuestionImage } from '../../components/ui/QuestionImage';
 import type { AnswerReveal, QuestionConfig } from '../../types/game';
 import { buildNumericBars, withUnit, type NumericReveal } from '../../lib/numericEstimate';
+import { PlotScatter } from '../../components/PlotScatter';
+import { plotConfigOf, plotRevealOf, targetText } from '../../lib/plotPoint';
 
 const RESULTS_DISPLAY_SECONDS = 10;
 
@@ -257,6 +259,12 @@ export default function ResultsPage() {
 
   const isFitb = currentQuestion?.type === 'fill_in_the_blank';
   const isNumeric = currentQuestion?.type === 'numeric_estimate';
+  // plot_point: a class scatter instead of bars (P7).
+  const plotConfig = useMemo(
+    () => (currentQuestion?.type === 'plot_point' ? plotConfigOf(currentQuestion.config) : null),
+    [currentQuestion],
+  );
+  const plotReveal = plotRevealOf(questionResults?.answerReveal);
   const unit = currentQuestion?.config?.unit;
   const numericReveal =
     isNumeric && questionResults?.answerReveal.type === 'numeric_estimate'
@@ -266,7 +274,7 @@ export default function ResultsPage() {
   const bars =
     numericReveal && questionResults
       ? buildNumericBars(numericReveal, questionResults.answerDistribution, unit)
-      : !isFitb && !isNumeric && questionResults
+      : !isFitb && !isNumeric && !plotConfig && questionResults
       ? buildBars(
           questionResults.answerReveal,
           questionResults.answerDistribution,
@@ -286,7 +294,7 @@ export default function ResultsPage() {
         </p>
       )}
 
-      {currentQuestion && (
+      {currentQuestion && !plotConfig && (
         <QuestionImage
           imageId={currentQuestion.config.image_id}
           alt="Image for the question"
@@ -294,7 +302,28 @@ export default function ResultsPage() {
         />
       )}
 
-      {questionResults && isFitb ? (
+      {questionResults && plotConfig ? (
+        <>
+          {plotReveal ? (
+            <p className="text-slate-100 text-3xl font-bold">
+              Target: <span className="text-green-400">{targetText(plotConfig, plotReveal)}</span>
+            </p>
+          ) : (
+            <p className="text-slate-300 text-xl font-semibold">Class responses</p>
+          )}
+          <PlotScatter
+            config={plotConfig}
+            imageId={currentQuestion?.config.image_id}
+            distribution={questionResults.answerDistribution}
+            reveal={plotReveal}
+            scale={1.5}
+            className="w-full max-w-4xl h-[60vh]"
+          />
+          <p className="text-slate-400 text-lg">
+            {questionResults.totalAnswered} / {questionResults.totalPlayers} answered
+          </p>
+        </>
+      ) : questionResults && isFitb ? (
         <WordCloud
           distribution={questionResults.answerDistribution}
           answerReveal={questionResults.answerReveal}
