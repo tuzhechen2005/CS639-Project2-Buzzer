@@ -164,24 +164,29 @@ export function PlotPointAnswer({ config, imageId, locked, submitted, onSubmit, 
     />
   );
 
-  if (landscape) {
-    return (
-      <div className="h-[100dvh] flex flex-row gap-3 p-3">
-        {canvas('flex-1 h-full')}
-        <div className="w-64 shrink-0 flex flex-col gap-2 overflow-y-auto">
-          {header}
-          {controls}
-        </div>
-      </div>
-    );
-  }
-
-  // Portrait: with the panel closed everything fits the screen; open, the page may scroll.
+  // One layout tree for both orientations: header, canvas and controls always stay in the same
+  // places, and only their classes change. Swapping two trees on rotation would remount the
+  // timer (restarting it at full time) and the canvas (dropping a drag).
+  // Portrait: a column; with the panel closed everything fits the screen, open the page may
+  // scroll. Landscape: a grid with the canvas on the left at full height and the header and
+  // controls in a column on the right.
   return (
-    <div className={`flex flex-col gap-2 p-3 ${panelOpen ? 'min-h-[100dvh]' : 'h-[100dvh]'}`}>
-      {header}
-      {canvas(panelOpen ? 'w-full h-[60dvh] shrink-0' : 'w-full flex-1')}
-      {controls}
+    <div
+      className={
+        landscape
+          ? 'h-[100dvh] grid grid-cols-[minmax(0,1fr)_16rem] grid-rows-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 p-3'
+          : `flex flex-col gap-2 p-3 ${panelOpen ? 'min-h-[100dvh]' : 'h-[100dvh]'}`
+      }
+    >
+      <div className={landscape ? 'col-start-2 row-start-1' : ''}>{header}</div>
+      {canvas(
+        landscape
+          ? 'col-start-1 row-start-1 row-span-2 h-full'
+          : panelOpen
+            ? 'w-full h-[60dvh] shrink-0'
+            : 'w-full flex-1',
+      )}
+      <div className={landscape ? 'col-start-2 row-start-2 min-h-0 overflow-y-auto' : ''}>{controls}</div>
     </div>
   );
 }
