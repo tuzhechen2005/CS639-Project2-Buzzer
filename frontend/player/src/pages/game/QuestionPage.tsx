@@ -13,7 +13,7 @@ function OptionContent({ text, imageId }: { text: string; imageId?: string | nul
   if (!imageId) return <span>{text}</span>;
   return (
     <span className="flex flex-1 min-w-0 flex-col gap-2">
-      <QuestionImage imageId={imageId} alt={text} className="h-28 w-full" fallbackText={null} />
+      <QuestionImage imageId={imageId} alt={text} className="h-28 w-28 mx-auto" fallbackText={null} />
       <span>{text}</span>
     </span>
   );

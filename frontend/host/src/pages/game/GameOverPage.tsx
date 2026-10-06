@@ -162,7 +162,7 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
                 <QuestionImage
                   imageId={config.option_image_ids?.[i]}
                   alt={opt}
-                  className="h-8 w-12 shrink-0"
+                  className="h-8 w-8 shrink-0"
                   fallbackText={null}
                 />
                 <span className={correct ? 'text-success-text' : ''}>{opt}</span>
