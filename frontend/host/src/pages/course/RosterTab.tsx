@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, X, Pencil } from 'lucide-react';
-import { api } from '../lib/api';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader } from '../components/ui/card';
-import { Input } from '../components/ui/input';
+import { Upload, X, Pencil } from 'lucide-react';
+import { api } from '../../lib/api';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { useCourse } from './CourseLayout';
 
 interface RosterEntry {
   id: number;
@@ -27,6 +27,9 @@ interface MappedRow {
   full_name: string;
   email: string;
 }
+
+/** add_only upserts and deactivates nobody; replace also deactivates entries missing from the file. */
+type ImportMode = 'add_only' | 'replace';
 
 interface EditDraft {
   netid: string;
@@ -113,9 +116,8 @@ function mapRow(
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function RosterPage() {
-  const { courseId } = useParams<{ courseId: string }>();
-  const navigate = useNavigate();
+export default function RosterTab() {
+  const courseId = useCourse().id;
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Roster list
@@ -141,10 +143,20 @@ export default function RosterPage() {
   const [reverseName, setReverseName] = useState(false);
   const [importing, setImporting] = useState(false);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+  const [mode, setMode] = useState<ImportMode>('add_only');
+  // Dry-run counts for the current file, mapping and mode; cleared whenever any of them changes
+  const [preview, setPreview] = useState<UploadResult | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [confirmReplace, setConfirmReplace] = useState(false);
+  // Replace mode with skipped or rejected rows: those students count as "not in this file"
+  const [confirmSkipped, setConfirmSkipped] = useState(false);
+  // Bumped whenever the mapping or mode changes, so a dry run that was still in flight for
+  // the old settings is ignored instead of showing (and unlocking Import with) stale counts
+  const previewSeq = useRef(0);
 
   async function load() {
     try {
-      const data = await api.get<RosterEntry[]>(`/admin/courses/${courseId}/roster`);
+      const data = await api.get<RosterEntry[]>(`/courses/${courseId}/roster`);
       setEntries(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load roster');
@@ -154,6 +166,14 @@ export default function RosterPage() {
   }
 
   useEffect(() => { void load(); }, [courseId]);
+
+  // Any change to the mapping or mode invalidates the dry-run preview
+  useEffect(() => {
+    previewSeq.current += 1;
+    setPreview(null);
+    setConfirmReplace(false);
+    setConfirmSkipped(false);
+  }, [mode, netidCol, nameCol, emailCol, skipRow2, stripDomain, reverseName, rawRows]);
 
   // ── File selected: parse + auto-detect ───────────────────────────────────
   function handleFileSelect(file: File) {
@@ -214,17 +234,52 @@ export default function RosterPage() {
     return result;
   }
 
-  // ── Import ────────────────────────────────────────────────────────────────
+  // Data rows the mapping drops (a required field is empty). They are never sent, so in
+  // Replace mode those students would be deactivated without any error from the server.
+  // Numbered like the raw preview's data rows (parseCSV already drops blank lines).
+  function getSkippedRows(): { row: number; text: string }[] {
+    const first = skipRow2 ? 2 : 1;
+    const dataRows = skipRow2 ? rawRows.slice(1) : rawRows;
+    const skipped: { row: number; text: string }[] = [];
+    dataRows.forEach((row, i) => {
+      if (!mapRow(row, headers, netidCol, nameCol, emailCol, true, stripDomain, reverseName)) {
+        skipped.push({ row: first + i, text: row.filter((c) => c.trim()).join(', ') });
+      }
+    });
+    return skipped;
+  }
+
+  // ── Import: always a dry run first, then the real import ──────────────────
+  function importPath(dryRun: boolean): string {
+    return `/courses/${courseId}/roster/import?mode=${mode}&dry_run=${dryRun}`;
+  }
+
+  async function handlePreview() {
+    const rows = getMappedRows();
+    if (rows.length === 0) { setError('No valid rows to import with the current mapping.'); return; }
+    const seq = previewSeq.current;
+    setPreviewing(true);
+    setError('');
+    try {
+      const result = await api.post<UploadResult>(importPath(true), { rows });
+      if (seq !== previewSeq.current) return; // settings changed meanwhile; preview again
+      setPreview(result);
+      setConfirmReplace(false);
+      setConfirmSkipped(false);
+    } catch (err) {
+      if (seq === previewSeq.current) setError(err instanceof Error ? err.message : 'Preview failed');
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
   async function handleImport() {
     const rows = getMappedRows();
     if (rows.length === 0) { setError('No valid rows to import with the current mapping.'); return; }
     setImporting(true);
     setError('');
     try {
-      const result = await api.post<UploadResult>(
-        `/admin/courses/${courseId}/roster/import`,
-        { rows },
-      );
+      const result = await api.post<UploadResult>(importPath(false), { rows });
       setUploadResult(result);
       setStep('result');
       await load();
@@ -241,6 +296,10 @@ export default function RosterPage() {
     setHeaders([]);
     setRawRows([]);
     setUploadResult(null);
+    setMode('add_only');
+    setPreview(null);
+    setConfirmReplace(false);
+    setConfirmSkipped(false);
     setError('');
     if (fileRef.current) fileRef.current.value = '';
   }
@@ -268,7 +327,7 @@ export default function RosterPage() {
     setError('');
     try {
       const updated = await api.patch<RosterEntry>(
-        `/admin/courses/${courseId}/roster/${entryId}`,
+        `/courses/${courseId}/roster/${entryId}`,
         editDraft,
       );
       setEntries((prev) => prev.map((e) => e.id === entryId ? updated : e));
@@ -285,21 +344,17 @@ export default function RosterPage() {
   const mappedRows = step === 'mapping' ? getMappedRows() : [];
   const previewRows = mappedRows.slice(0, 3);
   const totalRows = mappedRows.length;
+  const skippedRows = step === 'mapping' ? getSkippedRows() : [];
+  const replaceNeedsSkipConfirm =
+    mode === 'replace' && preview !== null && (skippedRows.length > 0 || preview.errors.length > 0);
 
   const active = entries.filter((e) => e.is_active);
   const inactive = entries.filter((e) => !e.is_active);
 
   return (
-    <div className="p-8 max-w-5xl">
-      <button
-        onClick={() => navigate('/courses')}
-        className="flex items-center gap-2 text-slate-400 hover:text-slate-100 text-sm mb-6"
-      >
-        <ArrowLeft size={14} /> Back to Courses
-      </button>
-
+    <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-slate-100">Course Roster</h2>
+        <h2 className="text-xl font-semibold text-slate-100">Roster</h2>
         {step === 'idle' && (
           <>
             <input
@@ -443,10 +498,110 @@ export default function RosterPage() {
               </div>
             )}
 
+            {/* Import mode */}
+            <div>
+              <p className="text-xs text-slate-400 mb-2">Import mode</p>
+              <div className="space-y-2">
+                {([
+                  {
+                    value: 'add_only',
+                    label: 'Add only',
+                    hint: 'Add new students and update existing ones. Nobody is deactivated.',
+                  },
+                  {
+                    value: 'replace',
+                    label: 'Replace roster',
+                    hint: 'Also deactivate every student who is not in this file.',
+                  },
+                ] as const).map((m) => (
+                  <label key={m.value} className="flex items-start gap-2 text-sm text-slate-300 cursor-pointer select-none">
+                    <input
+                      type="radio"
+                      name="roster-mode"
+                      checked={mode === m.value}
+                      onChange={() => setMode(m.value)}
+                      disabled={previewing || importing}
+                      className="mt-1 accent-indigo-500"
+                    />
+                    <span>
+                      <span className="font-medium text-slate-100">{m.label}</span>
+                      <span className="block text-xs text-slate-500">{m.hint}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Dry-run counts */}
+            {preview && (
+              <div className="rounded border border-slate-700 bg-slate-800/50 px-4 py-3 space-y-2">
+                <p className="text-sm text-slate-200">
+                  This import will add <strong>{preview.imported}</strong>, update{' '}
+                  <strong>{preview.updated}</strong> and deactivate{' '}
+                  <strong className={preview.deactivated > 0 ? 'text-red-400' : ''}>{preview.deactivated}</strong>{' '}
+                  student{preview.deactivated !== 1 ? 's' : ''}.
+                </p>
+                {preview.errors.length > 0 && (
+                  <ul className="text-red-400 text-xs space-y-1">
+                    {preview.errors.map((e, i) => <li key={i}>{e}</li>)}
+                  </ul>
+                )}
+                {skippedRows.length > 0 && (
+                  <div className="text-xs text-amber-300 space-y-1">
+                    <p>
+                      {skippedRows.length} row{skippedRows.length !== 1 ? 's were' : ' was'} skipped
+                      (missing netid, name or email) and won't be imported:
+                    </p>
+                    <ul className="space-y-0.5 text-amber-200/80">
+                      {skippedRows.slice(0, 5).map((r) => <li key={r.row}>Data row {r.row}: {r.text}</li>)}
+                      {skippedRows.length > 5 && <li>…and {skippedRows.length - 5} more</li>}
+                    </ul>
+                  </div>
+                )}
+                {replaceNeedsSkipConfirm && (
+                  <label className="flex items-center gap-2 text-sm text-red-300 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={confirmSkipped}
+                      onChange={(e) => setConfirmSkipped(e.target.checked)}
+                      className="rounded border-slate-600 bg-slate-800 accent-red-500"
+                    />
+                    I understand that students in the skipped or rejected rows count as not in this
+                    file, so Replace will deactivate them if they are on the roster.
+                  </label>
+                )}
+                {mode === 'replace' && preview.deactivated > 0 && (
+                  <label className="flex items-center gap-2 text-sm text-red-300 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={confirmReplace}
+                      onChange={(e) => setConfirmReplace(e.target.checked)}
+                      className="rounded border-slate-600 bg-slate-800 accent-red-500"
+                    />
+                    I understand that {preview.deactivated} student{preview.deactivated !== 1 ? 's' : ''} not
+                    in this file will be deactivated and can no longer join this course's games.
+                  </label>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-3">
-              <Button onClick={() => void handleImport()} disabled={importing || totalRows === 0}>
-                {importing ? 'Importing…' : `Import ${totalRows} row${totalRows !== 1 ? 's' : ''}`}
-              </Button>
+              {preview ? (
+                <Button
+                  onClick={() => void handleImport()}
+                  disabled={
+                    importing || totalRows === 0
+                    || (mode === 'replace' && preview.deactivated > 0 && !confirmReplace)
+                    || (replaceNeedsSkipConfirm && !confirmSkipped)
+                  }
+                >
+                  {importing ? 'Importing…' : `Import ${totalRows} row${totalRows !== 1 ? 's' : ''}`}
+                </Button>
+              ) : (
+                <Button onClick={() => void handlePreview()} disabled={previewing || totalRows === 0}>
+                  {previewing ? 'Checking…' : 'Preview import'}
+                </Button>
+              )}
               <Button variant="ghost" onClick={resetWizard}>Cancel</Button>
             </div>
 

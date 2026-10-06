@@ -19,8 +19,8 @@ interface UserDetail {
   course_access: CourseAccess[];
   game_access: number[];
 }
-interface Course { id: number; name: string; semester: string }
-interface Game { id: number; title: string }
+interface Course { id: number; name: string; semester: string; is_system: boolean }
+interface Game { id: number; title: string; course_id: number }
 
 interface CourseSelection { id: number; role: 'HOST' | 'PLAYER'; checked: boolean }
 interface GameSelection { id: number; checked: boolean }
@@ -68,22 +68,28 @@ export default function UserDetailPage() {
     setShowCoursePanel(true);
   }
 
+  /** Run each grant, then report every failure (grants are independent; some may succeed). */
+  async function runGrants(requests: Promise<unknown>[], fallback: string): Promise<boolean> {
+    const results = await Promise.allSettled(requests);
+    const failures = results
+      .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+      .map((r) => (r.reason instanceof Error ? r.reason.message : fallback));
+    if (failures.length) setError(Array.from(new Set(failures)).join(' '));
+    return failures.length === 0;
+  }
+
   async function grantSelectedCourses() {
     const selected = courseSelections.filter((s) => s.checked);
     if (selected.length === 0) return;
     setGrantingCourses(true);
     setError('');
-    try {
-      await Promise.all(
-        selected.map((s) => api.post(`/admin/users/${userId}/course-access`, { course_id: s.id, role: s.role }))
-      );
-      setShowCoursePanel(false);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to grant access');
-    } finally {
-      setGrantingCourses(false);
-    }
+    const ok = await runGrants(
+      selected.map((s) => api.post(`/admin/users/${userId}/course-access`, { course_id: s.id, role: s.role })),
+      'Failed to grant access',
+    );
+    if (ok) setShowCoursePanel(false);
+    await load();
+    setGrantingCourses(false);
   }
 
   async function revokeCourseAccess(courseId: number) {
@@ -105,17 +111,13 @@ export default function UserDetailPage() {
     if (selected.length === 0) return;
     setGrantingGames(true);
     setError('');
-    try {
-      await Promise.all(
-        selected.map((s) => api.post(`/admin/users/${userId}/game-access`, { game_id: s.id }))
-      );
-      setShowGamePanel(false);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to grant game access');
-    } finally {
-      setGrantingGames(false);
-    }
+    const ok = await runGrants(
+      selected.map((s) => api.post(`/admin/users/${userId}/game-access`, { game_id: s.id })),
+      'Failed to grant game access',
+    );
+    if (ok) setShowGamePanel(false);
+    await load();
+    setGrantingGames(false);
   }
 
   async function revokeGameAccess(gameId: number) {
@@ -174,8 +176,16 @@ export default function UserDetailPage() {
 
   const grantedCourseIds = new Set(user.course_access.map((ca) => ca.course_id));
   const grantedGameIds = new Set(user.game_access);
-  const availableCourses = courses.filter((c) => !grantedCourseIds.has(c.id));
-  const availableGames = games.filter((g) => !grantedGameIds.has(g.id));
+  // Games can only be granted for courses the user hosts; grants on other courses' games are inactive.
+  const hostCourseIds = new Set(
+    user.course_access.filter((ca) => ca.role === 'HOST').map((ca) => ca.course_id),
+  );
+  const availableCourses = courses.filter((c) => !c.is_system && !grantedCourseIds.has(c.id));
+  const availableGames = games.filter((g) => !grantedGameIds.has(g.id) && hostCourseIds.has(g.course_id));
+  const courseLabel = (courseId: number) => {
+    const c = courseMap[courseId];
+    return c ? (c.is_system ? 'Unassigned' : `${c.name} \u2014 ${c.semester}`) : `Course ${courseId}`;
+  };
 
   const selectedCourseCount = courseSelections.filter((s) => s.checked).length;
   const selectedGameCount = gameSelections.filter((s) => s.checked).length;
@@ -398,11 +408,29 @@ export default function UserDetailPage() {
           {user.game_access.length === 0 && !showGamePanel && (
             <p className="text-slate-500 text-sm">No game access granted.</p>
           )}
+          {hostCourseIds.size === 0 && (
+            <p className="text-slate-500 text-xs">
+              Game access can only be granted for games in courses this user is a HOST of. Grant HOST
+              access to a course first.
+            </p>
+          )}
           {user.game_access.map((gid) => {
             const game = gameMap[gid];
+            const inactive = game ? !hostCourseIds.has(game.course_id) : false;
             return (
               <div key={gid} className="flex items-center justify-between">
-                <span className="text-slate-200 text-sm">{game ? game.title : `Game ${gid}`}</span>
+                <span className="text-slate-200 text-sm">
+                  {game ? game.title : `Game ${gid}`}
+                  {game && <span className="ml-2 text-xs text-slate-500">{courseLabel(game.course_id)}</span>}
+                  {inactive && (
+                    <span
+                      className="ml-2 text-xs px-1.5 py-0.5 rounded bg-slate-700 text-amber-300"
+                      title="The user is not a HOST of this game's course, so this grant has no effect."
+                    >
+                      inactive
+                    </span>
+                  )}
+                </span>
                 <Button variant="ghost" size="sm" onClick={() => void revokeGameAccess(gid)}>
                   <Trash2 size={12} />
                 </Button>
@@ -437,7 +465,10 @@ export default function UserDetailPage() {
                         )
                       }
                     />
-                    <span className="text-sm text-slate-200">{game ? game.title : `Game ${sel.id}`}</span>
+                    <span className="text-sm text-slate-200">
+                      {game ? game.title : `Game ${sel.id}`}
+                      {game && <span className="ml-2 text-xs text-slate-500">{courseLabel(game.course_id)}</span>}
+                    </span>
                   </div>
                 );
               })}

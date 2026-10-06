@@ -223,9 +223,11 @@ export default function SessionsPage() {
                     </Button>
                     {isDeleting ? (
                       <>
-                        <span className="text-red-400 text-xs">Delete all data?</span>
+                        <span className="text-red-400 text-xs max-w-[14rem] text-right">
+                          This session's recorded scores (grades) will be permanently deleted.
+                        </span>
                         <Button size="sm" variant="destructive" onClick={() => void handleDelete(s.session_id)}>
-                          Confirm
+                          Delete
                         </Button>
                         <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(null)}>
                           Cancel
