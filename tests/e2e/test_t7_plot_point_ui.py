@@ -99,3 +99,48 @@ def test_plot_point_from_editor_to_phone_and_scatter(api, web, game, pages):
     assert scatter.get_attribute("aria-label").endswith(", 1 answer")
     assert "Target: (2, 5)" in host.inner_text("body")
     assert not pages.errors, pages.errors
+
+
+def test_rotation_keeps_timer_and_point(api, web, game, pages):
+    """Turning the phone must not restart the timer or drop the point (found by the manual
+    checklist: the portrait and landscape layouts used to remount the timer at full time)."""
+    r = api.post(
+        f"/games/{game['game']}/questions",
+        json={
+            "type": "plot_point",
+            "grading_type": "ACCURACY",
+            "prompt": "Plot (2, 5)",
+            "config": {"xMin": -10, "xMax": 10, "xStep": 1, "yMin": -10, "yMax": 10, "yStep": 1},
+            "answer_data": {
+                "target": {"x": 2, "y": 5},
+                "bands": [{"within": 0, "points": 100}],
+            },
+            "time_limit_seconds": 120,
+            "points_value": 100,
+        },
+    )
+    assert r.status_code == 201, r.text
+    _, phone = start_game(
+        api,
+        game,
+        lambda: pages(api.token),
+        lambda t: pages(t, phone=True),
+        web,
+        guest_token,
+    )
+    tap_grid(phone, "canvas", *TARGET)
+    phone.get_by_text("(2, 5)").wait_for()
+
+    def seconds_left() -> int:
+        return int(phone.locator("span.font-mono").inner_text().rstrip("s"))
+
+    phone.wait_for_timeout(4000)
+    before = seconds_left()
+    assert before <= 117
+
+    for width, height in ((844, 390), (390, 844)):  # landscape, then portrait again
+        phone.set_viewport_size({"width": width, "height": height})
+        phone.wait_for_timeout(500)
+        assert seconds_left() <= before, "rotation restarted the timer"
+        phone.get_by_text("(2, 5)").wait_for()
+    assert not pages.errors, pages.errors
