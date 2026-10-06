@@ -32,7 +32,7 @@ from ..redis_client import get_redis
 from ..services import game_service
 from ..services import state_service as state
 from ..services.auth_service import get_user_by_id
-from ..services.question_types import answer_reveal, payload_extras, validate_answer
+from ..services.question_types import accept_answer, answer_reveal, payload_extras
 from . import events as E
 from .middleware import authenticate_socket
 
@@ -1154,7 +1154,9 @@ async def on_submit_answer(sid: str, data: dict) -> None:
             await _emit_error(sid, "Question not found")
             return
 
-        problem = validate_answer(question, answer_data)
+        # Validate, then normalize (for every grading type): the score, the distribution
+        # keys and the stored SessionScore.answer_data all use the normalized answer.
+        problem, answer_data = accept_answer(question, answer_data)
         if problem:
             await _emit_error(sid, problem)
             return
