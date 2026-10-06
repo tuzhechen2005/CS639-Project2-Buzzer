@@ -147,6 +147,14 @@ export function PlotScatter({
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [layout, setLayout] = useState<PlotLayout | null>(null);
+  // Bumped on every theme change, so the canvas redraws with the new token colours.
+  const [themeVersion, setThemeVersion] = useState(0);
+
+  useEffect(() => {
+    const onThemeChange = () => setThemeVersion((v) => v + 1);
+    window.addEventListener('themechange', onThemeChange);
+    return () => window.removeEventListener('themechange', onThemeChange);
+  }, []);
 
   useEffect(() => {
     const box = boxRef.current;
@@ -188,7 +196,7 @@ export function PlotScatter({
     if (target && reveal) drawBands(ctx, l, target, reveal.bands, palette, scale);
     if (distribution) drawDots(ctx, l, parseBuckets(distribution, config), palette, scale);
     if (target) drawStar(ctx, l, target, palette, scale);
-  }, [config, size, image, distribution, reveal, scale]);
+  }, [config, size, image, distribution, reveal, scale, themeVersion]);
 
   const answers = distribution ? Object.values(distribution).reduce((a, b) => a + b, 0) : 0;
   const label =
