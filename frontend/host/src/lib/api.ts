@@ -62,6 +62,13 @@ async function downloadFetch(path: string): Promise<void> {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+async function sendForm<T>(method: 'POST' | 'PUT', path: string, form: FormData): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, { method, headers: authHeader(), body: form });
+  if (!res.ok) await throwForStatus(res);
+  const text = await res.text();
+  return (text ? JSON.parse(text) : {}) as T;
+}
+
 function jsonBody(body: unknown): BodyInit | undefined {
   return body !== undefined ? JSON.stringify(body) : undefined;
 }
@@ -76,11 +83,8 @@ export const api = {
     apiFetch<T>(path, { method: 'PATCH', body: jsonBody(body) }),
   delete: <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' }),
   /** POST multipart/form-data (for file uploads); the browser sets the boundary */
-  postForm: async <T>(path: string, form: FormData): Promise<T> => {
-    const res = await fetch(`${BASE}${path}`, { method: 'POST', headers: authHeader(), body: form });
-    if (!res.ok) await throwForStatus(res);
-    const text = await res.text();
-    return (text ? JSON.parse(text) : {}) as T;
-  },
+  postForm: <T>(path: string, form: FormData) => sendForm<T>('POST', path, form),
+  /** PUT multipart/form-data (replacing an uploaded file) */
+  putForm: <T>(path: string, form: FormData) => sendForm<T>('PUT', path, form),
   download: downloadFetch,
 };

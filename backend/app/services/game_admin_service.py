@@ -517,14 +517,9 @@ async def update_question(
     db: AsyncSession, redis: Redis, game: Game, question: Question, body: QuestionUpdate
 ) -> Question:
     """`question` must be fetched inside the games row lock (T8 write protocol). The
-    image checks run on the merged type and config, before anything is changed."""
+    merged result is validated (type structure first, then image references) before
+    anything is flushed; on an error the request's rollback discards the changes."""
     await assert_questions_editable(db, redis, game)
-    await image_service.check_question_images(
-        db,
-        game.id,
-        body.type if body.type is not None else question.type,
-        body.config if body.config is not None else question.config,
-    )
     if body.type is not None:
         question.type = body.type
     if body.grading_type is not None:
@@ -547,6 +542,9 @@ async def update_question(
         validate_definition(question)
     except ValueError as exc:
         raise BuzzerError("VALIDATION_ERROR", str(exc), 422) from exc
+    await image_service.check_question_images(
+        db, game.id, question.type, question.config
+    )
     await db.flush()
     await db.refresh(question)
     return question

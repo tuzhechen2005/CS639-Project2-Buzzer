@@ -12,6 +12,8 @@ interface QuestionImageProps {
   fallbackText?: string | null;
   /** Where the picture sits inside a box wider than it: centred, or against the left edge. */
   align?: 'center' | 'left';
+  /** The image's sha256 (editor only), so a replaced image is not served from cache. */
+  version?: string;
 }
 
 /**
@@ -21,8 +23,8 @@ interface QuestionImageProps {
  */
 export function QuestionImage({ imageId, ...rest }: QuestionImageProps) {
   if (!imageId) return null;
-  // Keyed by id, so a new image starts again from the loading state.
-  return <LoadedImage key={imageId} imageId={imageId} {...rest} />;
+  // Keyed by id and version, so a new image starts again from the loading state.
+  return <LoadedImage key={`${imageId}:${rest.version ?? ''}`} imageId={imageId} {...rest} />;
 }
 
 function LoadedImage({
@@ -31,6 +33,7 @@ function LoadedImage({
   className,
   fallbackText = 'Image could not be loaded',
   align = 'center',
+  version,
 }: QuestionImageProps & { imageId: string }) {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const ref = useRef<HTMLImageElement>(null);
@@ -51,7 +54,7 @@ function LoadedImage({
       )}
       <img
         ref={ref}
-        src={imageUrl(imageId)}
+        src={imageUrl(imageId, version)}
         alt={alt}
         onLoad={() => setStatus('loaded')}
         onError={() => setStatus('error')}
