@@ -64,8 +64,8 @@ over) driven by Socket.io events from the backend.
   `emitLockQuestion` → `host_lock_question`). **Server events drive navigation** between the
   child routes. Also renders the persistent corner panel: QR, room code and the theme toggle.
   Its full-screen socket-error state has no panel and no toggle (its "Back to Home" has one).
-- `game/LobbyPage.tsx` — big QR code and room code, player count, auto-advance toggle, Start
-  (disabled with 0 players).
+- `game/LobbyPage.tsx` — big QR code and room code, player count, auto-advance switch
+  (`role="switch"`, `aria-checked`), Start (disabled with 0 players).
 - `game/QuestionPage.tsx` — prompt, type/grading labels, `TimerBar`, answered count,
   Lock/Unlock, and Show Results. For plot_point the plane (`components/PlotScatter`, no answers)
   replaces the prompt image. With auto-advance on, advances 1.5 s after the answer phase ends.
@@ -132,6 +132,9 @@ what comes next. The host receives the full answer distribution and reveal; play
   it is only correct behind nginx (:8080).
 - Any socket `error` event replaces the whole screen with an error and a "Back to Home" link.
 - `QuestionPage` hides the prompt while the question is locked.
+- **Every button, link and field carries the shared focus ring** (`focus-visible:ring-2
+  ring-focus ring-offset-2 ring-offset-page`); `tests/unit/test_focus_rings.py` fails on any
+  that doesn't. Clickable things are real buttons or links, never `<div onClick>`.
 - **Projector type scale (T9):** on the game screens body text is at least `text-xl`, small
   uppercase labels `text-base`, bar and histogram counts `text-2xl`, game-over headline numbers
   `text-5xl`; only the corner panel and the game-over breakdown cards are smaller. Keep new game

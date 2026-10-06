@@ -24,8 +24,8 @@ Socket.io events.
 - `game/LobbyPage.tsx` — room code, spinner, player count; "waiting for host to start" or
   "waiting for next question" depending on game status.
 - `game/QuestionPage.tsx` — one layout per question type: MC buttons in the fixed answer colours
-  (literal `bg-option-N text-on-option-N border-line-strong` classes, darkening on press; tap =
-  submit),
+  (literal `bg-option-N text-on-option-N border-line-strong` classes, darkening on press; an
+  option picture sits in a square `h-28 w-28` box so no backing shows beside it; tap = submit),
   True/False, a text box for fill-in-the-blank, toggle-and-submit for multi-select, and for
   numeric_estimate a decimal text box with a ± button, an echo line ("= 1,665 steps") and a
   Submit that is enabled only when `lib/parseNumber` accepts the text. plot_point renders
@@ -69,7 +69,12 @@ answer reveal after the question closes; the full distribution goes only to the 
   the browser's dev tools before the host reveals results.
 - **The theme toggle is hidden on the question screen** (`components/ThemeToggle`, rendered in
   `App.tsx`) and fixed top-right everywhere else; keep top-right content clear of it. Every
-  control on these pages is at least 44 px tall (`min-h-11`); keep new ones that size.
+  control on these pages is at least 44 px tall (`min-h-11`); keep new ones that size. Page
+  wrappers are `p-4` with `gap-4` between sections (`p-6` / `gap-6` on the centred status
+  screens).
+- **Every button, link and field carries the shared focus ring** (`focus-visible:ring-2
+  ring-focus ring-offset-2 ring-offset-page`); `tests/unit/test_focus_rings.py` fails on any
+  that doesn't. Clickable things are real buttons or links, never `<div onClick>`.
 - Correct / Incorrect lines carry a check / X icon as well as their colour (`ResultsPage`,
   `GameOverPage`); keep meaning out of colour alone.
 - `emitAnswer` is fire-and-forget: if the socket is down, the button stays disabled and nothing
