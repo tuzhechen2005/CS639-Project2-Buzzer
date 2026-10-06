@@ -75,7 +75,7 @@ export default function NamePage() {
               <button
                 type="button"
                 onClick={() => { setMode('guest'); setError(''); }}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex-1 min-h-11 py-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page ${
                   mode === 'guest'
                     ? 'bg-accent text-on-accent'
                     : 'text-fg-muted hover:text-fg'
@@ -86,7 +86,7 @@ export default function NamePage() {
               <button
                 type="button"
                 onClick={() => { setMode('netid'); setError(''); }}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex-1 min-h-11 py-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page ${
                   mode === 'netid' || mode === 'local'
                     ? 'bg-accent text-on-accent'
                     : 'text-fg-muted hover:text-fg'
@@ -151,7 +151,7 @@ export default function NamePage() {
                 <a
                   href="/api/auth/oauth2-callback?redirect_to=/player/login"
                   onClick={() => sessionStorage.setItem('joinRoomCode', code)}
-                  className="flex items-center justify-center w-full py-3 px-4 rounded-lg font-medium bg-accent hover:bg-accent-hover text-on-accent transition-colors focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
+                  className="flex items-center justify-center w-full py-3 px-4 rounded-xl font-medium bg-accent hover:bg-accent-hover text-on-accent transition-colors focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                 >
                   Sign in with UW NetID
                 </a>
@@ -210,7 +210,7 @@ export default function NamePage() {
           <button
             type="button"
             onClick={() => navigate('/join')}
-            className="w-full mt-3 text-fg-subtle text-sm hover:text-fg-muted transition-colors"
+            className="w-full mt-3 min-h-11 rounded-xl text-fg-subtle text-sm hover:text-fg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
           >
             ← Different room code
           </button>

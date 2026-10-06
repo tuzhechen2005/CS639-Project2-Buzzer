@@ -12,7 +12,7 @@ export function Button({ className, variant = 'default', size = 'md', ...props }
         'inline-flex items-center justify-center rounded-xl font-semibold transition-colors',
         'focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page',
         'disabled:opacity-50 disabled:cursor-not-allowed',
-        'enabled:active:scale-95',
+        'min-h-11 enabled:active:scale-95',
         variant === 'default' && 'bg-accent text-on-accent enabled:hover:bg-accent-hover',
         variant === 'outline' && 'border border-line-strong text-fg enabled:hover:bg-surface-raised',
         variant === 'ghost' && 'text-fg-muted enabled:hover:bg-surface-raised enabled:hover:text-fg',

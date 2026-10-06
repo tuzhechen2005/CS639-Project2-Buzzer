@@ -139,7 +139,7 @@ export function PlotPointAnswer({ config, imageId, locked, submitted, onSubmit, 
           type="button"
           aria-expanded={panelOpen}
           onClick={() => setPanelOpen((o) => !o)}
-          className="text-accent-text text-sm underline self-center py-1"
+          className="min-h-11 px-3 rounded-xl text-accent-text text-sm underline self-center focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
         >
           {panelOpen ? 'Hide coordinates' : 'Type coordinates'}
         </button>
