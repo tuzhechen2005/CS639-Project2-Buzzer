@@ -7,7 +7,7 @@ import { Input } from '../../components/ui/input';
 import { Card, CardContent, CardHeader } from '../../components/ui/card';
 import type { Game } from './GamesTab';
 
-type QuestionType = 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'multi_select';
+type QuestionType = 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'multi_select' | 'numeric_estimate';
 type GradingType = 'ACCURACY' | 'COMPLETENESS';
 
 interface Question {
@@ -60,6 +60,65 @@ function buildFibPayload(answers: FibAnswer[], editDistance: number) {
   };
 }
 
+// numeric_estimate: a guess scored by tolerance bands around a hidden target.
+// Band fields are kept as the text typed so a half-typed number is not forced to 0.
+interface NeBand { within: string; points: string }
+type NeMode = 'relative' | 'absolute';
+
+const NE_MAX_BANDS = 5;
+const NE_LIMIT = 1e15;
+const NE_DEFAULT_TIME = 45; // typing a number takes longer than tapping an option
+
+const neDefaultBands = (): NeBand[] => [
+  { within: '5', points: '100' },
+  { within: '15', points: '50' },
+  { within: '30', points: '25' },
+];
+
+/** Plain-language problems with a numeric question, mirroring the backend's rules (the
+ * server stays the authority). Empty when the form is fine. */
+function numericProblems(form: FormState): string[] {
+  const problems: string[] = [];
+  if (form.neUnit.length > 20) problems.push('The unit can be at most 20 characters.');
+  if (form.grading !== 'ACCURACY') return problems;
+  const target = Number(form.neTarget);
+  if (form.neTarget.trim() === '' || !Number.isFinite(target) || Math.abs(target) > NE_LIMIT) {
+    problems.push('Enter the target number (at most 1e15 in size).');
+  } else if (form.neMode === 'relative' && target === 0) {
+    problems.push('A percentage of 0 is undefined: use Absolute mode or a non-zero target.');
+  }
+  const bands = form.neBands.map((b) => ({ within: Number(b.within), points: Number(b.points) }));
+  if (bands.length < 1 || bands.length > NE_MAX_BANDS) {
+    problems.push(`Use between 1 and ${NE_MAX_BANDS} bands.`);
+  }
+  if (bands.some((b, i) => form.neBands[i].within.trim() === '' || form.neBands[i].points.trim() === ''
+      || !(b.within > 0) || !(b.points > 0) || b.within > NE_LIMIT || b.points > NE_LIMIT)) {
+    problems.push('Every band needs a "within" and a points value greater than 0.');
+  } else {
+    if (bands.some((b, i) => i > 0 && b.within <= bands[i - 1].within)) {
+      problems.push('Each band must be wider than the one before it ("within" increases).');
+    }
+    if (bands.some((b, i) => i > 0 && b.points >= bands[i - 1].points)) {
+      problems.push('Each band must be worth fewer points than the one before it.');
+    }
+  }
+  return problems;
+}
+
+function buildNePayload(form: FormState) {
+  const unit = form.neUnit.trim();
+  const config: Record<string, unknown> = unit ? { unit } : {};
+  if (form.grading !== 'ACCURACY') return { config, answer_data: {} };
+  return {
+    config,
+    answer_data: {
+      target: Number(form.neTarget),
+      mode: form.neMode,
+      bands: form.neBands.map((b) => ({ within: Number(b.within), points: Number(b.points) })),
+    },
+  };
+}
+
 // ---- QuestionForm subcomponent ----
 
 interface FormState {
@@ -78,6 +137,11 @@ interface FormState {
   fibEditDistance: number;
   // multi_select
   msOptions: McOption[];
+  // numeric_estimate
+  neTarget: string;
+  neMode: NeMode;
+  neUnit: string;
+  neBands: NeBand[];
 }
 
 const defaultForm = (): FormState => ({
@@ -92,6 +156,10 @@ const defaultForm = (): FormState => ({
   fibAnswers: [{ text: '', points: 1 }],
   fibEditDistance: 0,
   msOptions: [{ text: '', points: 1 }, { text: '', points: 1 }],
+  neTarget: '',
+  neMode: 'relative',
+  neUnit: '',
+  neBands: neDefaultBands(),
 });
 
 function questionToForm(q: Question): FormState {
@@ -124,6 +192,14 @@ function questionToForm(q: Question): FormState {
     base.msOptions = opts.length
       ? opts.map((text, i) => ({ text, points: pts[i] ?? 1 }))
       : [{ text: '', points: 1 }, { text: '', points: 1 }];
+  } else if (q.type === 'numeric_estimate') {
+    const bands = (q.answer_data['bands'] as { within: number; points: number }[]) ?? [];
+    base.neTarget = q.answer_data['target'] === undefined ? '' : String(q.answer_data['target']);
+    base.neMode = (q.answer_data['mode'] as NeMode) === 'absolute' ? 'absolute' : 'relative';
+    base.neUnit = (q.config['unit'] as string) ?? '';
+    base.neBands = bands.length
+      ? bands.map((b) => ({ within: String(b.within), points: String(b.points) }))
+      : neDefaultBands();
   }
   return base;
 }
@@ -143,6 +219,10 @@ function formToPayload(form: FormState) {
     const p = buildMsPayload(form.msOptions.filter((o) => o.text.trim()));
     config = p.config;
     answer_data = p.answer_data;
+  } else if (form.type === 'numeric_estimate') {
+    const p = buildNePayload(form);
+    config = p.config;
+    answer_data = p.answer_data;
   } else {
     const p = buildFibPayload(form.fibAnswers.filter((a) => a.text.trim()), form.fibEditDistance);
     config = p.config;
@@ -157,6 +237,8 @@ function formToPayload(form: FormState) {
       ? Math.max(form.tfTruePoints, form.tfFalsePoints)
       : form.type === 'multi_select'
       ? form.msOptions.reduce((sum, o) => sum + (o.points > 0 ? o.points : 0), 0)
+      : form.type === 'numeric_estimate'
+      ? Number(form.neBands[0]?.points ?? 0) // the first (best) band
       : Math.max(0, ...form.fibAnswers.map((a) => a.points));
   return {
     type: form.type,
@@ -195,12 +277,22 @@ function QuestionForm({
           <select
             className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-slate-100 text-sm"
             value={form.type}
-            onChange={(e) => set('type', e.target.value as QuestionType)}
+            onChange={(e) => {
+              const type = e.target.value as QuestionType;
+              setForm((prev) => ({
+                ...prev,
+                type,
+                // typing a number takes longer than tapping: raise the untouched default
+                timeLimitSeconds:
+                  type === 'numeric_estimate' && prev.timeLimitSeconds === 30 ? NE_DEFAULT_TIME : prev.timeLimitSeconds,
+              }));
+            }}
           >
             <option value="multiple_choice">Multiple Choice</option>
             <option value="true_false">True / False</option>
             <option value="fill_in_the_blank">Fill in the Blank</option>
             <option value="multi_select">Multi-Select (Select All That Apply)</option>
+            <option value="numeric_estimate">Numeric Estimate (closest guess)</option>
           </select>
         </div>
         <div className="flex-1">
@@ -458,6 +550,129 @@ function QuestionForm({
         </div>
       )}
 
+      {form.type === 'numeric_estimate' && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-3">
+            {form.grading === 'ACCURACY' && (
+              <>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Target (the true value)</label>
+                  <Input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 1665"
+                    value={form.neTarget}
+                    onChange={(e) => set('neTarget', e.target.value)}
+                    className="w-40 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Tolerance is measured in</label>
+                  <select
+                    className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-slate-100 text-sm"
+                    value={form.neMode}
+                    onChange={(e) => set('neMode', e.target.value as NeMode)}
+                  >
+                    <option value="relative">Percent of the target</option>
+                    <option value="absolute">The answer's own units</option>
+                  </select>
+                </div>
+              </>
+            )}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Unit (optional)</label>
+              <Input
+                placeholder="steps, years, m…"
+                maxLength={20}
+                value={form.neUnit}
+                onChange={(e) => set('neUnit', e.target.value)}
+                className="w-36 text-sm"
+              />
+            </div>
+          </div>
+
+          {form.grading === 'ACCURACY' && (
+            <div>
+              <label className="block text-xs text-slate-400 mb-2">
+                Bands: a guess within the tolerance earns the points (the first band that fits wins)
+              </label>
+              <div className="flex gap-2 mb-1 px-0.5">
+                <span className="w-32 text-xs text-slate-500">
+                  Within {form.neMode === 'relative' ? '(%)' : form.neUnit ? `(${form.neUnit})` : '(units)'}
+                </span>
+                <span className="w-24 text-xs text-slate-500">Points</span>
+                {form.neBands.length > 1 && <span className="w-7" />}
+              </div>
+              <div className="space-y-2">
+                {form.neBands.map((band, i) => (
+                  <div key={i} className="flex gap-2 items-center">
+                    <Input
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={band.within}
+                      onChange={(e) => {
+                        const bands = [...form.neBands];
+                        bands[i] = { ...bands[i], within: e.target.value };
+                        set('neBands', bands);
+                      }}
+                      className="w-32 text-sm"
+                    />
+                    <Input
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={band.points}
+                      onChange={(e) => {
+                        const bands = [...form.neBands];
+                        bands[i] = { ...bands[i], points: e.target.value };
+                        set('neBands', bands);
+                      }}
+                      className="w-24 text-sm"
+                    />
+                    {i === 0 && <span className="text-xs text-green-400">best band = correct</span>}
+                    {form.neBands.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => set('neBands', form.neBands.filter((_, j) => j !== i))}
+                      >
+                        <Trash2 size={12} />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {form.neBands.length < NE_MAX_BANDS && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const last = form.neBands[form.neBands.length - 1];
+                      const within = last ? String(Number(last.within) * 2 || '') : '';
+                      const points = last ? String(Math.max(1, Math.floor(Number(last.points) / 2)) || '') : '';
+                      set('neBands', [...form.neBands, { within, points }]);
+                    }}
+                  >
+                    <Plus size={12} className="mr-1" /> Add band
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-2">
+                Question points (the best band): {form.neBands[0]?.points || '—'}
+              </p>
+            </div>
+          )}
+
+          {numericProblems(form).length > 0 && (
+            <ul className="text-xs text-amber-300 list-disc pl-5 space-y-0.5">
+              {numericProblems(form).map((p) => <li key={p}>{p}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* Time + points */}
       <div className="flex gap-4">
         <div>
@@ -488,7 +703,11 @@ function QuestionForm({
       </div>
 
       <div className="flex gap-3">
-        <Button type="button" onClick={() => onSave(formToPayload(form))} disabled={saving}>
+        <Button
+          type="button"
+          onClick={() => onSave(formToPayload(form))}
+          disabled={saving || (form.type === 'numeric_estimate' && numericProblems(form).length > 0)}
+        >
           {saving ? 'Saving…' : 'Save Question'}
         </Button>
         <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
@@ -678,6 +897,7 @@ export default function QuestionEditorPage() {
     true_false: 'T/F',
     fill_in_the_blank: 'Fill',
     multi_select: 'Multi',
+    numeric_estimate: 'Num',
   };
 
   if (loading) return <div className="text-slate-400">Loading…</div>;
@@ -873,6 +1093,30 @@ export default function QuestionEditorPage() {
                       Accepted: {((q.answer_data['acceptedAnswers'] as string[]) ?? []).join(', ')}
                       {(q.answer_data['editDistance'] as number) > 0 && (
                         <span className="ml-2 text-slate-500">(±{q.answer_data['editDistance'] as number} edit distance)</span>
+                      )}
+                    </div>
+                  )}
+
+                  {q.type === 'numeric_estimate' && (
+                    <div className="mt-2 text-xs text-slate-400 space-y-0.5">
+                      {q.grading_type === 'ACCURACY' ? (
+                        <>
+                          <div>
+                            Target: <span className="text-green-300">
+                              {String(q.answer_data['target'])}{q.config['unit'] ? ` ${String(q.config['unit'])}` : ''}
+                            </span>
+                            <span className="ml-2 text-slate-500">
+                              ({q.answer_data['mode'] === 'relative' ? 'percent of the target' : 'absolute units'})
+                            </span>
+                          </div>
+                          <div>
+                            {((q.answer_data['bands'] as { within: number; points: number }[]) ?? [])
+                              .map((b) => `±${b.within}${q.answer_data['mode'] === 'relative' ? '%' : ''} → ${b.points}pts`)
+                              .join(' · ')}
+                          </div>
+                        </>
+                      ) : (
+                        <div>Any number earns full points{q.config['unit'] ? ` (${String(q.config['unit'])})` : ''}</div>
                       )}
                     </div>
                   )}
