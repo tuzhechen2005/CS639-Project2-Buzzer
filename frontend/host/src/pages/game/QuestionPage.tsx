@@ -120,7 +120,7 @@ export default function QuestionPage() {
           size="lg"
           variant="outline"
           onClick={emitLockQuestion}
-          className={`px-10 ${questionLocked ? 'border-warning text-warning-text hover:bg-warning-subtle' : ''}`}
+          className={`px-10 ${questionLocked ? 'border-warning text-warning-text enabled:hover:bg-warning-subtle' : ''}`}
         >
           {questionLocked ? 'Unlock Question' : 'Lock Question'}
         </Button>
