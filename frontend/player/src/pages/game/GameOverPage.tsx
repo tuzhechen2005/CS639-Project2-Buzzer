@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGame } from './GameLayout';
 import { Button } from '../../components/ui/button';
 import { QuestionImage } from '../../components/ui/QuestionImage';
+import { PromptText } from '../../components/PromptText';
 import type { PlayerAnswerReveal, QuestionConfig, QuestionSummaryItem } from '../../types/game';
 import { withUnit } from '../../lib/numericEstimate';
 import { formatGridPoint } from '../../lib/plotGeometry';
@@ -106,7 +107,7 @@ function QuestionRow({ item, index }: { item: QuestionSummaryItem; index: number
   return (
     <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
       <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Q{index + 1}</p>
-      <p className="text-slate-100 text-sm font-medium leading-snug mb-3">{item.prompt}</p>
+      <p className="text-slate-100 text-sm font-medium leading-snug mb-3"><PromptText prompt={item.prompt} /></p>
       {!isPlot && <QuestionImage imageId={item.config.image_id} alt="Image for the question" className="h-24 w-full mb-3" align="left" />}
 
       <div className="flex items-start justify-between gap-3">

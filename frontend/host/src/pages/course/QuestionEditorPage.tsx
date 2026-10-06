@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from '../../components/ui/card';
 import type { Game } from './GamesTab';
 import { ImageLibraryPanel, ImagePicker, useImageLibrary, type ImageLibraryState } from './ImageLibrary';
 import { QuestionImage } from '../../components/ui/QuestionImage';
+import { PromptText } from '../../components/PromptText';
 import {
   PP_DEFAULT_TIME, PlotPointFields, buildPpPayload, plotProblems, ppDefaultForm, ppFromQuestion,
   ppListSummary, ppPointsValue, type PpForm,
@@ -1150,7 +1151,7 @@ export default function QuestionEditorPage() {
                     </span>
                     <span className="text-slate-500 text-xs">{q.time_limit_seconds}s · {q.points_value}pts</span>
                   </div>
-                  <p className="text-slate-100 text-sm leading-relaxed">{q.prompt}</p>
+                  <p className="text-slate-100 text-sm leading-relaxed"><PromptText prompt={q.prompt} /></p>
                   {typeof q.config['image_id'] === 'string' && (
                     <QuestionImage
                       imageId={q.config['image_id']}

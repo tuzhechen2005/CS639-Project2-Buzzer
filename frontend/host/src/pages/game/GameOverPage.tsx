@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useGame } from './GameLayout';
 import { QuestionImage } from '../../components/ui/QuestionImage';
+import { PromptText } from '../../components/PromptText';
 import { Button } from '../../components/ui/button';
 import type { AnswerReveal, HostQuestionSummaryItem } from '../../types/game';
 import { buildNumericBars, withUnit, type NumericReveal } from '../../lib/numericEstimate';
@@ -144,7 +145,7 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
       </div>
 
       {/* Prompt */}
-      <p className="text-slate-100 text-lg font-semibold leading-snug">{prompt}</p>
+      <p className="text-slate-100 text-lg font-semibold leading-snug"><PromptText prompt={prompt} /></p>
       {!plotConfig && (
         <QuestionImage imageId={config.image_id} alt="Image for the question" className="h-32 w-full max-w-sm" align="left" />
       )}
