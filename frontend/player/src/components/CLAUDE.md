@@ -26,6 +26,9 @@ The big answer buttons and option colours of the other types are built inline in
   canvas in portrait and in a column to its right in landscape, as **one** element tree whose
   classes change on rotation (two trees would remount the timer and the canvas). Rendered by
   `QuestionPage` with `key={questionId}`; the point survives lock/unlock and rotation.
+- `PromptText.tsx` — shows a question prompt with its formatting (via `lib/promptMarkup.ts`),
+  as React elements and text, never raw HTML. Use it wherever a prompt is displayed; printing
+  `{prompt}` directly shows `<b>` tags and `&lt;` codes literally.
 
 ## How it fits in
 Used by the pages in `pages/`. Styling is Tailwind via `lib/utils.ts`'s `cn`; callers can
