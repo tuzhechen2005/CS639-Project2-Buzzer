@@ -167,7 +167,7 @@ export default function GameOverPage() {
   const { yourFinalScore, yourFinalRank, playerCount, questionSummary } = gameOver;
 
   return (
-    <div className="min-h-screen flex flex-col p-4 gap-5">
+    <div className="min-h-screen flex flex-col p-4 gap-4">
       <div className="text-center pt-4 pb-2">
         <h1 className="text-4xl font-black text-fg">Game Over!</h1>
         <div className="mt-3 flex items-baseline justify-center gap-3">

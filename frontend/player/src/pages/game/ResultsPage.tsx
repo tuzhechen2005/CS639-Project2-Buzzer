@@ -69,7 +69,7 @@ export default function ResultsPage() {
     isFitb && 'acceptedAnswers' in answerReveal ? answerReveal.acceptedAnswers : [];
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 text-center">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6 text-center">
 
       {/* Correct / Wrong / Recorded */}
       {isCompleteness ? (

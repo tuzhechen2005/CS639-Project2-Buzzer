@@ -85,7 +85,7 @@ export default function QuestionPage() {
   if (currentQuestion.type === 'multiple_choice') {
     const options = currentQuestion.config.options ?? [];
     return (
-      <div className="py-6 px-4 flex flex-col gap-3">
+      <div className="p-4 flex flex-col gap-4">
         <div className="pb-2">
           {questionLabel}
           <TimerBar key={currentQuestion.questionId} totalSeconds={currentQuestion.timeLimitSeconds} paused={questionLocked} />
@@ -139,7 +139,7 @@ export default function QuestionPage() {
   if (currentQuestion.type === 'fill_in_the_blank') {
     const maxLength = currentQuestion.config.maxLength ?? 100;
     return (
-      <div className="min-h-screen flex flex-col justify-center p-4 gap-5">
+      <div className="min-h-screen flex flex-col justify-center p-4 gap-4">
         {questionLabel}
         <TimerBar key={currentQuestion.questionId} totalSeconds={currentQuestion.timeLimitSeconds} paused={questionLocked} />
 
@@ -188,7 +188,7 @@ export default function QuestionPage() {
   if (currentQuestion.type === 'multi_select') {
     const options = currentQuestion.config.options ?? [];
     return (
-      <div className="py-6 px-4 flex flex-col gap-3">
+      <div className="p-4 flex flex-col gap-4">
         <div className="pb-2">
           {questionLabel}
           <TimerBar key={currentQuestion.questionId} totalSeconds={currentQuestion.timeLimitSeconds} paused={questionLocked} />
@@ -245,7 +245,7 @@ export default function QuestionPage() {
     }
 
     return (
-      <div className="py-6 px-4 flex flex-col gap-4">
+      <div className="p-4 flex flex-col gap-4">
         <div className="pb-2">
           {questionLabel}
           <TimerBar key={currentQuestion.questionId} totalSeconds={currentQuestion.timeLimitSeconds} paused={questionLocked} />
