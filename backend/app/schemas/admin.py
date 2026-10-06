@@ -11,6 +11,8 @@ from pydantic import (
     model_validator,
 )
 
+from ..services.question_types import known_types, validate_definition
+
 
 # ---------------------------------------------------------------------------
 # Courses
@@ -136,9 +138,7 @@ class GameResponse(BaseModel):
 
 class QuestionCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    type: str = Field(
-        ..., pattern="^(multiple_choice|true_false|fill_in_the_blank|multi_select)$"
-    )
+    type: str
     grading_type: str = Field(..., pattern="^(ACCURACY|COMPLETENESS)$")
     prompt: str = Field(..., min_length=1, max_length=2000)
     config: dict = Field(default_factory=dict)
@@ -147,70 +147,23 @@ class QuestionCreate(BaseModel):
     points_value: float = Field(1.0, ge=0, le=100000)
     order_index: int | None = Field(None, ge=0)
 
+    @field_validator("type")
+    @classmethod
+    def known_type(cls, v: str) -> str:
+        if v not in known_types():
+            raise ValueError(f"type must be one of: {', '.join(sorted(known_types()))}")
+        return v
+
     @model_validator(mode="after")
     def validate_structure(self) -> QuestionCreate:
-        if self.type == "multiple_choice":
-            opts = self.config.get("options")
-            if not isinstance(opts, list) or len(opts) < 2:
-                raise ValueError(
-                    "multiple_choice config must have 'options' list with at least 2 items"
-                )
-            if self.grading_type == "ACCURACY":
-                pts = self.answer_data.get("answer_points")
-                if not isinstance(pts, list) or len(pts) != len(opts):
-                    raise ValueError(
-                        "ACCURACY multiple_choice answer_data must have 'answer_points' list matching options length"
-                    )
-                if any(not isinstance(p, (int, float)) or p < 0 for p in pts):
-                    raise ValueError(
-                        "answer_points values must be non-negative numbers"
-                    )
-        if self.type == "true_false" and self.grading_type == "ACCURACY":
-            pts = self.answer_data.get("answer_points")
-            if not isinstance(pts, dict) or set(pts.keys()) != {"true", "false"}:
-                raise ValueError(
-                    "ACCURACY true_false answer_data must have 'answer_points' with 'true' and 'false' keys"
-                )
-        if self.type == "fill_in_the_blank" and self.grading_type == "ACCURACY":
-            answers = self.answer_data.get("acceptedAnswers")
-            if not isinstance(answers, list) or len(answers) == 0:
-                raise ValueError(
-                    "ACCURACY fill_in_the_blank answer_data must have 'acceptedAnswers' list with at least one item"
-                )
-            if any(not isinstance(a, str) or not a.strip() for a in answers):
-                raise ValueError("acceptedAnswers entries must be non-empty strings")
-            pts = self.answer_data.get("answerPoints")
-            if not isinstance(pts, list) or len(pts) != len(answers):
-                raise ValueError(
-                    "ACCURACY fill_in_the_blank answer_data must have 'answerPoints' list matching acceptedAnswers length"
-                )
-            if any(not isinstance(p, (int, float)) or p < 0 for p in pts):
-                raise ValueError("answerPoints values must be non-negative numbers")
-            edit_dist = self.answer_data.get("editDistance", 0)
-            if not isinstance(edit_dist, int) or edit_dist < 0:
-                raise ValueError("editDistance must be a non-negative integer")
-        if self.type == "multi_select":
-            opts = self.config.get("options")
-            if not isinstance(opts, list) or len(opts) < 2:
-                raise ValueError(
-                    "multi_select config must have 'options' list with at least 2 items"
-                )
-            if self.grading_type == "ACCURACY":
-                pts = self.answer_data.get("answer_points")
-                if not isinstance(pts, list) or len(pts) != len(opts):
-                    raise ValueError(
-                        "ACCURACY multi_select answer_data must have 'answer_points' list matching options length"
-                    )
-                if any(not isinstance(p, (int, float)) for p in pts):
-                    raise ValueError("answer_points values must be numbers")
+        # Per-type structure rules live in services/question_types.py.
+        validate_definition(self)
         return self
 
 
 class QuestionUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    type: str | None = Field(
-        None, pattern="^(multiple_choice|true_false|fill_in_the_blank|multi_select)$"
-    )
+    type: str | None = None
     grading_type: str | None = Field(None, pattern="^(ACCURACY|COMPLETENESS)$")
     prompt: str | None = Field(None, min_length=1, max_length=2000)
     config: dict | None = None
@@ -218,6 +171,13 @@ class QuestionUpdate(BaseModel):
     time_limit_seconds: int | None = Field(None, ge=2, le=300)
     points_value: float | None = Field(None, ge=0, le=100000)
     order_index: int | None = Field(None, ge=0)
+
+    @field_validator("type")
+    @classmethod
+    def known_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in known_types():
+            raise ValueError(f"type must be one of: {', '.join(sorted(known_types()))}")
+        return v
 
 
 class QuestionResponse(BaseModel):

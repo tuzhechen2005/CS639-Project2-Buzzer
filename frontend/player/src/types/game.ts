@@ -8,13 +8,20 @@ export interface PlayerJoinedPayload {
   playerCount: number;
 }
 
+export type QuestionType =
+  | 'multiple_choice'
+  | 'true_false'
+  | 'fill_in_the_blank'
+  | 'multi_select'
+  | 'numeric_estimate';
+
 export interface QuestionPayload {
   questionId: number;
   questionNumber: number;
   totalQuestions: number;
-  type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'multi_select';
+  type: QuestionType;
   prompt: string;
-  config: { options?: string[]; maxLength?: number };
+  config: { options?: string[]; maxLength?: number; unit?: string };
   timeLimitSeconds: number;
   pointsValue: number;
 }
@@ -32,7 +39,13 @@ export type PlayerAnswerReveal =
   | { type: 'true_false'; correctValue: boolean }
   | { type: 'fill_in_the_blank'; acceptedAnswers: string[]; editDistance: number }
   | { type: 'completeness' }
-  | { type: 'multi_select'; answerPoints: number[] };
+  | { type: 'multi_select'; answerPoints: number[] }
+  | {
+      type: 'numeric_estimate';
+      target: number;
+      mode: 'relative' | 'absolute';
+      bands: { within: number; points: number }[];
+    };
 
 export interface PlayerResultsPayload {
   questionId: number;
@@ -46,13 +59,19 @@ export interface PlayerResultsPayload {
 export interface QuestionSummaryItem {
   questionId: number;
   prompt: string;
-  type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'multi_select';
+  type: QuestionType;
   gradingType: 'ACCURACY' | 'COMPLETENESS';
-  config: { options?: string[]; maxLength?: number };
+  config: { options?: string[]; maxLength?: number; unit?: string };
   pointsAwarded: number;
   maxPoints: number;
   answerTimeMs: number | null;
-  playerAnswer: { selectedIndex?: number; selectedValue?: boolean; text?: string; selectedIndices?: number[] } | null;
+  playerAnswer: {
+    selectedIndex?: number;
+    selectedValue?: boolean;
+    text?: string;
+    selectedIndices?: number[];
+    value?: number;
+  } | null;
   answerReveal: PlayerAnswerReveal;
 }
 

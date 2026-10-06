@@ -2,11 +2,13 @@ import { useNavigate } from 'react-router-dom';
 import { useGame } from './GameLayout';
 import { Button } from '../../components/ui/button';
 import type { PlayerAnswerReveal, QuestionSummaryItem } from '../../types/game';
+import { withUnit } from '../../lib/numericEstimate';
 
 function describePlayerAnswer(
-  playerAnswer: { selectedIndex?: number; selectedValue?: boolean; text?: string; selectedIndices?: number[] } | null,
+  playerAnswer: QuestionSummaryItem['playerAnswer'],
   type: string,
   options: string[] | undefined,
+  unit?: string,
 ): string {
   if (!playerAnswer) return 'No answer';
   if (type === 'multiple_choice') {
@@ -22,6 +24,9 @@ function describePlayerAnswer(
   if (type === 'fill_in_the_blank') {
     return typeof playerAnswer.text === 'string' ? playerAnswer.text : '—';
   }
+  if (type === 'numeric_estimate') {
+    return typeof playerAnswer.value === 'number' ? withUnit(playerAnswer.value, unit) : '—';
+  }
   if (type === 'multi_select') {
     const indices = playerAnswer.selectedIndices;
     if (!indices || indices.length === 0) return 'No selection';
@@ -34,6 +39,7 @@ function describePlayerAnswer(
 function describeCorrectAnswer(
   answerReveal: PlayerAnswerReveal,
   options: string[] | undefined,
+  unit?: string,
 ): string {
   if (answerReveal.type === 'multiple_choice') {
     const indices = answerReveal.correctIndices;
@@ -48,6 +54,9 @@ function describeCorrectAnswer(
   if (answerReveal.type === 'fill_in_the_blank') {
     const label = answerReveal.acceptedAnswers.join(' / ');
     return answerReveal.editDistance > 0 ? `${label} (±${answerReveal.editDistance})` : label;
+  }
+  if (answerReveal.type === 'numeric_estimate') {
+    return `Target ${withUnit(answerReveal.target, unit)}`;
   }
   if (answerReveal.type === 'multi_select') {
     const correct = answerReveal.answerPoints
@@ -66,9 +75,9 @@ function QuestionRow({ item, index }: { item: QuestionSummaryItem; index: number
   const isCorrect = !isCompleteness && !noAnswer && item.pointsAwarded > 0;
   const showCorrectAnswer = !isCompleteness && !isCorrect;
 
-  const playerAnswerLabel = describePlayerAnswer(item.playerAnswer, item.type, options);
+  const playerAnswerLabel = describePlayerAnswer(item.playerAnswer, item.type, options, item.config.unit);
   const correctAnswerLabel = !isCompleteness
-    ? describeCorrectAnswer(item.answerReveal, options)
+    ? describeCorrectAnswer(item.answerReveal, options, item.config.unit)
     : '';
 
   return (

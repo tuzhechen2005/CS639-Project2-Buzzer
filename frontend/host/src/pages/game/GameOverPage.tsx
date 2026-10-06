@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGame } from './GameLayout';
 import { Button } from '../../components/ui/button';
 import type { AnswerReveal, HostQuestionSummaryItem } from '../../types/game';
+import { buildNumericBars, withUnit, type NumericReveal } from '../../lib/numericEstimate';
 
 const TARGET_BUCKETS = 8;
 
@@ -84,6 +85,7 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
     true_false: 'True / False',
     fill_in_the_blank: 'Fill in the Blank',
     multi_select: 'Multi-Select',
+    numeric_estimate: 'Numeric Estimate',
   };
 
   const answeredPct = totalPlayers > 0 ? Math.round((totalAnswered / totalPlayers) * 100) : 0;
@@ -172,6 +174,26 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
             />
           );
         })}
+
+        {type === 'numeric_estimate' && reveal.type === 'numeric_estimate' && (
+          <div className="space-y-2">
+            <p className="text-slate-100 text-base font-semibold">
+              Target: <span className="text-green-400">{withUnit((reveal as NumericReveal).target, config.unit)}</span>
+            </p>
+            {buildNumericBars(reveal as NumericReveal, answerDistribution, config.unit).map((bar, i) => (
+              <div key={i} className="space-y-0.5">
+                <span className={`text-xs ${bar.correct ? 'text-green-300' : 'text-slate-400'}`}>{bar.label}</span>
+                <AnswerBar
+                  label=""
+                  count={bar.count}
+                  total={totalPlayers}
+                  correct={bar.correct === true}
+                  colorClass={bar.correct ? 'bg-green-500' : 'bg-slate-600'}
+                />
+              </div>
+            ))}
+          </div>
+        )}
 
         {type === 'fill_in_the_blank' && (
           <div className="space-y-2">

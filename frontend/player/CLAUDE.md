@@ -35,8 +35,9 @@ For :8080, `npm run build` writes `dist/`, which docker-compose mounts at
 - **Stale compiled configs:** `tsc -b` emits git-ignored `vite.config.js` / `tailwind.config.js`
   (+ `.d.ts`) next to the `.ts` files, and Vite and Tailwind load the `.js` first. Edits to the
   `.ts` configs don't apply until the next build regenerates them.
-- CI (`frontend-typecheck` in `.gitlab-ci.yml`) runs `npx tsc --noEmit` here; there is no linter,
-  formatter or test runner.
+- CI (`frontend-typecheck` in `.gitlab-ci.yml`) runs `npx tsc --noEmit` here; there is no linter
+  or formatter. `npm test` runs vitest (the number parser and display helpers in `src/lib/`);
+  CI does not run it yet.
 - Disabling pinch-zoom in `index.html` is an accessibility trade-off; change it deliberately.
 - Shares nothing with `frontend/host` or `frontend/admin`: separate `node_modules`, configs, and
   copies of `lib/` and `components/ui/`.
