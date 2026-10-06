@@ -85,7 +85,7 @@ export default function LoginPage() {
           {/* Primary: UW NetID SSO */}
           <a
             href="/api/auth/oauth2-callback?redirect_to=/host/login"
-            className={`flex items-center justify-center w-full py-2.5 px-4 rounded-lg font-medium transition-colors
+            className={`flex items-center justify-center w-full py-2.5 px-4 rounded-xl font-medium transition-colors
               ${loading
                 ? 'bg-surface-raised text-fg-subtle pointer-events-none'
                 : 'bg-accent hover:bg-accent-hover text-on-accent focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page'

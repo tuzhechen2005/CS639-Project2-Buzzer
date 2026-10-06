@@ -274,7 +274,7 @@ export default function UserDetailPage() {
               <div>
                 <label className="block text-xs text-fg-muted mb-1">Role</label>
                 <select
-                  className="rounded-lg border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm"
+                  className="rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm"
                   value={editRole}
                   onChange={(e) => setEditRole(e.target.value)}
                 >
@@ -334,7 +334,7 @@ export default function UserDetailPage() {
           })}
 
           {showCoursePanel && (
-            <div className="rounded-lg border border-line-strong bg-surface p-3 space-y-1">
+            <div className="rounded-xl border border-line-strong bg-surface p-3 space-y-1">
               <div className="flex items-center gap-2 pb-1 mb-1 border-b border-line">
                 <input
                   type="checkbox"
@@ -439,7 +439,7 @@ export default function UserDetailPage() {
           })}
 
           {showGamePanel && (
-            <div className="rounded-lg border border-line-strong bg-surface p-3 space-y-1">
+            <div className="rounded-xl border border-line-strong bg-surface p-3 space-y-1">
               <div className="flex items-center gap-2 pb-1 mb-1 border-b border-line">
                 <input
                   type="checkbox"

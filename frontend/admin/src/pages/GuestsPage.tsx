@@ -101,7 +101,7 @@ export default function GuestsPage() {
       ) : (
         <div className="space-y-2">
           {guests.map((g) => (
-            <div key={g.id} className="flex items-center justify-between px-4 py-3 rounded-lg border border-line bg-surface">
+            <div key={g.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-line bg-surface">
               <div>
                 <span className="font-medium text-fg">{g.display_name}</span>
                 <span className="text-fg-muted text-sm ml-3">{g.email}</span>

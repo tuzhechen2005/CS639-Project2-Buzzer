@@ -150,7 +150,7 @@ export default function GamesTab() {
                 placeholder="Description (optional)"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full rounded-lg border border-line-strong bg-surface-raised px-3 py-2 text-fg placeholder:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page resize-none"
+                className="w-full rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg placeholder:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page resize-none"
                 rows={3}
               />
               <div>

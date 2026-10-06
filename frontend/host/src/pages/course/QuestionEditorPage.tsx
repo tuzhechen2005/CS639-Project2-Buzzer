@@ -309,7 +309,7 @@ function QuestionForm({
         <div className="flex-1">
           <label className="block text-xs text-fg-muted mb-1">Question type</label>
           <select
-            className="w-full rounded-lg border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm"
+            className="w-full rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm"
             value={form.type}
             onChange={(e) => {
               const type = e.target.value as QuestionType;
@@ -337,7 +337,7 @@ function QuestionForm({
         <div className="flex-1">
           <label className="block text-xs text-fg-muted mb-1">Grading</label>
           <select
-            className="w-full rounded-lg border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm"
+            className="w-full rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm"
             value={form.grading}
             onChange={(e) => set('grading', e.target.value as GradingType)}
           >
@@ -351,7 +351,7 @@ function QuestionForm({
       <div>
         <label className="block text-xs text-fg-muted mb-1">Prompt</label>
         <textarea
-          className="w-full rounded-lg border border-line-strong bg-surface-raised px-3 py-2 text-fg placeholder:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page resize-none text-sm"
+          className="w-full rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg placeholder:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page resize-none text-sm"
           rows={3}
           placeholder="Question text…"
           value={form.prompt}
@@ -640,7 +640,7 @@ function QuestionForm({
                 <div>
                   <label className="block text-xs text-fg-muted mb-1">Tolerance is measured in</label>
                   <select
-                    className="rounded-lg border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm"
+                    className="rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm"
                     value={form.neMode}
                     onChange={(e) => set('neMode', e.target.value as NeMode)}
                   >
@@ -1006,7 +1006,7 @@ export default function QuestionEditorPage() {
                   placeholder="Description (optional)"
                   value={detailDescription}
                   onChange={(e) => setDetailDescription(e.target.value)}
-                  className="w-full rounded-lg border border-line-strong bg-surface-raised px-3 py-2 text-fg placeholder:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page resize-none"
+                  className="w-full rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg placeholder:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page resize-none"
                   rows={3}
                 />
                 <div>
@@ -1059,7 +1059,7 @@ export default function QuestionEditorPage() {
       </Card>
 
       {locked && (
-        <div className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning-subtle px-4 py-3 text-sm text-warning-text">
+        <div className="flex items-start gap-3 rounded-xl border border-warning/40 bg-warning-subtle px-4 py-3 text-sm text-warning-text">
           <Lock size={16} className="mt-0.5 shrink-0" />
           <p>
             This game has been played and has recorded answers, so its questions can't be changed

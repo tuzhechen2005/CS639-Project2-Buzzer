@@ -149,12 +149,12 @@ export default function SessionsPage() {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-fg">Sessions</h2>
         {/* Status filter tabs */}
-        <div className="flex gap-1 bg-surface-raised rounded-lg p-1">
+        <div className="flex gap-1 bg-surface-raised rounded-xl p-1">
           {filters.map((f) => (
             <button
               key={f}
               onClick={() => setStatusFilter(f)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 statusFilter === f
                   ? 'bg-accent text-on-accent'
                   : 'text-fg-muted hover:text-fg'
@@ -252,7 +252,7 @@ export default function SessionsPage() {
                           <button
                             key={fmt}
                             onClick={() => setOpt(s.session_id, s.game_title, 'format', fmt)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                            className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
                               opts.format === fmt
                                 ? 'bg-accent border-accent text-on-accent'
                                 : 'border-line-strong text-fg-muted hover:border-line-strong'

@@ -40,7 +40,7 @@ export default function CourseLayout() {
   }, [courseId]);
 
   const tabClass = ({ isActive }: { isActive: boolean }) =>
-    `px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+    `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
       isActive ? 'bg-accent text-on-accent' : 'text-fg-muted hover:text-fg'
     }`;
 
@@ -80,7 +80,7 @@ export default function CourseLayout() {
             <ThemeToggle />
           </div>
           {!onEditor && (
-            <nav className="inline-flex gap-1 bg-surface-raised rounded-lg p-1">
+            <nav className="inline-flex gap-1 bg-surface-raised rounded-xl p-1">
               <NavLink to="games" className={tabClass}>Games</NavLink>
               <NavLink to="roster" className={tabClass}>Roster</NavLink>
               <NavLink to="sessions" className={tabClass}>Past Sessions</NavLink>

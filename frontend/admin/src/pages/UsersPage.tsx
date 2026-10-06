@@ -100,7 +100,7 @@ export default function UsersPage() {
             <div
               key={u.id}
               onClick={() => navigate(`/users/${u.id}`)}
-              className="flex items-center justify-between px-4 py-3 rounded-lg border border-line bg-surface cursor-pointer hover:bg-surface-raised"
+              className="flex items-center justify-between px-4 py-3 rounded-xl border border-line bg-surface cursor-pointer hover:bg-surface-raised"
             >
               <div>
                 <span className="font-medium text-fg">{u.display_name ?? u.username ?? u.netid}</span>

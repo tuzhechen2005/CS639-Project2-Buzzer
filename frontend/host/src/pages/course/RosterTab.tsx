@@ -637,7 +637,7 @@ export default function RosterTab() {
       ) : (
         <>
           <p className="text-fg-muted text-sm mb-4">{active.length} active &middot; {inactive.length} inactive</p>
-          <div className="rounded-lg border border-line overflow-hidden">
+          <div className="rounded-xl border border-line overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-surface text-xs text-fg-muted border-b border-line">

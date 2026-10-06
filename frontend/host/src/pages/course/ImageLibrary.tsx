@@ -265,7 +265,7 @@ export function ImagePicker({
         )}
       </div>
       {open && (
-        <div className="absolute z-20 right-0 mt-1 w-72 rounded-lg border border-line bg-surface p-3 shadow-xl space-y-2">
+        <div className="absolute z-20 right-0 mt-1 w-72 rounded-xl border border-line bg-surface p-3 shadow-xl space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs text-fg-muted">{label}</span>
             <button type="button" className="text-fg-subtle hover:text-fg" onClick={() => setOpen(false)}>
