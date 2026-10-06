@@ -39,11 +39,12 @@ and access checks, scoring, Redis live state, roster import, and CSV/HTML export
     game-over payloads, including the answer reveal and distributions.
 - `question_types.py` — the **question-type registry**. One `QuestionType` handler per type
   (`multiple_choice`, `true_false`, `fill_in_the_blank`, `multi_select`) with `label`,
-  `validate_definition`, `validate_answer`, `score`, `reveal`, `distribution_keys` and
-  `payload_extras`, all pure functions of a question-like object (`type`, `grading_type`,
+  `validate_definition`, `validate_answer`, `score`, `reveal`, `distribution_keys`,
+  `payload_extras` and the optional `normalize_answer` (default: unchanged), all pure functions of a question-like object (`type`, `grading_type`,
   `config`, `answer_data`, `points_value`; `QuestionSpec` for raw rows). The module-level
   `score_answer`, `answer_reveal`, `distribution_keys_for`, `validate_definition`,
-  `validate_answer`, `payload_extras`, `known_types` and `label_for` add the cross-type rules
+  `validate_answer`, `normalize_answer`, `accept_answer` (validate, then normalize; what the
+  gateway calls), `payload_extras`, `known_types` and `label_for` add the cross-type rules
   (empty answer = 0 points, COMPLETENESS, unknown type). **To add a question type, write one
   handler and register it in `_TYPES`.** Imports no routers, gateway, database or Redis.
 - `state_service.py` — the Redis live-state layer. Key layout is documented in the module
