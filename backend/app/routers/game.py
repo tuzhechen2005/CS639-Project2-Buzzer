@@ -5,7 +5,7 @@ from typing import Annotated
 import structlog
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..common.dependencies import get_current_user, require_user
@@ -320,13 +320,31 @@ async def merge_guest_for_session(
     if not real_user:
         raise NotFoundError(f"No user with netid '{target_netid}' found")
 
+    # A guest account is reused by email, so one guest can have played in other
+    # sessions, including other courses. A host may only re-attribute the guest's scores
+    # in *their own* session.
     scores_result = await db.execute(
-        select(SessionScore).where(SessionScore.user_id == guest_user_id)
+        select(SessionScore).where(
+            SessionScore.user_id == guest_user_id,
+            SessionScore.session_id == session_id,
+        )
     )
-    for score in scores_result.scalars().all():
+    scores = scores_result.scalars().all()
+    if not scores:
+        raise NotFoundError(f"Guest {guest_user_id} has no answers in this session")
+    for score in scores:
         score.user_id = real_user.id
+    await db.flush()
 
-    await db.delete(guest)
+    # Keep the guest account while it still owns scores elsewhere (it is also referenced
+    # by session_scores.user_id, so deleting it would fail).
+    remaining = await db.execute(
+        select(func.count())
+        .select_from(SessionScore)
+        .where(SessionScore.user_id == guest_user_id)
+    )
+    if not remaining.scalar_one():
+        await db.delete(guest)
     logger.info(
         "guest_merged_by_host",
         guest_id=guest_user_id,
