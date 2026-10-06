@@ -30,14 +30,25 @@ and access checks, scoring, Redis live state, roster import, and CSV/HTML export
     `relock_for_write` (lock, re-fetch the user, re-check the permission inside the lock).
   - Grants: `grant_game` (idempotent), `apply_creation_grants` (host → self; admin → every course
     HOST), `assert_can_grant_game` (`NOT_COURSE_HOST`).
-  - **Scoring**: `calculate_score(question, answer_data) → ScoreResult`. COMPLETENESS gives full
-    points for any non-empty answer. ACCURACY looks up points per type: an index into
-    `answer_points` (MC), a `"true"/"false"` key (TF), the best `acceptedAnswers` match within the
-    Levenshtein `editDistance` (FITB), or the sum of selected `answer_points` floored at 0 (MS).
+  - **Scoring**: `calculate_score(question, answer_data) → ScoreResult` is a thin wrapper over
+    `question_types.score_answer`. COMPLETENESS gives full points for any non-empty answer.
+    ACCURACY is decided by the type's handler: an index into `answer_points` (MC), a
+    `"true"/"false"` key (TF), the best `acceptedAnswers` match within the Levenshtein
+    `editDistance` (FITB), or the sum of selected `answer_points` floored at 0 (MS).
   - `record_answer`: scores the answer, inserts a `SessionScore`, updates the Redis score and the
     answered set, and bumps the Redis answer distribution.
   - `get_leaderboard`, `get_player_question_summary` and `get_host_question_summary` build the
     game-over payloads, including the answer reveal and distributions.
+- `question_types.py` — the **question-type registry**. One `QuestionType` handler per type
+  (`multiple_choice`, `true_false`, `fill_in_the_blank`, `multi_select`) with `label`,
+  `validate_definition`, `validate_answer`, `score`, `reveal`, `distribution_keys`,
+  `payload_extras` and the optional `normalize_answer` (default: unchanged), all pure functions of a question-like object (`type`, `grading_type`,
+  `config`, `answer_data`, `points_value`; `QuestionSpec` for raw rows). The module-level
+  `score_answer`, `answer_reveal`, `distribution_keys_for`, `validate_definition`,
+  `validate_answer`, `normalize_answer`, `accept_answer` (validate, then normalize; what the
+  gateway calls), `payload_extras`, `known_types` and `label_for` add the cross-type rules
+  (empty answer = 0 points, COMPLETENESS, unknown type). **To add a question type, write one
+  handler and register it in `_TYPES`.** Imports no routers, gateway, database or Redis.
 - `state_service.py` — the Redis live-state layer. Key layout is documented in the module
   docstring: `room:{code}` (JSON, 90-min TTL refreshed on activity), and
   `session:{id}:players | player:{uid} | question | answered:{qid} | dist:{qid}`.
@@ -69,7 +80,8 @@ and access checks, scoring, Redis live state, roster import, and CSV/HTML export
   (Canvas import format, SIS Login ID = netid[@domain], optional per-question columns, optional
   `roster_only`).
 - `report_service.py` — `build_session_report`: a self-contained HTML report with aggregate
-  statistics only (no names), bar charts, a word cloud, and a score histogram.
+  statistics only (no names), bar charts (including multi_select), a word cloud, and a score
+  histogram.
 
 ## How it fits in
 `routers/` and `websocket/gateway.py` call these; services use `models/` and `state_service`, and
@@ -79,17 +91,17 @@ never import routers or the gateway (live rooms are ended by the routers, via
 through `record_answer` / the models.
 
 ## Gotchas
-- **Per-type logic is duplicated.** Adding a question type (T7) touches all of these:
-  `calculate_score`; the distribution keys in `record_answer`; the reveal and distribution in
-  both `get_*_question_summary` functions; `_answer_reveal`, `_extract_answer_key`, the type badge
-  and chart choice in `report_service.py`; and `gateway._answer_reveal` + `_question_payload`.
-  Consider centralizing reveal/dist before adding types.
-- **`report_service` is already stale:** it has no `multi_select` support at all (no reveal, no
-  distribution, no badge, no chart), so multi-select questions render without a chart.
-- The FITB distribution key is normalized differently in different places: `record_answer`
-  collapses internal whitespace, while `get_host_question_summary` and `report_service` only strip.
-- `calculate_score` assumes well-formed `answer_data`. For example, a string `selectedIndex` for
-  MC raises `TypeError`. Only multi_select is shape-checked, and that check is in the gateway.
+- **Per-type logic lives in `question_types.py`.** Scoring, reveal, distribution keys, the
+  structure rules, answer validation and the payload extras all come from the registry; the
+  places that used to repeat them (`record_answer`, both `get_*_question_summary` functions, the
+  gateway and `report_service`) call it. What is still per type outside the registry is only
+  presentation: the type badge colour and the chart choice in `report_service.py` (bar chart for
+  MC, TF and multi_select, word cloud for FITB).
+- The FITB distribution key is the same everywhere (lowercase, internal whitespace collapsed),
+  because the live counter, the game-over summary and the report all use `distribution_keys_for`.
+- The existing handlers assume well-formed `answer_data`: a string `selectedIndex` for MC
+  raises `TypeError` in `score`. Only multi_select answers are shape-checked (`validate_answer`,
+  called by the gateway).
 - `update_player_score` is read-modify-write on a JSON blob (not atomic). It's safe today only
   because each player writes their own key and duplicates are filtered upstream.
 - `create_room` and `delete_room_state` use `redis.keys(...)` (O(N) scans). Fine at 50 rooms.

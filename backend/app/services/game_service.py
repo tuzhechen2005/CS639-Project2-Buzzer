@@ -5,7 +5,6 @@ import uuid
 from datetime import datetime, timezone
 
 import structlog
-from rapidfuzz.distance import Levenshtein
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 from sqlalchemy import select
@@ -24,6 +23,12 @@ from ..models.session import GameSession, SessionScore
 from ..models.user import User
 from ..schemas.game import ScoreResult
 from . import state_service as state
+from .question_types import (
+    QuestionSpec,
+    answer_reveal,
+    distribution_keys_for,
+    score_answer,
+)
 
 logger = structlog.get_logger()
 
@@ -542,79 +547,11 @@ async def authorise_player(db: AsyncSession, user: User, session: GameSession) -
 
 def calculate_score(question: Question, answer_data: dict) -> ScoreResult:
     """
-    Calculate points for a player's answer.
-    COMPLETENESS: any answer = full points, no answer = 0
-    ACCURACY:     points come from answer_data.answer_points per selected option
+    Calculate points for a player's answer (see question_types.score_answer):
+    COMPLETENESS gives full points for any answer, no answer gives 0, and ACCURACY is
+    decided by the question type's handler.
     """
-    if not answer_data:
-        return ScoreResult(points_awarded=0, is_correct=False)
-
-    if question.grading_type == "COMPLETENESS":
-        return ScoreResult(points_awarded=question.points_value, is_correct=True)
-
-    # ACCURACY
-    if question.type == "multiple_choice":
-        selected = answer_data.get("selectedIndex")
-        if selected is None:
-            return ScoreResult(points_awarded=0, is_correct=False)
-        pts_list: list[float] = question.answer_data.get("answer_points", [])
-        if not (0 <= selected < len(pts_list)):
-            return ScoreResult(points_awarded=0, is_correct=False)
-        points = pts_list[selected]
-        return ScoreResult(
-            points_awarded=points,
-            is_correct=(points == question.points_value),
-        )
-
-    if question.type == "true_false":
-        selected = answer_data.get("selectedValue")
-        if selected is None:
-            return ScoreResult(points_awarded=0, is_correct=False)
-        pts_map: dict = question.answer_data.get("answer_points", {})
-        key = "true" if selected else "false"
-        points = pts_map.get(key, 0)
-        return ScoreResult(
-            points_awarded=points,
-            is_correct=(points == question.points_value),
-        )
-
-    if question.type == "fill_in_the_blank":
-        text = " ".join((answer_data.get("text") or "").lower().split())
-        if not text:
-            return ScoreResult(points_awarded=0, is_correct=False)
-        accepted = [
-            " ".join(a.lower().split())
-            for a in question.answer_data.get("acceptedAnswers", [])
-        ]
-        answer_pts: list[float] = question.answer_data.get("answerPoints", [])
-        max_dist = int(question.answer_data.get("editDistance", 0))
-        best: float = 0.0
-        for i, a in enumerate(accepted):
-            if Levenshtein.distance(text, a) <= max_dist:
-                pts = answer_pts[i] if i < len(answer_pts) else question.points_value
-                best = max(best, pts)
-        return ScoreResult(
-            points_awarded=best,
-            is_correct=(best >= question.points_value),
-        )
-
-    if question.type == "multi_select":
-        selected = answer_data.get("selectedIndices")
-        if not isinstance(selected, list):
-            return ScoreResult(points_awarded=0, is_correct=False)
-        pts_list: list[float] = question.answer_data.get("answer_points", [])
-        raw = sum(
-            pts_list[i]
-            for i in selected
-            if isinstance(i, int) and 0 <= i < len(pts_list)
-        )
-        score = max(0.0, raw)
-        return ScoreResult(
-            points_awarded=score,
-            is_correct=(score >= question.points_value and question.points_value > 0),
-        )
-
-    return ScoreResult(points_awarded=0, is_correct=False)
+    return score_answer(question, answer_data)
 
 
 async def record_answer(
@@ -649,30 +586,9 @@ async def record_answer(
     await state.update_player_score(redis, session_id, user_id, result.points_awarded)
     await state.mark_answered(redis, session_id, question.id, user_id)
 
-    # Increment per-option distribution counter for the results bar chart
-    dist_key: str | None = None
-    if question.type == "multiple_choice":
-        idx = answer_data.get("selectedIndex")
-        if idx is not None:
-            dist_key = str(idx)
-    elif question.type == "true_false":
-        val = answer_data.get("selectedValue")
-        if val is not None:
-            dist_key = "true" if val else "false"
-    elif question.type == "fill_in_the_blank":
-        text = " ".join((answer_data.get("text") or "").lower().split())
-        if text:
-            dist_key = text
-    elif question.type == "multi_select":
-        indices = answer_data.get("selectedIndices")
-        if isinstance(indices, list):
-            for idx in indices:
-                if isinstance(idx, int):
-                    await state.increment_answer_dist(
-                        redis, session_id, question.id, str(idx)
-                    )
-    if dist_key is not None:
-        await state.increment_answer_dist(redis, session_id, question.id, dist_key)
+    # Increment the answer-distribution counters for the results chart
+    for key in distribution_keys_for(question, answer_data):
+        await state.increment_answer_dist(redis, session_id, question.id, key)
 
     return result
 
@@ -735,32 +651,16 @@ async def get_player_question_summary(
     for r in rows:
         q_type = r.q_type
         grading_type = r.grading_type
-        q_ans = r.q_answer_data or {}
         pts_val = r.points_value
-
-        if grading_type == "COMPLETENESS":
-            reveal: dict = {"type": "completeness"}
-        elif q_type == "multiple_choice":
-            pts = q_ans.get("answer_points", [])
-            correct_indices = [i for i, p in enumerate(pts) if p >= pts_val]
-            reveal = {"type": "multiple_choice", "correctIndices": correct_indices}
-        elif q_type == "true_false":
-            pts_map = q_ans.get("answer_points", {})
-            correct_true = pts_map.get("true", 0) >= pts_val
-            reveal = {"type": "true_false", "correctValue": correct_true}
-        elif q_type == "fill_in_the_blank":
-            reveal = {
-                "type": "fill_in_the_blank",
-                "acceptedAnswers": q_ans.get("acceptedAnswers", []),
-                "editDistance": q_ans.get("editDistance", 0),
-            }
-        elif q_type == "multi_select":
-            reveal = {
-                "type": "multi_select",
-                "answerPoints": q_ans.get("answer_points", []),
-            }
-        else:
-            reveal = {}
+        reveal = answer_reveal(
+            QuestionSpec(
+                type=q_type,
+                grading_type=grading_type,
+                config=r.config or {},
+                answer_data=r.q_answer_data or {},
+                points_value=pts_val,
+            )
+        )
 
         result.append(
             {
@@ -844,66 +744,25 @@ async def get_host_question_summary(
         q = questions_meta[qid]
         scores = scores_by_q[qid]
         q_type = q["type"]
-        q_ans = q["answer_data"]
         pts_val = q["points_value"]
         grading_type = q["grading_type"]
-
-        if grading_type == "COMPLETENESS":
-            reveal: dict = {"type": "completeness"}
-        elif q_type == "multiple_choice":
-            pts_list = q_ans.get("answer_points", [])
-            reveal = {
-                "type": "multiple_choice",
-                "correctIndices": [i for i, p in enumerate(pts_list) if p >= pts_val],
-            }
-        elif q_type == "true_false":
-            pts_map = q_ans.get("answer_points", {})
-            reveal = {
-                "type": "true_false",
-                "correctValue": pts_map.get("true", 0) >= pts_val,
-            }
-        elif q_type == "fill_in_the_blank":
-            reveal = {
-                "type": "fill_in_the_blank",
-                "acceptedAnswers": q_ans.get("acceptedAnswers", []),
-                "editDistance": q_ans.get("editDistance", 0),
-            }
-        elif q_type == "multi_select":
-            reveal = {
-                "type": "multi_select",
-                "answerPoints": q_ans.get("answer_points", []),
-            }
-        else:
-            reveal = {}
+        spec = QuestionSpec(
+            type=q_type,
+            grading_type=grading_type,
+            config=q["config"],
+            answer_data=q["answer_data"],
+            points_value=pts_val,
+        )
+        reveal = answer_reveal(spec)
 
         dist: dict[str, int] = {}
         correct_count = 0
         total_time = 0
         time_count = 0
         for s in scores:
-            ans = s["player_answer"]
-            if ans:
-                if q_type == "multiple_choice":
-                    idx = ans.get("selectedIndex")
-                    if idx is not None:
-                        k = str(idx)
-                        dist[k] = dist.get(k, 0) + 1
-                elif q_type == "true_false":
-                    val = ans.get("selectedValue")
-                    if val is not None:
-                        k = "true" if val else "false"
-                        dist[k] = dist.get(k, 0) + 1
-                elif q_type == "fill_in_the_blank":
-                    text = (ans.get("text") or "").strip().lower()
-                    if text:
-                        dist[text] = dist.get(text, 0) + 1
-                elif q_type == "multi_select":
-                    indices = ans.get("selectedIndices")
-                    if isinstance(indices, list):
-                        for idx in indices:
-                            if isinstance(idx, int):
-                                k = str(idx)
-                                dist[k] = dist.get(k, 0) + 1
+            # Same keys as the live distribution in record_answer.
+            for k in distribution_keys_for(spec, s["player_answer"]):
+                dist[k] = dist.get(k, 0) + 1
             if s["is_correct"]:
                 correct_count += 1
             if s["answer_time_ms"] is not None:

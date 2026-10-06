@@ -74,4 +74,5 @@ Cross-app ones. Each app's `CLAUDE.md` files have the details.
   production, so the host's player QR code only works on :8080.
 - **Build gotchas apply to all three:** `dist/` is a snapshot (empty means nginx 403s), `tsc -b`
   leaves compiled `vite.config.js` / `tailwind.config.js` that shadow the `.ts` configs, and CI's
-  `frontend-typecheck` (`npx tsc --noEmit`) is the only automated check; there are no frontend tests.
+  `frontend-typecheck` (`npx tsc --noEmit`) is the only automated check. The player app has a
+  small vitest suite (`npm test` in `frontend/player`, for the number parser) that CI does not run.

@@ -258,6 +258,18 @@ class SimPlayer:
             k = random.randint(1, n)
             return {"selectedIndices": sorted(random.sample(range(n), k))}
 
+        if q_type == "numeric_estimate":
+            data = (jq or {}).get("answer_data", {})
+            target = data.get("target")
+            if isinstance(target, (int, float)) and not isinstance(target, bool):
+                bands = data.get("bands") or [{"within": 10}]
+                last = bands[-1].get("within", 10)
+                scale = abs(target) / 100 if data.get("mode") == "relative" else 1
+                # close to the target for accurate players, otherwise off by up to twice the last band
+                spread = last * scale * (0.5 if random.random() < p.accuracy else 2.0)
+                return {"value": round(target + random.uniform(-spread, spread), 2)}
+            return {"value": random.randint(0, 1000)}
+
         return None  # unknown type
 
     def _answer_str(self, answer: dict) -> str:

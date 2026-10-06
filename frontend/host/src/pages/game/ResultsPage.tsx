@@ -3,6 +3,7 @@ import { useGame } from './GameLayout';
 import { Button } from '../../components/ui/button';
 import { QuestionImage } from '../../components/ui/QuestionImage';
 import type { AnswerReveal, QuestionConfig } from '../../types/game';
+import { buildNumericBars, withUnit, type NumericReveal } from '../../lib/numericEstimate';
 
 const RESULTS_DISPLAY_SECONDS = 10;
 
@@ -118,7 +119,7 @@ interface BarChartProps {
   totalPlayers: number;
 }
 
-function AnswerBarChart({ bars, totalAnswered, totalPlayers }: BarChartProps) {
+function AnswerBarChart({ bars, totalAnswered, totalPlayers, wideLabels }: BarChartProps & { wideLabels?: boolean }) {
   const maxCount = Math.max(...bars.map(b => b.count), 1);
   // Keep the bars aligned when only some options have a picture.
   const anyImage = bars.some(b => b.imageId);
@@ -136,7 +137,7 @@ function AnswerBarChart({ bars, totalAnswered, totalPlayers }: BarChartProps) {
 
         return (
           <div key={i} className="flex items-center gap-3">
-            <span className="text-slate-300 font-bold font-mono w-8 text-right shrink-0">
+            <span className={`text-slate-300 font-bold font-mono text-right shrink-0 ${wideLabels ? 'w-44' : 'w-8'}`}>
               {bar.label}
             </span>
             {anyImage && (
@@ -255,9 +256,17 @@ export default function ResultsPage() {
   }, [autoAdvance, questionResults, emitAdvance]);
 
   const isFitb = currentQuestion?.type === 'fill_in_the_blank';
+  const isNumeric = currentQuestion?.type === 'numeric_estimate';
+  const unit = currentQuestion?.config?.unit;
+  const numericReveal =
+    isNumeric && questionResults?.answerReveal.type === 'numeric_estimate'
+      ? (questionResults.answerReveal as NumericReveal)
+      : null;
 
   const bars =
-    !isFitb && questionResults
+    numericReveal && questionResults
+      ? buildNumericBars(numericReveal, questionResults.answerDistribution, unit)
+      : !isFitb && !isNumeric && questionResults
       ? buildBars(
           questionResults.answerReveal,
           questionResults.answerDistribution,
@@ -293,11 +302,19 @@ export default function ResultsPage() {
           totalPlayers={questionResults.totalPlayers}
         />
       ) : questionResults ? (
+        <>
+        {numericReveal && (
+          <p className="text-slate-100 text-3xl font-bold">
+            Target: <span className="text-green-400">{withUnit(numericReveal.target, unit)}</span>
+          </p>
+        )}
         <AnswerBarChart
+          wideLabels={numericReveal !== null}
           bars={bars}
           totalAnswered={questionResults.totalAnswered}
           totalPlayers={questionResults.totalPlayers}
         />
+        </>
       ) : null}
 
       <div className="flex flex-col items-center gap-2">
