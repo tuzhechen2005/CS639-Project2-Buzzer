@@ -8,6 +8,7 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..common.exceptions import BuzzerError
 from ..models.course import CourseRoster
 from ..schemas.admin import RosterUploadResult
 
@@ -20,6 +21,22 @@ SIS_LOGIN_COL = "sis login id"  # "NETID@WISC.EDU"
 MAX_ROWS = 1000
 
 RosterMode = Literal["replace", "add_only"]
+
+
+def _reject_truncated_replace(mode: RosterMode, truncated: bool) -> None:
+    """
+    `replace` deactivates every active entry that is not in the upload. If the upload was
+    cut at MAX_ROWS, the students in the unprocessed rows would be deactivated too, so
+    refuse it (also for dry runs, so the preview shows the problem). `add_only` never
+    deactivates anyone and keeps the old behaviour.
+    """
+    if truncated and mode == "replace":
+        raise BuzzerError(
+            "ROSTER_TOO_LARGE",
+            f"This upload has more than {MAX_ROWS} students. Replace mode would deactivate "
+            f"the ones past row {MAX_ROWS}; split the upload or use add-only mode.",
+            422,
+        )
 
 
 def _is_metadata_row(row: dict[str, str]) -> bool:
@@ -107,6 +124,7 @@ async def process_roster_csv(
     errors: list[str] = []
     rows: list[dict[str, str]] = []
     seen_netids: set[str] = set()
+    truncated = False
     csv_row = 1  # row 1 = header; incremented before each data row
 
     for raw_row in reader:
@@ -143,11 +161,13 @@ async def process_roster_csv(
             errors.append(
                 f"Reached {MAX_ROWS}-row limit; remaining rows were not processed."
             )
+            truncated = True
             break
 
         seen_netids.add(netid)
         rows.append({"netid": netid, "full_name": display_name, "email": email})
 
+    _reject_truncated_replace(mode, truncated)
     return await _apply_rows(
         db, course_id, rows, errors, mode=mode, dry_run=dry_run, event="roster_uploaded"
     )
@@ -168,6 +188,7 @@ async def process_roster_rows(
     errors: list[str] = []
     clean: list[dict[str, str]] = []
     seen_netids: set[str] = set()
+    truncated = False
 
     for i, row in enumerate(rows, start=1):
         netid = row.get("netid", "").strip().lower()
@@ -182,11 +203,13 @@ async def process_roster_rows(
             errors.append(
                 f"Reached {MAX_ROWS}-row limit; remaining rows were not processed."
             )
+            truncated = True
             break
 
         seen_netids.add(netid)
         clean.append({"netid": netid, "full_name": full_name, "email": email})
 
+    _reject_truncated_replace(mode, truncated)
     return await _apply_rows(
         db,
         course_id,
