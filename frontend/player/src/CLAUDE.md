@@ -20,11 +20,14 @@ Top-level files:
 Subdirectories (each has its own `CLAUDE.md`):
 - `pages/` — all screens. `game/GameLayout.tsx` owns the socket and all game state, exposes it via
   `useGame()` (including `emitAnswer`), and navigates when server events arrive.
-- `components/` — `ui/` primitives (`Button`, `Card`, `Input`, `TimerBar`), mobile-sized forks of
-  the host's.
-- `lib/` — `api` (REST over `fetch`), `cn()`, `isTokenExpired()`, `parseNumber` (what a player types
-  into a number for numeric_estimate; unit-tested with vitest) and `numericEstimate` (display
-  helpers for that type).
+- `components/` — `ui/` primitives (`Button`, `Card`, `Input`, `TimerBar`, `QuestionImage`),
+  mobile-sized forks of the host's, plus the plot_point answer screen (`PlotPointAnswer`, with its
+  `PlotCanvas`).
+- `lib/` — `api` (REST over `fetch`), `cn()`, `isTokenExpired()`, `images`, `parseNumber` (what a
+  player types into a number) and `numericEstimate` (display helpers for that type), and the
+  plot_point modules: `plotGeometry` (pure plane geometry, byte-identical to the host's copy),
+  `plotPalette`, `plotDraw` (canvas painting) and `plotPoint` (typed-coordinate rules and result
+  text). The pure ones are unit-tested with vitest.
 
 ## How it fits in
 ```
@@ -53,4 +56,5 @@ Cross-cutting ones. Each subdirectory's `CLAUDE.md` has the details.
   dev tools before the reveal.
 - **Identity sticks** to whatever unexpired token is in `localStorage` until "Play again" clears it.
 - No code is shared with the host or admin apps; `lib/`, `components/ui/` and `types/` are copies
-  that have already drifted apart.
+  that have already drifted apart. The exception is `lib/plotGeometry.ts`, which must stay
+  byte-identical to the host's (`tests/unit/test_plot_geometry_copies.py` checks it).
