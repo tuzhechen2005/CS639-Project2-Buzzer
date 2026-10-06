@@ -7,12 +7,21 @@ score and rank.
 
 ## Contents
 Top-level files:
-- `main.tsx` — React entry; renders `<App />` in `StrictMode` and imports `index.css`.
+- `main.tsx` — React entry; calls `initTheme()` (from `theme/theme.ts`) before rendering
+  `<App />` in `StrictMode`, and imports `index.css`.
 - `App.tsx` — the router: `/join`, `/login` (OAuth2 return), `/name/:code`, and
   `/game/:code/{lobby,question,feedback,results,gameover}` nested under `GameLayout`. Anything else
-  redirects to `/join`. No route guard; `GameLayout` checks the token itself.
+  redirects to `/join`. No route guard; `GameLayout` checks the token itself. Renders the one
+  `ThemeToggle` inside the router (hidden on the question route).
   `basename` is `import.meta.env.BASE_URL` (`/player/` in production builds, `/` in dev).
-- `index.css` — Tailwind directives, global dark background, and no tap-highlight flash on mobile.
+- `index.css` — imports `theme/tokens.css` first, then the Tailwind directives, and turns off
+  the tap-highlight flash on mobile.
+- `theme/` — (T9) everything about colour, **byte-identical in host, player and admin**
+  (`tests/unit/test_theme_copies.py`): `tokens.css` (the light values in `:root`, the dark
+  overrides in `[data-theme="dark"]`, as RGB channels), `colors.js` + `colors.d.ts` (the Tailwind
+  colour map, `rgb(var(--x) / <alpha-value>)`), and `theme.ts` (`getStoredTheme`,
+  `currentTheme`, `tokenColor`, `applyTheme`, `setTheme`, `initTheme`; the choice is
+  `localStorage['buzzer-theme']`, else the OS). The only folder allowed to contain colours.
 - `types/game.ts` — hand-written shapes for the Socket.io payloads a player receives
   (`SyncStatePayload`, `QuestionPayload`, `AnswerResultPayload`, `PlayerResultsPayload`,
   `PlayerAnswerReveal`, `PlayerGameOverPayload`, …) and the `PlayerPhase` union.
@@ -21,13 +30,14 @@ Subdirectories (each has its own `CLAUDE.md`):
 - `pages/` — all screens. `game/GameLayout.tsx` owns the socket and all game state, exposes it via
   `useGame()` (including `emitAnswer`), and navigates when server events arrive.
 - `components/` — `ui/` primitives (`Button`, `Card`, `Input`, `TimerBar`, `QuestionImage`),
-  mobile-sized forks of the host's, plus the plot_point answer screen (`PlotPointAnswer`, with its
-  `PlotCanvas`).
+  mobile-sized forks of the host's (every control ≥ 44 px), plus the plot_point answer screen
+  (`PlotPointAnswer`, with its `PlotCanvas`), `PromptText` and `ThemeToggle`.
 - `lib/` — `api` (REST over `fetch`), `cn()`, `isTokenExpired()`, `images`, `parseNumber` (what a
   player types into a number) and `numericEstimate` (display helpers for that type), and the
   plot_point modules: `plotGeometry` (pure plane geometry, byte-identical to the host's copy),
-  `plotPalette`, `plotDraw` (canvas painting) and `plotPoint` (typed-coordinate rules and result
-  text). The pure ones are unit-tested with vitest.
+  `plotPalette` (canvas colours from the theme tokens), `plotDraw` (canvas painting) and
+  `plotPoint` (typed-coordinate rules and result text). The pure ones are unit-tested with
+  vitest, and so is `theme/theme.ts` (`lib/theme.test.ts`).
 
 ## How it fits in
 ```
@@ -44,6 +54,14 @@ The protocol is defined in `backend/app/websocket/events.py` and `gateway.py`.
 
 ## Gotchas
 Cross-cutting ones. Each subdirectory's `CLAUDE.md` has the details.
+- **Colours come only from theme tokens (T9).** Use `bg-surface`, `text-fg-muted`,
+  `border-line-strong`, … — never palette classes (`bg-slate-800`, `text-white`) or hex/rgb
+  values; `tests/unit/test_no_raw_colours.py` fails on any. A new foreground/background pair
+  must be added to the spec's allowed pairs and `tests/unit/test_theme_contrast.py` (WCAG AA,
+  both themes). Change `src/theme/` in all three apps at once, or the copy test fails. Canvases
+  get colours through `tokenColor()` at draw time and redraw on the `themechange` event.
+- **The phone's top-right corner belongs to the theme toggle** (except on the question
+  screen); keep fixed content clear of it.
 - **`types/game.ts` is a manual mirror of the backend payloads**, and a different file from the
   host's `types/game.ts`. Nothing checks either against the server. It also leaves out fields the
   server sends (`sync_state`'s `currentQuestion`, `hasAnswered`, `yourScore`).
