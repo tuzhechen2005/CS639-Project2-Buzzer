@@ -25,19 +25,20 @@ from io import BytesIO
 
 import httpx
 import pymysql
-import pytest
 from PIL import Image
 
 from .engine.socket_client import TestSocketClient
-from .test_host_management import (  # noqa: F401 (world is a fixture)
+from . import test_host_management
+from .test_host_management import (
     MC_QUESTION,
     World,
     err,
     mysql,
     play_one_answer,
     redis_del_room,
-    world,
 )
+
+world = test_host_management.world  # the shared pytest fixture
 
 _REPO_ROOT = pathlib.Path(__file__).parent.parent.parent
 MIB = 1024 * 1024

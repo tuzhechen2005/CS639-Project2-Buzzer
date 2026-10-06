@@ -246,6 +246,21 @@ Include timer-expiry edge cases (sets `time_limit_seconds=2` so tests finish qui
 python -m pytest tests/integration/ -q --fast
 ```
 
+### Browser end-to-end tests (T7/T8 screens)
+
+`tests/e2e/` drives the real host and player apps in Chrome with Playwright: the host
+editor's image library and pickers, images on the host and phone game screens (including
+the loading placeholder and the broken-image fallback), and a numeric-estimate question
+authored with the editor form and answered on a phone. They need the stack behind nginx
+on :8080 with built frontends, the `playwright` package and Google Chrome (no
+`playwright install` needed); otherwise they are skipped.
+
+```bash
+npm run build                                  # nginx serves frontend/*/dist
+pip install -r tests/e2e/requirements.txt
+cd tests/e2e && python -m pytest -q            # --headed to watch
+```
+
 ### WebSocket smoke test
 
 A quick end-to-end script that creates seed data, plays through a full game, and verifies every event payload (dependencies are included in `backend/requirements.txt`):
