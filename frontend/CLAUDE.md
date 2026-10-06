@@ -72,6 +72,10 @@ Cross-app ones. Each app's `CLAUDE.md` files have the details.
   `buzzer-theme`, so on :8080 a toggle in one app applies to the others on their next load
   (never live); on the dev ports each app keeps its own. `tests/e2e/test_t9_theme_ui.py` covers
   the toggle.
+- **Every button, link and field shows the shared focus ring** (`focus-visible:ring-2
+  ring-focus ring-offset-2 ring-offset-page`), in all three apps, primitives and pages alike;
+  `tests/unit/test_focus_rings.py` fails with file:line on any that doesn't. Clickable things are
+  real buttons or links, never `<div onClick>`, so the keyboard can reach them.
 - **Nothing checks the frontend types against the backend.** Payload types are hand-written and
   can silently fall out of date when `backend/app/websocket/gateway.py` or the schemas change.
 - **Auth is thin everywhere:** route guards only check that a token exists in
