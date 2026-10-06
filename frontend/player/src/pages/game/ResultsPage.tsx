@@ -2,6 +2,7 @@ import { useGame } from './GameLayout';
 import {
   differenceLine, formatNumber, numericVerdict, outcomeLine, withUnit,
 } from '../../lib/numericEstimate';
+import { gridPointOf, plotConfigOf, plotResultLine, plotVerdict } from '../../lib/plotPoint';
 
 function describeAnswer(
   lastAnswerData: Record<string, unknown> | null,
@@ -47,7 +48,17 @@ export default function ResultsPage() {
   const isCompleteness = answerReveal.type === 'completeness';
   const isFitb = answerReveal.type === 'fill_in_the_blank';
   const numericReveal = answerReveal.type === 'numeric_estimate' ? answerReveal : null;
-  const verdict = numericReveal ? numericVerdict(numericReveal, yourPoints) : null;
+  // plot_point: one line with both points, the distance and the points (P6).
+  const plotConfig = currentQuestion?.type === 'plot_point' ? plotConfigOf(currentQuestion.config) : null;
+  const plotReveal = answerReveal.type === 'plot_point' ? answerReveal : null;
+  const plotLine = plotConfig
+    ? plotResultLine(plotConfig, plotReveal, gridPointOf(lastAnswerData), yourPoints)
+    : '';
+  const verdict = numericReveal
+    ? numericVerdict(numericReveal, yourPoints)
+    : plotReveal
+      ? plotVerdict(plotReveal, yourPoints)
+      : null;
   const unit = currentQuestion?.config.unit;
   const guess =
     lastAnswerData && typeof lastAnswerData.value === 'number' ? lastAnswerData.value : null;
@@ -76,6 +87,9 @@ export default function ResultsPage() {
           You answered: <span className="text-slate-200 font-semibold">{answeredLabel}</span>
         </p>
       )}
+
+      {/* Plot the point: "You: (4, −2) · Target: (3, −2) · 1 cell off · 50 pts" */}
+      {plotLine && <p className="text-slate-300 text-base font-semibold">{plotLine}</p>}
 
       {/* Correct answer for FITB ACCURACY */}
       {isFitb && fitbAccepted.length > 0 && (

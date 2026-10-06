@@ -1,9 +1,11 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useMemo } from 'react';
 import { useGame } from './GameLayout';
 import { TimerBar } from '../../components/ui/TimerBar';
 import { QuestionImage } from '../../components/ui/QuestionImage';
 import { parseNumber } from '../../lib/parseNumber';
 import { formatNumber } from '../../lib/numericEstimate';
+import { plotConfigOf } from '../../lib/plotPoint';
+import { PlotPointAnswer } from '../../components/PlotPointAnswer';
 
 /** An option's text, with its image above it when the option has one (T8). While the
  * image loads a placeholder is shown; if it fails, the text alone remains. */
@@ -47,6 +49,9 @@ export default function QuestionPage() {
       return next;
     });
   }, [submitted, questionLocked]);
+
+  // plot_point: one config object per question, so the canvas redraws only when it must.
+  const plotConfig = useMemo(() => plotConfigOf(currentQuestion?.config), [currentQuestion?.config]);
 
   if (!currentQuestion) {
     return (
@@ -302,6 +307,32 @@ export default function QuestionPage() {
           </form>
         )}
       </div>
+    );
+  }
+
+  if (currentQuestion.type === 'plot_point' && plotConfig) {
+    return (
+      <PlotPointAnswer
+        key={currentQuestion.questionId}
+        config={plotConfig}
+        imageId={currentQuestion.config.image_id}
+        locked={questionLocked}
+        submitted={submitted}
+        onSubmit={({ col, row }) => submit({ col, row })}
+        header={
+          <div>
+            {questionLabel}
+            <TimerBar key={currentQuestion.questionId} totalSeconds={currentQuestion.timeLimitSeconds} paused={questionLocked} />
+          </div>
+        }
+        status={
+          submitted ? (
+            <p className="text-center text-slate-400 text-sm">Answer submitted — waiting for results…</p>
+          ) : questionLocked ? (
+            lockedMsg
+          ) : null
+        }
+      />
     );
   }
 

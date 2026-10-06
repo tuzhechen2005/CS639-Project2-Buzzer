@@ -2,15 +2,25 @@ import { useNavigate } from 'react-router-dom';
 import { useGame } from './GameLayout';
 import { Button } from '../../components/ui/button';
 import { QuestionImage } from '../../components/ui/QuestionImage';
-import type { PlayerAnswerReveal, QuestionSummaryItem } from '../../types/game';
+import type { PlayerAnswerReveal, QuestionConfig, QuestionSummaryItem } from '../../types/game';
 import { withUnit } from '../../lib/numericEstimate';
+import { formatGridPoint } from '../../lib/plotGeometry';
+import { gridPointOf, plotConfigOf, plotResultLine, targetCell } from '../../lib/plotPoint';
 
 function describePlayerAnswer(
   playerAnswer: QuestionSummaryItem['playerAnswer'],
   type: string,
   options: string[] | undefined,
   unit?: string,
+  extra?: { config: QuestionConfig; answerReveal: PlayerAnswerReveal; points: number },
 ): string {
+  if (type === 'plot_point' && extra) {
+    // One line with the target, the distance and the points; "Target: (…)" alone if unanswered.
+    const c = plotConfigOf(extra.config);
+    if (!c) return '—';
+    const reveal = extra.answerReveal.type === 'plot_point' ? extra.answerReveal : null;
+    return plotResultLine(c, reveal, gridPointOf(playerAnswer), extra.points) || 'No answer';
+  }
   if (!playerAnswer) return 'No answer';
   if (type === 'multiple_choice') {
     const idx = playerAnswer.selectedIndex;
@@ -41,6 +51,7 @@ function describeCorrectAnswer(
   answerReveal: PlayerAnswerReveal,
   options: string[] | undefined,
   unit?: string,
+  config?: QuestionConfig,
 ): string {
   if (answerReveal.type === 'multiple_choice') {
     const indices = answerReveal.correctIndices;
@@ -59,6 +70,10 @@ function describeCorrectAnswer(
   if (answerReveal.type === 'numeric_estimate') {
     return `Target ${withUnit(answerReveal.target, unit)}`;
   }
+  if (answerReveal.type === 'plot_point') {
+    const c = plotConfigOf(config);
+    return c ? `Target ${formatGridPoint(c, targetCell(c, answerReveal))}` : '';
+  }
   if (answerReveal.type === 'multi_select') {
     const correct = answerReveal.answerPoints
       .map((p, i) => ({ p, i }))
@@ -74,18 +89,25 @@ function QuestionRow({ item, index }: { item: QuestionSummaryItem; index: number
   const isCompleteness = item.answerReveal.type === 'completeness';
   const noAnswer = !item.playerAnswer;
   const isCorrect = !isCompleteness && !noAnswer && item.pointsAwarded > 0;
-  const showCorrectAnswer = !isCompleteness && !isCorrect;
+  // plot_point puts the target in its own one-line answer text, and its plane image is not
+  // shown here (text only, Decision 9).
+  const isPlot = item.type === 'plot_point';
+  const showCorrectAnswer = !isCompleteness && !isCorrect && !isPlot;
 
-  const playerAnswerLabel = describePlayerAnswer(item.playerAnswer, item.type, options, item.config.unit);
+  const playerAnswerLabel = describePlayerAnswer(item.playerAnswer, item.type, options, item.config.unit, {
+    config: item.config,
+    answerReveal: item.answerReveal,
+    points: item.pointsAwarded,
+  });
   const correctAnswerLabel = !isCompleteness
-    ? describeCorrectAnswer(item.answerReveal, options, item.config.unit)
+    ? describeCorrectAnswer(item.answerReveal, options, item.config.unit, item.config)
     : '';
 
   return (
     <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
       <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Q{index + 1}</p>
       <p className="text-slate-100 text-sm font-medium leading-snug mb-3">{item.prompt}</p>
-      <QuestionImage imageId={item.config.image_id} alt="Image for the question" className="h-24 w-full mb-3" align="left" />
+      {!isPlot && <QuestionImage imageId={item.config.image_id} alt="Image for the question" className="h-24 w-full mb-3" align="left" />}
 
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -100,7 +122,7 @@ function QuestionRow({ item, index }: { item: QuestionSummaryItem; index: number
             ) : (
               <span className="text-red-400 text-base">✗</span>
             )}
-            <span className={`text-sm font-semibold truncate ${
+            <span className={`text-sm font-semibold ${isPlot ? 'break-words' : 'truncate'} ${
               noAnswer ? 'text-slate-600' :
               isCompleteness ? 'text-indigo-300' :
               isCorrect ? 'text-green-300' : 'text-red-300'
