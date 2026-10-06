@@ -379,3 +379,69 @@ def test_completeness_reveal_is_the_shared_one():
     assert answer_reveal(pq(answer_data={}, grading="COMPLETENESS", points=10)) == {
         "type": "completeness"
     }
+
+
+# --- report (P4): step decimals, target line, band bars ----------------------
+
+from app.services.report_service import (  # noqa: E402
+    _fmt_coord,
+    _render_bar_chart,
+    _step_decimals,
+)
+
+
+@pytest.mark.parametrize(
+    "step,decimals",
+    [(1, 0), (2, 0), (5, 0), (500000, 0), (0.5, 1), (0.2, 1), (0.1, 1), (0.05, 2), (0.001, 3)],
+)
+def test_report_step_decimals(step, decimals):
+    assert _step_decimals(step) == decimals
+
+
+@pytest.mark.parametrize(
+    "value,step,text",
+    [
+        (0.30000000000000004, 0.1, "0.3"),  # float noise never shows
+        (3, 1, "3"),
+        (-2, 1, "−2"),  # typographic minus
+        (2.5, 0.5, "2.5"),
+        (2.0, 0.5, "2"),  # trailing zeros dropped
+        (-0.05, 0.05, "−0.05"),
+        (-0.0000000001, 0.1, "0"),  # no "-0"
+        (1500000.0, 500000, "1500000"),
+    ],
+)
+def test_report_coordinate_format(value, step, text):
+    assert _fmt_coord(value, step) == text
+
+
+def test_report_band_bars_and_target_line():
+    bands = [{"within": 0, "points": 100}, {"within": 1, "points": 50}, {"within": 3, "points": 10}]
+    q3 = pq(answer_data=with_answer(bands=bands))
+    # target col 13, row 8: two exact, one at distance 1, one at 2 (within 3), one miss
+    dist = {"13,8": 2, "14,9": 1, "15,8": 1, "0,0": 1, "garbage": 4}
+    html = _render_bar_chart(q3, dist, answer_reveal(q3), total_players=5)
+    assert "Target: (3, −2)" in html
+    labels_counts = [
+        ("Exact", 2),
+        ("Within 1 cell", 1),
+        ("Within 3 cells", 1),
+        ("Missed", 1),
+    ]
+    for label, count in labels_counts:
+        assert f'<span class="bar-label">{label}</span>' in html
+        segment = html.split(f'<span class="bar-label">{label}</span>', 1)[1].split("bar-row", 1)[0]
+        assert f'<span class="bar-count">{count}</span>' in segment
+    assert html.count("\u2713") == 1  # only the best band is marked correct
+
+
+def test_report_target_on_a_decimal_grid():
+    config = with_config(xMin=0, xMax=2, xStep=0.1, yMin=0, yMax=2, yStep=0.1)
+    q01 = pq(config, with_answer(target={"x": 0.30000000000000004, "y": 0.3}))
+    html = _render_bar_chart(q01, {}, answer_reveal(q01), total_players=0)
+    assert "Target: (0.3, 0.3)" in html
+
+
+def test_report_completeness_has_no_chart():
+    qc = pq(answer_data={}, grading="COMPLETENESS", points=10)
+    assert _render_bar_chart(qc, {"1,1": 3}, answer_reveal(qc), total_players=3) == ""

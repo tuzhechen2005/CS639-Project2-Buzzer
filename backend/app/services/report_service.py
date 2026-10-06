@@ -10,6 +10,7 @@ Answer distributions are reconstructed from session_scores.answer_data in MySQL
 from __future__ import annotations
 
 import html
+import math
 import re
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -20,7 +21,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.course import Course
 from ..models.game import Game, Question
 from ..models.session import GameSession, SessionScore
-from .question_types import answer_reveal, distribution_keys_for, label_for
+from .question_types import (
+    _plot_target,
+    answer_reveal,
+    distribution_keys_for,
+    label_for,
+    plot_band_index,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -108,10 +115,73 @@ def _fmt_number(value: object) -> str:
     return text
 
 
+def _step_decimals(step: float) -> int:
+    """Decimal places of a plot_point step (1, 2 or 5 x 10^k): max(0, -k). The same rule as
+    the frontends' plotGeometry.ts (docs/plans/t7-plot-the-point.md, P5)."""
+    return max(0, -math.floor(math.log10(step) + 1e-9))
+
+
+def _fmt_coord(value: float, step: float) -> str:
+    """A plot_point coordinate rounded to its step's decimals, trailing zeros dropped and a
+    typographic minus (U+2212) for negatives, so float noise never shows (0.30000000000000004
+    on a 0.1 grid reads 0.3)."""
+    decimals = _step_decimals(step)
+    text = f"{round(value, decimals):.{decimals}f}"
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    if text in ("-0", ""):
+        text = "0"
+    return text.replace("-", "−")
+
+
+def _plot_point_bars(q: Question, dist: dict[str, int], reveal: dict) -> list[dict]:
+    """One bar per band ("Exact" / "Within N cells") plus "Missed", counted from the
+    "col,row" buckets with the registry's plot_band_index."""
+    bands = reveal.get("bands", [])
+    counts = [0] * len(bands)
+    missed = 0
+    for key, count in dist.items():
+        try:
+            col, row = (int(part) for part in key.split(","))
+        except ValueError:
+            continue
+        index = plot_band_index(q, col, row)
+        if index is None or index >= len(counts):
+            missed += count
+        else:
+            counts[index] += count
+    bars = []
+    for i, band in enumerate(bands):
+        within = band.get("within")
+        label = (
+            "Exact"
+            if within == 0
+            else f"Within {within} cell{'s' if within != 1 else ''}"
+        )
+        bars.append({"label": label, "count": counts[i], "correct": i == 0 or None})
+    bars.append({"label": "Missed", "count": missed, "correct": None})
+    return bars
+
+
+def _plot_point_target_line(q: Question) -> str:
+    """'Target: (3, −2)', rebuilt from the target's grid indices (P4)."""
+    cell = _plot_target(q)
+    if cell is None:
+        return ""
+    c = q.config
+    x = c["xMin"] + cell[0] * c["xStep"]
+    y = c["yMin"] + cell[1] * c["yStep"]
+    return (
+        f'<p class="q-target">Target: ({_fmt_coord(x, c["xStep"])}, '
+        f"{_fmt_coord(y, c['yStep'])})</p>"
+    )
+
+
 def _render_bar_chart(
     q: Question, dist: dict[str, int], reveal: dict, total_players: int
 ) -> str:
     options = q.config.get("options", [])
+    prefix = ""
 
     if q.type == "multiple_choice":
         bars = [
@@ -157,6 +227,9 @@ def _render_bar_chart(
                 }
             )
         bars.append({"label": "Missed", "count": dist.get("miss", 0), "correct": None})
+    elif q.type == "plot_point" and reveal.get("type") == "plot_point":
+        bars = _plot_point_bars(q, dist, reveal)
+        prefix = _plot_point_target_line(q)
     elif q.type == "true_false":
         cv = reveal.get("correctValue") if reveal.get("type") == "true_false" else None
         bars = [
@@ -201,7 +274,7 @@ def _render_bar_chart(
             f"</div>"
         )
 
-    return '<div class="bar-chart">' + "".join(rows) + "</div>"
+    return prefix + '<div class="bar-chart">' + "".join(rows) + "</div>"
 
 
 def _render_word_cloud(q: Question, dist: dict[str, int], reveal: dict) -> str:
@@ -320,6 +393,8 @@ body{
 .badge-fitb{background:#3b2f1e;color:#fbbf24}
 .badge-ms{background:#2e1f4a;color:#c4b5fd}
 .badge-ne{background:#3a1f2e;color:#f9a8d4}
+.badge-pp{background:#123a3a;color:#5eead4}
+.q-target{color:#94a3b8;font-size:0.9rem;margin:-16px 0 16px}
 .badge-accuracy{background:#2e1b3d;color:#c084fc}
 .badge-completeness{background:#2d2d1a;color:#fde68a}
 .q-timing{margin-left:auto;color:#475569;font-size:0.78rem}
@@ -452,6 +527,7 @@ async def build_session_report(db: AsyncSession, session_id: str) -> tuple[str, 
             "fill_in_the_blank": "badge-fitb",
             "multi_select": "badge-ms",
             "numeric_estimate": "badge-ne",
+            "plot_point": "badge-pp",
         }.get(q.type, "")
 
         grading_label = "Accuracy" if is_accuracy else "Completeness"
@@ -465,6 +541,7 @@ async def build_session_report(db: AsyncSession, session_id: str) -> tuple[str, 
             "true_false",
             "multi_select",
             "numeric_estimate",
+            "plot_point",
         ):
             chart = _render_bar_chart(q, dict(dist), reveal, total_players)
         elif q.type == "fill_in_the_blank":
