@@ -1,0 +1,23 @@
+# A second, empty copy of the stack for the T9 screenshots (scripts/ui_screenshots.py), so
+# the demo data is not mixed with the many courses and users the automated tests leave in
+# the normal development database. Own project name = own database, Redis and network.
+#
+#   docker compose -p buzzer-shots -f docker-compose.yml -f docker-compose.screenshots.yml up -d --build
+#   docker compose -p buzzer-shots exec -T backend alembic upgrade head
+#   python scripts/ui_screenshots.py --out docs/ui/before \
+#       --web-url http://localhost:18080 --api-url http://localhost:18000/api
+#   docker compose -p buzzer-shots down -v      # removes it again, including its database
+#
+# It serves the same frontend/*/dist folders and mounts ./backend, so build the frontends first.
+services:
+  nginx:
+    ports: !override
+      - "18080:80"
+  backend:
+    ports: !override
+      - "18000:8000"
+    environment:
+      # Socket.io rejects origins that are not listed.
+      - CORS_ORIGINS=http://localhost:18080,http://localhost:18000
+  mysql:
+    ports: !reset []
