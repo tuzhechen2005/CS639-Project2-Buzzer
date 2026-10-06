@@ -467,6 +467,47 @@ Limits: PNG, JPEG or WebP only, at most 2 MiB per image (larger photos are downs
 on upload), 50 images and 25 MiB per game, 40 MiB per file. Images are managed through
 `/api/games/{game_id}/images` and served without login from `/api/images/{image_id}`.
 
+**Plot the Point (`plot_point`, T7).** Players place one point on a coordinate plane; it scores
+by how many grid squares it is from the target (`docs/plans/t7-plot-the-point.md`). `config`
+defines the plane and anything drawn on it; `answer_data` holds the target and scoring bands:
+
+```json
+{
+  "type": "plot_point",
+  "grading_type": "ACCURACY",
+  "prompt": "Where do y = 2x + 1 and y = −x + 7 intersect?",
+  "time_limit_seconds": 45,
+  "points_value": 100,
+  "config": {
+    "xMin": -10, "xMax": 10, "xStep": 1,
+    "yMin": -10, "yMax": 10, "yStep": 1,
+    "xLabel": "x", "yLabel": "y",
+    "overlays": [
+      { "kind": "line", "x1": 0, "y1": 1, "x2": 1, "y2": 3, "label": "y = 2x + 1" },
+      { "kind": "line", "x1": 0, "y1": 7, "x2": 1, "y2": 6, "label": "y = −x + 7" }
+    ]
+  },
+  "answer_data": {
+    "target": { "x": 2, "y": 5 },
+    "bands": [ { "within": 0, "points": 100 }, { "within": 1, "points": 50 } ]
+  }
+}
+```
+
+- **Plane:** each step is 1, 2 or 5 × a power of ten (e.g. 0.1, 0.5, 2, 50); each limit is a
+  multiple of its step; 1–20 cells per axis. Labels are optional (1–20 characters).
+- **Overlays** (optional, at most 20): `point` (`x`, `y`), `line` (the infinite line through
+  `x1, y1` and `x2, y2`) and `polynomial` (`coefficients` `[c0, c1, c2, c3]` meaning
+  `y = c0 + c1·x + c2·x² + c3·x³`, 1–4 numbers), each with an optional `label`.
+- **Target:** must be a grid point inside the plane (pick curves whose vertex or intersection lies
+  on the grid).
+- **Bands:** 1–5, `within` in whole cells (0 = exact; a diagonal neighbour is 1 cell away),
+  strictly increasing, with strictly decreasing `points`. **`points_value` must equal the first
+  band's points.** Only the first band counts as correct.
+- **`COMPLETENESS`:** `answer_data` is `{}`; any point gets full points (useful for class polls).
+- **Background image:** `config.image_id` (T8) is drawn behind the grid, stretched to the plane.
+- Players answer with grid indices `{"col", "row"}` (0 at `xMin`/`yMin`).
+
 ### Export session scores
 
 After a game session completes (or is abandoned), any HOST of its course (or an admin) can
