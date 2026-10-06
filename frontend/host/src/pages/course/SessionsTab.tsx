@@ -201,7 +201,7 @@ export default function SessionsTab() {
                           type="checkbox"
                           checked={opts.rosterOnly}
                           onChange={(e) => setOpt(s, 'rosterOnly', e.target.checked)}
-                          className="rounded border-line-strong accent-accent"
+                          className="rounded border-line-strong accent-accent focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                         />
                         <span className="text-sm text-fg-muted">
                           Roster-matched players only
@@ -213,7 +213,7 @@ export default function SessionsTab() {
                           type="checkbox"
                           checked={opts.perQuestion}
                           onChange={(e) => setOpt(s, 'perQuestion', e.target.checked)}
-                          className="rounded border-line-strong accent-accent"
+                          className="rounded border-line-strong accent-accent focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                         />
                         <span className="text-sm text-fg-muted">
                           Per-question breakdown

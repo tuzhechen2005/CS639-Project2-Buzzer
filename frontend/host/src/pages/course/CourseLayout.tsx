@@ -40,7 +40,7 @@ export default function CourseLayout() {
   }, [courseId]);
 
   const tabClass = ({ isActive }: { isActive: boolean }) =>
-    `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+    `px-4 py-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page ${
       isActive ? 'bg-accent text-on-accent' : 'text-fg-muted hover:text-fg'
     }`;
 
@@ -56,7 +56,7 @@ export default function CourseLayout() {
           <p className="text-fg-muted text-lg">
             {state === 'error' ? error : "You don't have access to this course."}
           </p>
-          <Link to="/home" className="text-accent-text underline">Back to your courses</Link>
+          <Link to="/home" className="text-accent-text underline focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page">Back to your courses</Link>
         </div>
       </div>
     );
@@ -68,7 +68,7 @@ export default function CourseLayout() {
         <div className="space-y-3">
           <Link
             to={onEditor ? `/courses/${course.id}/games` : '/home'}
-            className="inline-flex items-center gap-2 text-fg-muted hover:text-fg text-sm"
+            className="inline-flex items-center gap-2 text-fg-muted hover:text-fg text-sm focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
           >
             <ArrowLeft size={14} /> {onEditor ? 'Back to Games' : 'All courses'}
           </Link>

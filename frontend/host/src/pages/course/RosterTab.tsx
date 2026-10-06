@@ -379,7 +379,7 @@ export default function RosterTab() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-fg">Map Columns — {fileName}</h3>
-              <button onClick={resetWizard} className="text-fg-muted hover:text-fg"><X size={16} /></button>
+              <button onClick={resetWizard} className="text-fg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"><X size={16} /></button>
             </div>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -461,7 +461,7 @@ export default function RosterTab() {
                     type="checkbox"
                     checked={checked}
                     onChange={(e) => set(e.target.checked)}
-                    className="rounded border-line-strong bg-surface-raised accent-accent"
+                    className="rounded border-line-strong bg-surface-raised accent-accent focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                   />
                   {label}
                 </label>
@@ -521,7 +521,7 @@ export default function RosterTab() {
                       checked={mode === m.value}
                       onChange={() => setMode(m.value)}
                       disabled={previewing || importing}
-                      className="mt-1 accent-accent"
+                      className="mt-1 accent-accent focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                     />
                     <span>
                       <span className="font-medium text-fg">{m.label}</span>
@@ -564,7 +564,7 @@ export default function RosterTab() {
                       type="checkbox"
                       checked={confirmSkipped}
                       onChange={(e) => setConfirmSkipped(e.target.checked)}
-                      className="rounded border-line-strong bg-surface-raised accent-danger"
+                      className="rounded border-line-strong bg-surface-raised accent-danger focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                     />
                     I understand that students in the skipped or rejected rows count as not in this
                     file, so Replace will deactivate them if they are on the roster.
@@ -576,7 +576,7 @@ export default function RosterTab() {
                       type="checkbox"
                       checked={confirmReplace}
                       onChange={(e) => setConfirmReplace(e.target.checked)}
-                      className="rounded border-line-strong bg-surface-raised accent-danger"
+                      className="rounded border-line-strong bg-surface-raised accent-danger focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                     />
                     I understand that {preview.deactivated} student{preview.deactivated !== 1 ? 's' : ''} not
                     in this file will be deactivated and can no longer join this course's games.
@@ -624,7 +624,7 @@ export default function RosterTab() {
                 </ul>
               )}
             </div>
-            <button onClick={resetWizard} className="text-fg-muted hover:text-fg ml-4"><X size={16} /></button>
+            <button onClick={resetWizard} className="text-fg-muted hover:text-fg ml-4 focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"><X size={16} /></button>
           </div>
         </Card>
       )}
@@ -681,7 +681,7 @@ export default function RosterTab() {
                             type="checkbox"
                             checked={editDraft.is_active}
                             onChange={(e) => setEditDraft({ ...editDraft, is_active: e.target.checked })}
-                            className="rounded border-line-strong bg-surface-raised accent-accent"
+                            className="rounded border-line-strong bg-surface-raised accent-accent focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                           />
                           <span className="text-fg-muted text-xs">Active</span>
                         </label>

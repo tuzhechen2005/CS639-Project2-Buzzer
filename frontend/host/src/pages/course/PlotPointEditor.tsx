@@ -273,7 +273,7 @@ export function ppListSummary(config: Record<string, unknown>, answer: Record<st
 // Form fields
 // ---------------------------------------------------------------------------
 
-const SELECT = 'rounded-xl border border-line-strong bg-surface-raised px-2 py-2 text-fg text-sm';
+const SELECT = 'rounded-xl border border-line-strong bg-surface-raised px-2 py-2 text-fg text-sm focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page';
 
 export function PlotPointFields({
   form,

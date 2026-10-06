@@ -309,7 +309,7 @@ function QuestionForm({
         <div className="flex-1">
           <label className="block text-xs text-fg-muted mb-1">Question type</label>
           <select
-            className="w-full rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm"
+            className="w-full rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
             value={form.type}
             onChange={(e) => {
               const type = e.target.value as QuestionType;
@@ -337,7 +337,7 @@ function QuestionForm({
         <div className="flex-1">
           <label className="block text-xs text-fg-muted mb-1">Grading</label>
           <select
-            className="w-full rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm"
+            className="w-full rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
             value={form.grading}
             onChange={(e) => set('grading', e.target.value as GradingType)}
           >
@@ -640,7 +640,7 @@ function QuestionForm({
                 <div>
                   <label className="block text-xs text-fg-muted mb-1">Tolerance is measured in</label>
                   <select
-                    className="rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm"
+                    className="rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                     value={form.neMode}
                     onChange={(e) => set('neMode', e.target.value as NeMode)}
                   >
@@ -1124,7 +1124,7 @@ export default function QuestionEditorPage() {
                     <button
                       onClick={() => void moveQuestion(i, -1)}
                       disabled={i === 0}
-                      className="text-fg-subtle hover:text-fg disabled:opacity-20"
+                      className="text-fg-subtle hover:text-fg disabled:opacity-20 focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                       title="Move up"
                     >
                       <ChevronUp size={16} />
@@ -1132,7 +1132,7 @@ export default function QuestionEditorPage() {
                     <button
                       onClick={() => void moveQuestion(i, 1)}
                       disabled={i === questions.length - 1}
-                      className="text-fg-subtle hover:text-fg disabled:opacity-20"
+                      className="text-fg-subtle hover:text-fg disabled:opacity-20 focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                       title="Move down"
                     >
                       <ChevronDown size={16} />

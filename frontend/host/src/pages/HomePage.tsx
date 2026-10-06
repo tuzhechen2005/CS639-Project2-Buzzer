@@ -137,7 +137,7 @@ export default function HomePage() {
               <button
                 key={c.id}
                 onClick={() => navigate(`/courses/${c.id}/games`)}
-                className="w-full flex items-center justify-between rounded-xl bg-surface border border-line px-4 py-3 text-left hover:border-accent transition-colors"
+                className="w-full flex items-center justify-between rounded-xl bg-surface border border-line px-4 py-3 text-left hover:border-accent transition-colors focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
               >
                 <div>
                   <p className="text-fg font-medium">{c.name}</p>

@@ -46,7 +46,10 @@ export default function LobbyPage() {
 
       {/* Auto-advance toggle */}
       <button
-        className="flex items-center gap-3 group"
+        type="button"
+        role="switch"
+        aria-checked={autoAdvance}
+        className="flex items-center gap-3 group focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
         onClick={() => setAutoAdvance(!autoAdvance)}
       >
         <div className={`w-12 h-6 rounded-full transition-colors relative ${autoAdvance ? 'bg-accent' : 'bg-line-strong'}`}>

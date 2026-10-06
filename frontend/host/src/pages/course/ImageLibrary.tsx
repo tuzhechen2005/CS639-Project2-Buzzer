@@ -178,7 +178,7 @@ export function ImageLibraryPanel({
                 .sort((a, b) => a - b);
               return (
                 <div key={img.id} className="rounded-lg border border-line bg-surface p-2 space-y-2">
-                  <a href={`/api/images/${img.id}?v=${img.sha256}`} target="_blank" rel="noreferrer" title="Open full size">
+                  <a className="focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page" href={`/api/images/${img.id}?v=${img.sha256}`} target="_blank" rel="noreferrer" title="Open full size">
                     <QuestionImage
                       imageId={img.id}
                       version={img.sha256}
@@ -245,7 +245,7 @@ export function ImagePicker({
             type="button"
             onClick={() => setOpen(!open)}
             title={`${label}: change`}
-            className="h-9 w-12 rounded border border-line bg-surface-raised overflow-hidden"
+            className="h-9 w-12 rounded border border-line bg-surface-raised overflow-hidden focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
           >
             {selected ? (
               <QuestionImage imageId={value} version={selected.sha256} alt={label} className="h-full w-full" fallbackText={null} />
@@ -268,7 +268,7 @@ export function ImagePicker({
         <div className="absolute z-20 right-0 mt-1 w-72 rounded-xl border border-line bg-surface p-3 shadow-xl space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs text-fg-muted">{label}</span>
-            <button type="button" className="text-fg-subtle hover:text-fg" onClick={() => setOpen(false)}>
+            <button type="button" className="text-fg-subtle hover:text-fg focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page" onClick={() => setOpen(false)}>
               <X size={14} />
             </button>
           </div>
@@ -279,7 +279,7 @@ export function ImagePicker({
                   key={img.id}
                   type="button"
                   onClick={() => { onChange(img.id); setOpen(false); }}
-                  className={`h-16 rounded border bg-surface-raised ${img.id === value ? 'border-accent' : 'border-line hover:border-line-strong'}`}
+                  className={`focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page h-16 rounded border bg-surface-raised ${img.id === value ? 'border-accent' : 'border-line hover:border-line-strong'}`}
                 >
                   <QuestionImage imageId={img.id} version={img.sha256} alt="Library image" className="h-full w-full" fallbackText={null} />
                 </button>
