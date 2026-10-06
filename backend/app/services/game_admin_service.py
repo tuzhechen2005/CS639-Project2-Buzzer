@@ -37,6 +37,7 @@ from ..schemas.admin import (
     QuestionUpdate,
 )
 from . import game_service, image_service
+from .export_service import ascii_filename_part
 from .question_types import validate_definition
 from .game_service import (
     FINISHED_STATUSES,
@@ -270,7 +271,7 @@ async def export_bundle(
 
     async with image_service.bundle_slots:
         content = await run_in_threadpool(build)
-    safe_title = "".join(c if c.isalnum() or c in " _-" else "_" for c in game.title)
+    safe_title = ascii_filename_part(game.title, "game")
     return f"{safe_title}.json", content
 
 
