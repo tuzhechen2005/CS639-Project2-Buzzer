@@ -27,9 +27,14 @@ Subdirectories (each has its own `CLAUDE.md`):
   question editor, roster wizard, past sessions); `game/GameLayout.tsx` owns the socket connection
   and all game state, exposes it through `useGame()`, and navigates between the game routes when
   server events arrive.
-- `components/` — `ui/` primitives: `Button`, `Card`, `Input`, and the display-only `TimerBar`.
+- `components/` — `ui/` primitives (`Button`, `Card`, `Input`, the display-only `TimerBar`,
+  `QuestionImage`) and `PlotScatter`, the one renderer for every host view of a plot_point plane
+  (game question, results, game-over card, editor preview).
 - `lib/` — `api` (REST over `fetch` with `get/post/put/patch/delete`, `postForm`, `download`,
-  bearer token from `localStorage`, readable error messages) and `cn()`.
+  bearer token from `localStorage`, readable error messages), `cn()`, `images`,
+  `numericEstimate` (band bars), and the plot_point modules: `plotGeometry` (pure plane geometry,
+  byte-identical to the player's copy), `plotPalette`, `plotDraw` (canvas painting with a
+  projector `scale`) and `plotPoint` (config and reveal helpers).
 
 ## How it fits in
 ```
@@ -50,7 +55,8 @@ Cross-cutting ones. Each subdirectory's `CLAUDE.md` has the details.
   server; when a gateway payload changes, update this file by hand. The player app has its own,
   different copy.
 - **Adding a question type (T7)** on the host side touches the question editor
-  (`pages/course/QuestionEditorPage.tsx`, the only editor since T4), `types/game.ts`,
+  (`pages/course/QuestionEditorPage.tsx`, the only editor since T4, or a sibling module it wires
+  in, as `pages/course/PlotPointEditor.tsx` does for plot_point), `types/game.ts`,
   `QuestionPage`, `ResultsPage` and `GameOverPage` (see `pages/CLAUDE.md`), on top of the backend
   changes.
 - **Access is enforced by the backend.** The course pages only hide what the user can't use
@@ -62,4 +68,6 @@ Cross-cutting ones. Each subdirectory's `CLAUDE.md` has the details.
   game-over data.
 - **Dev vs. production paths differ** (`/` vs `/host/`). The player join QR code is only correct
   behind nginx on :8080.
-- No code is shared with the player or admin apps; `lib/` and `components/ui/` are copies.
+- No code is shared with the player or admin apps; `lib/` and `components/ui/` are copies. The
+  exception is `lib/plotGeometry.ts`, which must stay byte-identical to the player's
+  (`tests/unit/test_plot_geometry_copies.py` checks it; its unit tests live in the player app).
