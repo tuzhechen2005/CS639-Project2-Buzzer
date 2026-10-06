@@ -45,12 +45,12 @@ function LoadedImage({
   }, []);
 
   if (status === 'error') {
-    return fallbackText ? <p className="text-slate-500 text-sm italic">{fallbackText}</p> : null;
+    return fallbackText ? <p className="text-fg-subtle text-sm italic">{fallbackText}</p> : null;
   }
   return (
-    <span className={cn('relative block', className)}>
+    <span className={cn('relative block rounded-lg bg-surface-raised', className)}>
       {status === 'loading' && (
-        <span aria-hidden className="absolute inset-0 rounded-lg bg-slate-700/60 animate-pulse" />
+        <span aria-hidden className="absolute inset-0 rounded-lg bg-surface-raised animate-pulse" />
       )}
       <img
         ref={ref}

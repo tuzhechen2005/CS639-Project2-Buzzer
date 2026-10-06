@@ -9,13 +9,13 @@ export function Button({ className, variant = 'default', size = 'md', ...props }
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center rounded-lg font-semibold transition-colors',
-        'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900',
-        'disabled:opacity-50 disabled:pointer-events-none',
-        variant === 'default' && 'bg-indigo-600 text-white hover:bg-indigo-500 focus:ring-indigo-500',
-        variant === 'outline' && 'border border-slate-600 text-slate-200 hover:bg-slate-700 focus:ring-slate-500',
-        variant === 'ghost' && 'text-slate-300 hover:bg-slate-700 hover:text-slate-100',
-        variant === 'destructive' && 'bg-red-600 text-white hover:bg-red-500 focus:ring-red-500',
+        'inline-flex items-center justify-center rounded-xl font-semibold transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page',
+        'disabled:opacity-50 disabled:cursor-not-allowed',
+        variant === 'default' && 'bg-accent text-on-accent hover:bg-accent-hover',
+        variant === 'outline' && 'border border-line-strong text-fg hover:bg-surface-raised',
+        variant === 'ghost' && 'text-fg-muted hover:bg-surface-raised hover:text-fg',
+        variant === 'destructive' && 'bg-danger text-on-danger hover:[&:not(:active)]:brightness-95 active:brightness-90',
         size === 'sm' && 'px-3 py-1.5 text-sm',
         size === 'md' && 'px-4 py-2 text-base',
         size === 'lg' && 'px-6 py-3 text-lg',
