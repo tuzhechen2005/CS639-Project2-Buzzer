@@ -570,6 +570,76 @@ async def test_stale_in_progress_session_becomes_downloadable(world: World):
     assert w.req("GET", f"/sessions/{room['session_id']}/export", w.host_a).status_code == 200
 
 
+async def _one_answer(w: World, host_token: str, code: str, guest_token: str) -> None:
+    """Join a room as its host and as the given guest; the guest answers question 1."""
+    host = TestSocketClient(w.base, host_token, "host")
+    player = TestSocketClient(w.base, guest_token, "player")
+    try:
+        await host.connect()
+        await host.emit("join_room", {"room_code": code, "role": "HOST"})
+        await host.wait_for("sync_state")
+        await player.connect()
+        await player.emit("join_room", {"room_code": code, "role": "PLAYER"})
+        await player.wait_for("sync_state")
+        await host.emit("host_advance", {})
+        q = await player.wait_for("new_question")
+        await player.emit(
+            "submit_answer",
+            {"question_id": q["questionId"], "answer_data": {"selectedIndex": 0}, "answer_time_ms": 500},
+        )
+        await player.wait_for("answer_received")
+    finally:
+        await player.disconnect()
+        await host.disconnect()
+
+
+async def test_host_guest_merge_only_touches_its_own_session(world: World):
+    """A guest account is reused by email, so one guest can have answers in another
+    course's session. The host of session A may re-attribute the guest's answers in A,
+    never those in B."""
+    w = world
+    game_b, _ = w.admin_game(w.course_b)
+    room_a = w.room(w.game_a, w.course_a, w.host_a)
+    room_b = w.room(game_b, w.course_b, w.host_b)
+
+    email = f"merge.{_tag()}@example.com"
+    tokens = [
+        httpx.post(
+            f"{w.base}/api/auth/guest",
+            json={"display_name": "Merge Guest", "email": email, "room_code": room["room_code"]},
+            timeout=10.0,
+        ).json()["access_token"]
+        for room in (room_a, room_b)
+    ]
+    await _one_answer(w, w.host_a, room_a["room_code"], tokens[0])
+    await _one_answer(w, w.host_b, room_b["room_code"], tokens[1])
+
+    guest_id = mysql(f"SELECT id FROM users WHERE email = '{email}'")
+    w._users.append(guest_id)
+    _, target_id = w.user(("PLAYER", w.course_a))
+    netid = f"t4n{_tag()}"
+    mysql(f"UPDATE users SET netid = '{netid}' WHERE id = '{target_id}'")
+
+    def owners(session_id: str) -> set[str]:
+        return set(mysql(f"SELECT user_id FROM session_scores WHERE session_id = '{session_id}'").split())
+
+    assert owners(room_a["session_id"]) == {guest_id} == owners(room_b["session_id"])
+
+    path = f"/game/sessions/{room_a['session_id']}/merge-guest"
+    body = {"guest_user_id": guest_id, "target_netid": netid}
+    w.ok("POST", path, w.host_a, json=body, status=204)
+
+    assert owners(room_a["session_id"]) == {target_id}, "answers in the host's own session move"
+    assert owners(room_b["session_id"]) == {guest_id}, "answers in another course's session stay"
+    assert mysql(f"SELECT COUNT(*) FROM users WHERE id = '{guest_id}'") == "1", "guest still has scores"
+
+    # Nothing left in session A for this guest: nothing to merge.
+    r = w.req("POST", path, w.host_a, json=body)
+    assert r.status_code == 404, r.text
+    # Another course's host can't merge into session A at all.
+    assert w.req("POST", path, w.host_b, json=body).status_code == 403
+
+
 async def test_exports_work_with_non_ascii_titles(world: World):
     """A title in Chinese (alphanumeric, but not latin-1) used to make the download
     endpoints fail with a 500 while building the Content-Disposition header."""
