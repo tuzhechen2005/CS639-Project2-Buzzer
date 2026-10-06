@@ -14,6 +14,19 @@ from ..models.session import GameSession, SessionScore
 from ..models.user import User
 
 
+def ascii_filename_part(text: str, fallback: str) -> str:
+    """
+    Make free text safe to embed in a download filename. Content-Disposition headers are
+    latin-1 encoded, so a title such as "数据库基础" (whose characters are alphanumeric)
+    must not reach the header. Keeps ASCII letters, digits, space, '_' and '-'; if nothing
+    readable remains, returns `fallback`.
+    """
+    safe = "".join(
+        c if (c.isascii() and c.isalnum()) or c in " _-" else "_" for c in text
+    )
+    return safe if any(c.isalnum() for c in safe) else fallback
+
+
 async def build_session_csv(db: AsyncSession, session_id: str) -> tuple[str, bytes]:
     """
     Return (filename, csv_bytes) for a session score export.
@@ -181,6 +194,6 @@ async def build_canvas_csv(
         else:
             writer.writerow([display, "", "", sis_login(netid), section, sum(q_scores)])
 
-    safe = "".join(c if c.isalnum() or c in " _-" else "_" for c in title)
+    safe = ascii_filename_part(title, "assignment")
     filename = f"canvas_{safe}_{session_id[:8]}.csv"
     return filename, output.getvalue().encode()
