@@ -236,13 +236,55 @@ async def assert_questions_editable(db: AsyncSession, redis: Redis, game: Game) 
         )
 
 
+async def lock_game(db: AsyncSession, game_id: int) -> Game:
+    """SELECT ... FOR UPDATE on the games row: the first statement of every write
+    transaction that follows the T8 write protocol (docs/plans/t8-image-support.md §D).
+
+    MySQL runs REPEATABLE READ here and a transaction's snapshot is taken by its first
+    plain read, so callers end the read phase with `db.rollback()` before calling this;
+    a locking read does not create the snapshot, so later plain reads see everything
+    committed by earlier lock holders. Lock order everywhere: games row first, then
+    game_sessions, images, questions.
+    """
+    result = await db.execute(
+        select(Game)
+        .where(Game.id == game_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    game = result.scalar_one_or_none()
+    if not game:
+        raise NotFoundError(f"Game {game_id} not found")
+    return game
+
+
+async def relock_for_write(
+    db: AsyncSession, user_id: str, game_id: int, *, admin_only: bool = False
+) -> tuple[User, Game]:
+    """Step 4 of the write protocol: lock the game, then re-fetch the user and re-run
+    the permission check inside the lock (the role may have changed, or the user been
+    deleted, since the read phase). `admin_only` is the rule of the /api/admin aliases."""
+    game = await lock_game(db, game_id)
+    user = await db.get(User, user_id, populate_existing=True)
+    if user is None or user.role == "GUEST":
+        raise ForbiddenError("Authenticated account required")
+    if admin_only:
+        if user.role != "ADMIN":
+            raise ForbiddenError("Admin access required")
+    else:
+        await assert_can_use_game(db, user, game)
+    return user, game
+
+
 async def check_can_delete_game(
     db: AsyncSession, redis: Redis, user: User, game: Game
 ) -> list[GameSession]:
     """
     Step 1 of the router-orchestrated delete: check permission and the delete rules,
-    write nothing that matters, and return every session the router must end (step 2)
-    before the rows are deleted (step 3).
+    and return every session the router must end (step 2) before the rows are deleted
+    (step 3). Called with the games row already locked (lock_game): is_live may mark
+    stale sessions ABANDONED, and those game_sessions writes must come after the games
+    lock to keep the lock order (docs/plans/t8-image-support.md §D).
     """
     await assert_can_use_game(db, user, game)
     if user.role != "ADMIN":

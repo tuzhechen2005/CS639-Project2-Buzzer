@@ -4,8 +4,22 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, JSON, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import (
+    CHAR,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    JSON,
+    LargeBinary,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.dialects import mysql
+from sqlalchemy.orm import Mapped, deferred, mapped_column, relationship
 
 from ..database import Base
 
@@ -41,6 +55,12 @@ class Game(Base):
     )
     user_access: Mapped[list[UserGameAccess]] = relationship(
         "UserGameAccess", back_populates="game", cascade="all, delete-orphan"
+    )
+    images: Mapped[list[Image]] = relationship(
+        "Image",
+        back_populates="game",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 
@@ -81,3 +101,40 @@ class UserGameAccess(Base):
 
     user: Mapped[User] = relationship("User", back_populates="game_access")
     game: Mapped[Game] = relationship("Game", back_populates="user_access")
+
+
+class Image(Base):
+    """One stored picture, owned by a game (docs/plans/t8-image-support.md §A).
+
+    `data` is deferred: lists and metadata queries never load the bytes. In an async
+    session a deferred column cannot be lazy-loaded, so code that needs the bytes selects
+    `Image.data` explicitly.
+    """
+
+    __tablename__ = "images"
+    __table_args__ = (
+        UniqueConstraint("game_id", "sha256", name="uq_images_game_sha256"),
+        Index("ix_images_game_id", "game_id"),
+    )
+
+    id: Mapped[str] = mapped_column(CHAR(36), primary_key=True)
+    game_id: Mapped[int] = mapped_column(
+        ForeignKey("games.id", ondelete="CASCADE"), nullable=False
+    )
+    content_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    width: Mapped[int] = mapped_column(Integer, nullable=False)
+    height: Mapped[int] = mapped_column(Integer, nullable=False)
+    sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    # LargeBinary alone is a 64 KiB BLOB on MySQL; images need LONGBLOB.
+    data: Mapped[bytes] = deferred(
+        mapped_column(
+            LargeBinary().with_variant(mysql.LONGBLOB(), "mysql"), nullable=False
+        )
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+    game: Mapped[Game] = relationship("Game", back_populates="images")

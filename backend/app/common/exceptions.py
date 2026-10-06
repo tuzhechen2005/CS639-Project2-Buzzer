@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import OperationalError
 
 logger = structlog.get_logger()
 
@@ -37,6 +38,29 @@ class ConflictError(BuzzerError):
         super().__init__("CONFLICT", message, status.HTTP_409_CONFLICT)
 
 
+# MySQL error codes answered with 503 TRY_AGAIN (docs/plans/t8-image-support.md §D).
+LOCK_WAIT_TIMEOUT = 1205
+DEADLOCK = 1213
+_RETRYABLE_CODES = {LOCK_WAIT_TIMEOUT, DEADLOCK}
+
+
+def mysql_error_code(exc: OperationalError) -> int | None:
+    """The MySQL error number of a driver error (asyncmy, like PyMySQL, puts it in
+    args[0])."""
+    args = getattr(exc.orig, "args", ())
+    return args[0] if args and isinstance(args[0], int) else None
+
+
+def _internal_error() -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error": "INTERNAL_ERROR",
+            "message": "An unexpected error occurred",
+        },
+    )
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(BuzzerError)
     async def buzzer_error_handler(request: Request, exc: BuzzerError) -> JSONResponse:
@@ -65,13 +89,27 @@ def register_exception_handlers(app: FastAPI) -> None:
             },
         )
 
+    @app.exception_handler(OperationalError)
+    async def operational_error_handler(
+        request: Request, exc: OperationalError
+    ) -> JSONResponse:
+        """A deadlock or lock-wait timeout is a 503 the client may retry. This handler
+        takes every OperationalError away from the catch-all below, so any other one
+        (a lost connection, say) gets the same 500 body as an unhandled exception."""
+        code = mysql_error_code(exc)
+        if code in _RETRYABLE_CODES:
+            logger.warning("db_lock_conflict", mysql_code=code, path=str(request.url))
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={
+                    "error": "TRY_AGAIN",
+                    "message": "Another change to this game was in progress; try again",
+                },
+            )
+        logger.error("unhandled_error", exc_info=exc, path=str(request.url))
+        return _internal_error()
+
     @app.exception_handler(Exception)
     async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
         logger.error("unhandled_error", exc_info=exc, path=str(request.url))
-        return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={
-                "error": "INTERNAL_ERROR",
-                "message": "An unexpected error occurred",
-            },
-        )
+        return _internal_error()

@@ -29,12 +29,12 @@ Subdirectories (each has its own `CLAUDE.md`):
   Redis state layer, roster CSV import, CSV and HTML exports.
 - `models/` — ORM tables (every `Game` belongs to a `Course`; `Course.is_system` marks
   "Unassigned"): `User`, `Course`/`CourseRoster`/`UserCourseAccess`,
-  `Game`/`Question`/`UserGameAccess`, `GameSession`/`SessionScore`.
+  `Game`/`Question`/`UserGameAccess`/`Image`, `GameSession`/`SessionScore`.
 - `schemas/` — Pydantic request/response models, including the per-question-type structure rules.
 - `common/` — auth dependencies (`get_current_user`, `require_admin`, `require_user`), error
   types and handlers, rate limiter, logging.
 - `migrations/` — Alembic (`001_initial_schema`, `002_add_answer_data_to_scores`,
-  `003_float_points`, `004_game_course`). Every model change needs a new revision.
+  `003_float_points`, `004_game_course`, `005_images`). Every model change needs a new revision.
 
 ## How it fits in
 ```
@@ -76,5 +76,9 @@ Cross-cutting ones. Each subdirectory's `CLAUDE.md` has the details.
 - **Dev vs prod differ:** in-memory vs Redis socket.io manager, rate limits off in dev,
   `netid`-only login allowed in dev, SQL echo on in dev. Test the nginx build
   (`localhost:8080`) at least once.
+- **Images (T8)** are bytes in MySQL (`images`, owned by a game), referenced from question
+  `config` by id (`image_id`, `option_image_ids`); everything is in `services/image_service.py`.
+  `GET /api/images/{id}` is public by design. Writes to a game follow the lock-first write
+  protocol described in `routers/CLAUDE.md`.
 - If JWT keys are unset, `auth_service` generates ephemeral keys, and all tokens die on every
   restart (and every `--reload`).

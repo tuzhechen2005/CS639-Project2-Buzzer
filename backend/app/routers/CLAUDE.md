@@ -26,7 +26,12 @@ work plus compatibility aliases.
 - `games.py` — `/api/games/{id}/*`, `require_user` + `assert_can_use_game` (HOST of the game's
   course **and** a game grant, or admin): get/put/delete, `duplicate`, `export`, and question
   list/create/update/delete/reorder. `delete_game_orchestrated` (also used by the admin alias)
-  runs check (service) → `gateway.end_session_from_rest` → delete rows (service).
+  runs lock the game row → check (service) → `gateway.end_session_from_rest` → delete rows
+  (service) → commit.
+- `images.py` (T8) — `/api/games/{id}/images` list (with `used_by`), upload (201, or 200 when the
+  game already holds the same bytes), `PUT {image_id}` replace, `DELETE {image_id}`, with the
+  `games.py` permissions; and `GET /api/images/{image_id}`, **no login** (the random id is the
+  capability), its own short DB session, `ETag` + `If-None-Match` → 304, 60 s browser cache.
 - `sessions.py` — `/api/sessions/{id}/report|export` (raw or `format=canvas`) for any HOST of the
   session's course; the session must be COMPLETED/ABANDONED after reconciliation, else 409.
 - `game.py` — `/api/game/*`, gated by `require_user` plus inline ownership checks:
@@ -54,6 +59,14 @@ integrity rules (system course, locked, live) live in `services/game_admin_servi
 The `get_db` dependency **commits automatically** when the request finishes without an error.
 
 ## Gotchas
+- **T8 write protocol** (docs/plans/t8-image-support.md §D) for question create/update, image
+  writes, duplicate and game delete: read phase (404/403) → `end_read_phase` (keeps the user id,
+  `db.rollback()`) → file processing with no connection held → `relock_for_write` (`lock_game`
+  `FOR UPDATE` as the first statement, re-fetch user, re-check permission) → refetch the
+  question/image by id → write → explicit `db.commit()`. MySQL is REPEATABLE READ: without the
+  rollback, reads after the lock see a stale snapshot. After the rollback every ORM object loaded
+  earlier is expired and must not be touched. Lock order: games row first, then
+  `game_sessions`, `images`, `questions`; any new write path on a game must follow it.
 - **Ownership of child ids:** a roster entry or question that doesn't belong to the course/game
   in the path is a 404 — the permission check only covers the path parent.
 - `update_question` applies `QuestionUpdate` field by field with **no structural re-validation**
@@ -64,6 +77,7 @@ The `get_db` dependency **commits automatically** when the request finishes with
 - Two different guest-merge implementations. The admin one normalizes the netid and promotes the
   guest if no real user exists. The host one (`game.py`) doesn't normalize whitespace, returns 404
   if no user exists, and re-attributes **all** of the guest's scores, not just that session's.
-- Game export/import pin `version: 1`. T8 may bump it, but version-1 imports must keep working.
+- Game export writes `version: 1` unless a question references an existing image (then 2, with
+  base64 images); import accepts both and caps the file at 40 MiB (413 `BUNDLE_TOO_LARGE`).
 - Game creation auto-grants: a host's game to that host, an admin's (or a moved game) to every
   HOST of the course. A user made HOST later gets no grants on existing games.

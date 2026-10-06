@@ -11,18 +11,22 @@ imports routers/ or websocket/; ending live rooms is orchestrated by the routers
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 
 import bleach
 import structlog
+from fastapi import UploadFile
 from pydantic import ValidationError
 from redis.asyncio import Redis
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.concurrency import run_in_threadpool
 
 from ..common.exceptions import BuzzerError, ForbiddenError, NotFoundError
 from ..models.course import Course
-from ..models.game import Game, Question
+from ..models.game import Game, Image, Question
 from ..models.session import GameSession, SessionScore
 from ..models.user import User
 from ..schemas.admin import (
@@ -32,7 +36,7 @@ from ..schemas.admin import (
     QuestionCreate,
     QuestionUpdate,
 )
-from . import game_service
+from . import game_service, image_service
 from .export_service import ascii_filename_part
 from .question_types import validate_definition
 from .game_service import (
@@ -48,7 +52,9 @@ from .game_service import (
 
 logger = structlog.get_logger()
 
-SUPPORTED_IMPORT_VERSION = 1
+SUPPORTED_IMPORT_VERSION = 1  # written when a game has no images
+IMAGES_BUNDLE_VERSION = 2  # written when it has (docs/plans/t8-image-support.md §F)
+SUPPORTED_IMPORT_VERSIONS = (SUPPORTED_IMPORT_VERSION, IMAGES_BUNDLE_VERSION)
 _PROMPT_TAGS = ["b", "i", "br", "u"]
 
 
@@ -138,8 +144,10 @@ async def update_game(
 
 
 async def delete_game_rows(db: AsyncSession, game: Game) -> None:
-    """Step 3 of the router-orchestrated delete: MySQL only (scores, sessions, game).
-    Questions and game grants go with the game via ORM cascade."""
+    """Step 3 of the router-orchestrated delete: MySQL only (images, scores, sessions,
+    game). Questions and game grants go with the game via ORM cascade. The caller holds
+    the games row lock (lock_game)."""
+    await db.execute(delete(Image).where(Image.game_id == game.id))
     session_ids = select(GameSession.id).where(GameSession.game_id == game.id)
     await db.execute(
         delete(SessionScore).where(SessionScore.session_id.in_(session_ids))
@@ -151,6 +159,8 @@ async def delete_game_rows(db: AsyncSession, game: Game) -> None:
 
 
 async def duplicate_game(db: AsyncSession, actor: User, game: Game) -> Game:
+    """The caller holds the source game's row lock (lock_game), so the copy is a
+    consistent snapshot of a game that still exists."""
     assert_not_system_course(await get_course_or_404(db, game.course_id))
     copy = Game(
         course_id=game.course_id,
@@ -160,6 +170,22 @@ async def duplicate_game(db: AsyncSession, actor: User, game: Game) -> Game:
     )
     db.add(copy)
     await db.flush()
+    mapping: dict[str, str] = {}
+    for image, data in await image_service.images_with_data(db, game.id):
+        mapping[image.id] = image_service.new_image_id()
+        db.add(
+            Image(
+                id=mapping[image.id],
+                game_id=copy.id,
+                content_type=image.content_type,
+                size_bytes=image.size_bytes,
+                width=image.width,
+                height=image.height,
+                sha256=image.sha256,
+                data=data,
+            )
+        )
+    await db.flush()
     for q in await list_questions(db, game.id):
         db.add(
             Question(
@@ -167,7 +193,10 @@ async def duplicate_game(db: AsyncSession, actor: User, game: Game) -> Game:
                 type=q.type,
                 grading_type=q.grading_type,
                 prompt=q.prompt,  # already sanitized on write
-                config=q.config,
+                # A deep copy; a dangling reference becomes null instead of failing.
+                config=image_service.remap_image_ids(
+                    q.config, mapping, on_missing="null"
+                ),
                 answer_data=q.answer_data,
                 time_limit_seconds=q.time_limit_seconds,
                 points_value=q.points_value,
@@ -181,10 +210,32 @@ async def duplicate_game(db: AsyncSession, actor: User, game: Game) -> Game:
     return copy
 
 
-def export_bundle(game: Game, questions: list[Question]) -> tuple[str, bytes]:
-    bundle = {
+async def export_bundle(
+    db: AsyncSession, game: Game, questions: list[Question]
+) -> tuple[str, bytes]:
+    """Version 1 when no question references an existing image of the game (exactly
+    the pre-T8 format), otherwise version 2 with the referenced images as base64.
+    Dangling or malformed references are exported as null (image_service.export_config),
+    so an export always re-imports."""
+    referenced: list[str] = []
+    for q in questions:
+        for image_id in image_service.image_ids(q.config):
+            if image_id not in referenced:
+                referenced.append(image_id)
+    existing: dict[str, bytes] = {}
+    if referenced:
+        result = await db.execute(
+            select(Image.id, Image.content_type, Image.data).where(
+                Image.game_id == game.id, Image.id.in_(referenced)
+            )
+        )
+        rows = {row[0]: (row[1], row[2]) for row in result.all()}
+        existing = {i: rows[i] for i in referenced if i in rows}
+    mapping = {image_id: f"img{n}" for n, image_id in enumerate(existing, start=1)}
+
+    bundle: dict = {
         "format": "buzzer/game",
-        "version": SUPPORTED_IMPORT_VERSION,
+        "version": IMAGES_BUNDLE_VERSION if mapping else SUPPORTED_IMPORT_VERSION,
         "game": {
             "title": game.title,
             "description": game.description,
@@ -195,7 +246,9 @@ def export_bundle(game: Game, questions: list[Question]) -> tuple[str, bytes]:
                 "type": q.type,
                 "grading_type": q.grading_type,
                 "prompt": q.prompt,
-                "config": q.config,
+                "config": image_service.export_config(
+                    q.type, q.config, mapping, game_id=game.id, question_id=q.id
+                ),
                 "answer_data": q.answer_data,
                 "time_limit_seconds": q.time_limit_seconds,
                 "points_value": q.points_value,
@@ -203,9 +256,31 @@ def export_bundle(game: Game, questions: list[Question]) -> tuple[str, bytes]:
             for q in questions
         ],
     }
+
+    def build() -> bytes:
+        if mapping:
+            bundle["images"] = [
+                {
+                    "key": mapping[image_id],
+                    "content_type": content_type,
+                    "data_base64": base64.b64encode(data).decode("ascii"),
+                }
+                for image_id, (content_type, data) in existing.items()
+            ]
+        return json.dumps(bundle, indent=2, ensure_ascii=False).encode()
+
+    async with image_service.bundle_slots:
+        content = await run_in_threadpool(build)
     safe_title = ascii_filename_part(game.title, "game")
-    content = json.dumps(bundle, indent=2, ensure_ascii=False).encode()
     return f"{safe_title}.json", content
+
+
+async def read_bundle(file: UploadFile) -> bytes:
+    """The uploaded bundle, refused with 413 above MAX_BUNDLE_BYTES."""
+    raw = await image_service.read_upload(file, image_service.MAX_BUNDLE_BYTES)
+    if raw is None:
+        raise BuzzerError("BUNDLE_TOO_LARGE", "Game files can be at most 40 MiB", 413)
+    return raw
 
 
 def _invalid_import(message: str) -> BuzzerError:
@@ -216,36 +291,124 @@ def _short(exc: ValidationError) -> str:
     return "; ".join(e["msg"] for e in exc.errors())
 
 
+_MAX_BASE64_CHARS = 4 * ((image_service.MAX_UPLOAD_BYTES + 2) // 3)
+
+
+async def _import_images(
+    images: object,
+) -> tuple[dict[str, str], list[tuple[str, image_service.NormalisedImage]]]:
+    """Step 2 of the import (version 2): validate and normalise the `images` list.
+    Returns key -> new image id, and the distinct images to store as (id, image).
+    Keys whose stored bytes are identical share one id."""
+    if not isinstance(images, list):
+        raise _invalid_import("'images' must be a list")
+    if len(images) > image_service.MAX_IMAGES_PER_GAME:
+        raise _invalid_import(
+            f"A game can hold at most {image_service.MAX_IMAGES_PER_GAME} images"
+        )
+    mapping: dict[str, str] = {}
+    by_sha: dict[str, str] = {}
+    stored: list[tuple[str, image_service.NormalisedImage]] = []
+    total = 0
+    for i, item in enumerate(images, start=1):
+        if not isinstance(item, dict):
+            raise _invalid_import(f"Image {i} must be an object")
+        key = item.get("key")
+        if not isinstance(key, str) or not key:
+            raise _invalid_import(f"Image {i} needs a non-empty string 'key'")
+        if key in mapping:
+            raise _invalid_import(f"Image key '{key}' is used twice")
+        if item.get("content_type") not in ("image/png", "image/jpeg", "image/webp"):
+            raise _invalid_import(
+                f"Image '{key}': content_type must be image/png, image/jpeg or image/webp"
+            )
+        encoded = item.get("data_base64")
+        if not isinstance(encoded, str):
+            raise _invalid_import(f"Image '{key}': data_base64 must be a string")
+        if len(encoded) > _MAX_BASE64_CHARS:
+            raise _invalid_import(f"Image '{key}' is larger than 2 MiB")
+        try:
+            raw = await run_in_threadpool(base64.b64decode, encoded, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise _invalid_import(f"Image '{key}': invalid base64") from exc
+        try:
+            # The detected format wins over the declared content_type.
+            processed = await image_service.normalise_async(raw)
+        except BuzzerError as exc:
+            raise _invalid_import(f"Image '{key}': {exc.message}") from exc
+        if processed.sha256 in by_sha:
+            mapping[key] = by_sha[processed.sha256]
+            continue
+        total += processed.size_bytes
+        if total > image_service.MAX_BYTES_PER_GAME:
+            raise _invalid_import("The images exceed the 25 MiB limit per game")
+        image_id = image_service.new_image_id()
+        by_sha[processed.sha256] = mapping[key] = image_id
+        stored.append((image_id, processed))
+    return mapping, stored
+
+
 async def import_game(
     db: AsyncSession, actor: User, course: Course, raw: bytes
 ) -> Game:
-    """Create a new game in `course` from a buzzer/game bundle. The file never names a
-    course."""
+    """Create a new game in `course` from a buzzer/game bundle (version 1, or 2 with
+    images). The file never names a course. Everything is validated before the first
+    row is written, so a failed import leaves no game and no images."""
     assert_not_system_course(course)
-    try:
-        bundle = json.loads(raw)
-    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        raise _invalid_import(f"Invalid JSON: {exc}") from exc
-    if not isinstance(bundle, dict) or bundle.get("format") != "buzzer/game":
-        raise _invalid_import("Unrecognised file format")
-    version = bundle.get("version")
-    if version != SUPPORTED_IMPORT_VERSION:
-        raise _invalid_import(
-            f"Unsupported version {version!r}; "
-            f"server supports version {SUPPORTED_IMPORT_VERSION}"
-        )
-    try:
-        meta = GameCreate(**bundle.get("game", {}))
-    except (ValidationError, TypeError) as exc:
-        detail = _short(exc) if isinstance(exc, ValidationError) else str(exc)
-        raise _invalid_import(f"Invalid game metadata: {detail}") from exc
-    questions: list[QuestionCreate] = []
-    for i, q in enumerate(bundle.get("questions", []), start=1):
+    async with image_service.bundle_slots:
         try:
-            questions.append(QuestionCreate(**q))
+            bundle = await run_in_threadpool(json.loads, raw)
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise _invalid_import(f"Invalid JSON: {exc}") from exc
+        if not isinstance(bundle, dict) or bundle.get("format") != "buzzer/game":
+            raise _invalid_import("Unrecognised file format")
+        version = bundle.get("version")
+        if (
+            not isinstance(version, int)
+            or isinstance(version, bool)
+            or version not in SUPPORTED_IMPORT_VERSIONS
+        ):
+            raise _invalid_import(
+                f"Unsupported version {version!r}; server supports versions 1 and 2"
+            )
+        raw_questions = bundle.get("questions", [])
+        if not isinstance(raw_questions, list):
+            raise _invalid_import("'questions' must be a list")
+        try:
+            meta = GameCreate(**bundle.get("game", {}))
         except (ValidationError, TypeError) as exc:
             detail = _short(exc) if isinstance(exc, ValidationError) else str(exc)
-            raise _invalid_import(f"Question {i} invalid: {detail}") from exc
+            raise _invalid_import(f"Invalid game metadata: {detail}") from exc
+
+        mapping: dict[str, str] = {}
+        stored: list[tuple[str, image_service.NormalisedImage]] = []
+        if version == IMAGES_BUNDLE_VERSION:
+            mapping, stored = await _import_images(bundle.get("images", []))
+
+        questions: list[QuestionCreate] = []
+        for i, q in enumerate(raw_questions, start=1):
+            if isinstance(q, dict) and isinstance(q.get("config"), dict):
+                try:
+                    q = {
+                        **q,
+                        "config": image_service.remap_image_ids(
+                            q["config"], mapping, on_missing="error"
+                        ),
+                    }
+                except image_service.UnknownImageKey as exc:
+                    raise _invalid_import(
+                        f"Question {i} references unknown image '{exc.value}'"
+                    ) from exc
+            try:
+                question = QuestionCreate(**q)
+            except (ValidationError, TypeError) as exc:
+                detail = _short(exc) if isinstance(exc, ValidationError) else str(exc)
+                raise _invalid_import(f"Question {i} invalid: {detail}") from exc
+            try:
+                image_service.validate_image_fields(question.type, question.config)
+            except BuzzerError as exc:
+                raise _invalid_import(f"Question {i} invalid: {exc.message}") from exc
+            questions.append(question)
 
     game = Game(
         course_id=course.id,
@@ -255,13 +418,31 @@ async def import_game(
     )
     db.add(game)
     await db.flush()
+    for image_id, processed in stored:
+        db.add(
+            Image(
+                id=image_id,
+                game_id=game.id,
+                content_type=processed.content_type,
+                size_bytes=processed.size_bytes,
+                width=processed.width,
+                height=processed.height,
+                sha256=processed.sha256,
+                data=processed.data,
+            )
+        )
+    await db.flush()
     for idx, q in enumerate(questions):
         db.add(_question_from(game.id, q, idx))
     await db.flush()
     await apply_creation_grants(db, actor, game)
     await db.refresh(game)
     logger.info(
-        "game_imported", game_id=game.id, course_id=course.id, questions=len(questions)
+        "game_imported",
+        game_id=game.id,
+        course_id=course.id,
+        questions=len(questions),
+        images=len(stored),
     )
     return game
 
@@ -310,7 +491,10 @@ async def get_question_or_404(
 async def create_question(
     db: AsyncSession, redis: Redis, game: Game, body: QuestionCreate
 ) -> Question:
+    """The caller holds the games row lock (T8 write protocol), so the image reference
+    check cannot race an image delete."""
     await assert_questions_editable(db, redis, game)
+    await image_service.check_question_images(db, game.id, body.type, body.config)
     if body.order_index is None:
         max_idx = (
             await db.execute(
@@ -332,7 +516,15 @@ async def create_question(
 async def update_question(
     db: AsyncSession, redis: Redis, game: Game, question: Question, body: QuestionUpdate
 ) -> Question:
+    """`question` must be fetched inside the games row lock (T8 write protocol). The
+    image checks run on the merged type and config, before anything is changed."""
     await assert_questions_editable(db, redis, game)
+    await image_service.check_question_images(
+        db,
+        game.id,
+        body.type if body.type is not None else question.type,
+        body.config if body.config is not None else question.config,
+    )
     if body.type is not None:
         question.type = body.type
     if body.grading_type is not None:

@@ -19,6 +19,9 @@ structural validation** live — including the per-question-type rules for `conf
     `QuestionReorder`.
   - Users/access: `UserCreate/Update/Response`, `CourseAccessGrant` (HOST|PLAYER),
     `GameAccessGrant`, `UserWithAccessResponse`, `AdminSessionItem`.
+- `image.py` (T8) — `ImageResponse` (metadata only, never the bytes) and `ImageListItem`
+  (+ `used_by`: question ids). Image references inside `config` are **not** validated here but in
+  `services/image_service.py`, called from the question and import services.
 - `game.py` — host/player-facing models for `routers/game.py`: `QuestionPublic` (no
   `answer_data`/`grading_type`), `RoomCreateRequest/Response`, `RoomInfoResponse`,
   `ActiveSessionItem`, `MyCourseItem`, `MyGameItem`; plus internal `ScoreResult`

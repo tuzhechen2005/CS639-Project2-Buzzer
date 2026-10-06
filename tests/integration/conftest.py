@@ -52,6 +52,11 @@ def pytest_addoption(parser):
         help="Backend base URL (default: http://localhost:8000)",
     )
     parser.addoption(
+        "--nginx-url",
+        default="http://localhost:8080",
+        help="nginx base URL for the proxy tests (default: http://localhost:8080)",
+    )
+    parser.addoption(
         "--fast",
         action="store_true",
         default=False,
@@ -66,6 +71,16 @@ def pytest_addoption(parser):
 @pytest.fixture(scope="session")
 def base_url(request) -> str:
     return request.config.getoption("--base-url").rstrip("/")
+
+
+@pytest.fixture(scope="session")
+def nginx_url(request) -> str:
+    """nginx's base URL; skips the test when nginx is not reachable. The other tests
+    talk to the backend on :8000 directly, where nginx's limits do not apply."""
+    url = request.config.getoption("--nginx-url").rstrip("/")
+    if not _is_healthy(url):
+        pytest.skip(f"nginx not reachable at {url}")
+    return url
 
 
 @pytest.fixture(scope="session")
