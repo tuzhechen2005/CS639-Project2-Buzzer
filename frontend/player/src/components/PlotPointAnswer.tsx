@@ -94,7 +94,7 @@ export function PlotPointAnswer({ config, imageId, locked, submitted, onSubmit, 
         disabled={inactive}
         onClick={() => flip(axis)}
         aria-label={`Toggle minus sign on ${axis}`}
-        className="w-12 shrink-0 rounded-xl bg-surface-raised border border-line-strong text-fg text-xl font-black active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-12 shrink-0 rounded-xl bg-surface-raised border border-line-strong text-fg text-xl font-black active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
       >
         ±
       </button>

@@ -190,7 +190,7 @@ export default function GameLayout() {
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center space-y-4">
           <p className="text-danger-text text-lg">{error}</p>
-          <button className="text-accent-text underline" onClick={() => navigate('/join')}>
+          <button className="text-accent-text underline focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page" onClick={() => navigate('/join')}>
             Back to Join
           </button>
         </div>

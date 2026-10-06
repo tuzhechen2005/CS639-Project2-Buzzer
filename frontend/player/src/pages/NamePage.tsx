@@ -161,7 +161,7 @@ export default function NamePage() {
                 <button
                   type="button"
                   onClick={() => { setMode('local'); setError(''); }}
-                  className="w-full text-fg-subtle text-sm hover:text-fg-muted transition-colors"
+                  className="w-full text-fg-subtle text-sm hover:text-fg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                 >
                   Use local account instead
                 </button>
@@ -200,7 +200,7 @@ export default function NamePage() {
               <button
                 type="button"
                 onClick={() => { setMode('netid'); setError(''); }}
-                className="w-full text-fg-subtle text-sm hover:text-fg-muted transition-colors"
+                className="w-full text-fg-subtle text-sm hover:text-fg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
               >
                 ← Back to NetID sign in
               </button>

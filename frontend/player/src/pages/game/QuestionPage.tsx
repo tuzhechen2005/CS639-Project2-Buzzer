@@ -95,7 +95,7 @@ export default function QuestionPage() {
             key={i}
             disabled={submitted || questionLocked}
             onClick={() => submit({ selectedIndex: i })}
-            className={`w-full flex items-center gap-4 rounded-2xl px-5 py-4 text-left font-semibold text-lg border-2 transition-all
+            className={`focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page w-full flex items-center gap-4 rounded-2xl px-5 py-4 text-left font-semibold text-lg border-2 transition-all
               ${submitted || questionLocked ? 'opacity-50 cursor-not-allowed' : 'active:scale-95 hover:[&:not(:active)]:brightness-95 active:brightness-90'}
               ${OPTION_COLORS[i % OPTION_COLORS.length]}`}
           >
@@ -117,7 +117,7 @@ export default function QuestionPage() {
         <button
           disabled={submitted || questionLocked}
           onClick={() => submit({ selectedValue: true })}
-          className={`w-full rounded-2xl py-8 bg-success text-on-success font-black text-3xl border-2 border-line-strong transition-all
+          className={`focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page w-full rounded-2xl py-8 bg-success text-on-success font-black text-3xl border-2 border-line-strong transition-all
             ${submitted || questionLocked ? 'opacity-50 cursor-not-allowed' : 'active:scale-95 hover:[&:not(:active)]:brightness-95 active:brightness-90'}`}
         >
           True
@@ -125,7 +125,7 @@ export default function QuestionPage() {
         <button
           disabled={submitted || questionLocked}
           onClick={() => submit({ selectedValue: false })}
-          className={`w-full rounded-2xl py-8 bg-danger text-on-danger font-black text-3xl border-2 border-line-strong transition-all
+          className={`focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page w-full rounded-2xl py-8 bg-danger text-on-danger font-black text-3xl border-2 border-line-strong transition-all
             ${submitted || questionLocked ? 'opacity-50 cursor-not-allowed' : 'active:scale-95 hover:[&:not(:active)]:brightness-95 active:brightness-90'}`}
         >
           False
@@ -201,7 +201,7 @@ export default function QuestionPage() {
               key={i}
               disabled={submitted || questionLocked}
               onClick={() => toggleIndex(i)}
-              className={`w-full flex items-center gap-4 rounded-2xl px-5 py-4 text-left font-semibold text-lg border-2 transition-all
+              className={`focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page w-full flex items-center gap-4 rounded-2xl px-5 py-4 text-left font-semibold text-lg border-2 transition-all
                 ${submitted || questionLocked ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}
                 ${isSelected
                   ? 'bg-accent border-accent text-on-accent'
@@ -278,7 +278,7 @@ export default function QuestionPage() {
                 type="button"
                 onClick={toggleMinus}
                 aria-label="Toggle minus sign"
-                className="w-14 shrink-0 rounded-xl bg-surface-raised border border-line-strong text-fg text-2xl font-black active:scale-95"
+                className="w-14 shrink-0 rounded-xl bg-surface-raised border border-line-strong text-fg text-2xl font-black active:scale-95 focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
               >
                 ±
               </button>

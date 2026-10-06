@@ -64,7 +64,7 @@ export default function LoginPage() {
           <p className="text-danger-text">{error}</p>
           <button
             onClick={() => navigate('/join')}
-            className="text-accent-text hover:underline text-sm"
+            className="text-accent-text hover:underline text-sm focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
           >
             ← Back to join
           </button>
