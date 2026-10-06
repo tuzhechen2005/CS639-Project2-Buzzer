@@ -11,6 +11,8 @@ Tiny shared helpers for the host app: the REST client and the Tailwind class-mer
   (204). Errors throw `Error(text)` where `text` is, in order: `body.message`, `body.detail` if a
   string, the joined `msg` fields of a 422 `detail` array, else `HTTP <status>`.
 - `utils.ts` — `cn(...)` = `twMerge(clsx(...))`, used by every `components/ui` primitive.
+- `images.ts` — (T8) `imageUrl(id)` → `/api/images/{id}`. Question `config` may carry
+  `image_id` and `option_image_ids` (parallel to `options`); see `types/game.ts` `QuestionConfig`.
 
 ## How it fits in
 Pages call `api` for REST only: login, `/game/my-courses`, `/game/my-active-sessions`,

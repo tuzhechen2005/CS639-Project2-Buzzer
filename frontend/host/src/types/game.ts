@@ -1,3 +1,13 @@
+/** A question's client-visible config. Image ids follow the T8 convention
+ * (docs/plans/t8-image-support.md §E): `option_image_ids` is parallel to `options`. */
+export interface QuestionConfig {
+  options?: string[];
+  maxLength?: number;
+  unit?: string; // numeric_estimate
+  image_id?: string | null;
+  option_image_ids?: (string | null)[];
+}
+
 export interface PlayerInfo {
   userId: string;
   displayName: string;
@@ -38,7 +48,7 @@ export interface QuestionPayload {
   type: QuestionType;
   gradingType: 'ACCURACY' | 'COMPLETENESS';
   prompt: string;
-  config: { options?: string[]; maxLength?: number; unit?: string };
+  config: QuestionConfig;
   timeLimitSeconds: number;
   pointsValue: number;
   editDistance?: number;
@@ -95,7 +105,7 @@ export interface HostQuestionSummaryItem {
   prompt: string;
   type: QuestionType;
   gradingType: 'ACCURACY' | 'COMPLETENESS';
-  config: { options?: string[]; maxLength?: number; unit?: string };
+  config: QuestionConfig;
   pointsValue: number;
   answerReveal: AnswerReveal;
   answerDistribution: Record<string, number>;

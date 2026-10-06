@@ -1,8 +1,21 @@
 import { useRef, useState, useCallback } from 'react';
 import { useGame } from './GameLayout';
 import { TimerBar } from '../../components/ui/TimerBar';
+import { QuestionImage } from '../../components/ui/QuestionImage';
 import { parseNumber } from '../../lib/parseNumber';
 import { formatNumber } from '../../lib/numericEstimate';
+
+/** An option's text, with its image above it when the option has one (T8). While the
+ * image loads a placeholder is shown; if it fails, the text alone remains. */
+function OptionContent({ text, imageId }: { text: string; imageId?: string | null }) {
+  if (!imageId) return <span>{text}</span>;
+  return (
+    <span className="flex flex-1 min-w-0 flex-col gap-2">
+      <QuestionImage imageId={imageId} alt={text} className="h-28 w-full" fallbackText={null} />
+      <span>{text}</span>
+    </span>
+  );
+}
 
 const OPTION_COLORS = [
   'bg-red-600 hover:bg-red-500 border-red-500',
@@ -79,7 +92,7 @@ export default function QuestionPage() {
               ${OPTION_COLORS[i % OPTION_COLORS.length]}`}
           >
             <span className="text-2xl font-black w-8 shrink-0">{optionLabel(i)}</span>
-            <span>{opt}</span>
+            <OptionContent text={opt} imageId={currentQuestion.config.option_image_ids?.[i]} />
           </button>
         ))}
         {submitted && <p className="text-center text-slate-400 text-sm mt-4">Answer submitted — waiting for results…</p>}
@@ -191,7 +204,7 @@ export default function QuestionPage() {
                 ${isSelected ? 'border-white bg-white text-indigo-700' : 'border-slate-500 text-slate-400'}`}>
                 {isSelected ? '✓' : optionLabel(i)}
               </span>
-              <span>{opt}</span>
+              <OptionContent text={opt} imageId={currentQuestion.config.option_image_ids?.[i]} />
             </button>
           );
         })}

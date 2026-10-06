@@ -70,6 +70,9 @@ sends `host_advance`; the backend state machine in `backend/app/websocket/gatewa
 what comes next. The host receives the full answer distribution and reveal; players never do.
 
 ## Gotchas
+- Images (T8): `QuestionPage` shows the prompt image under the prompt; `ResultsPage` and the
+  game-over `QuestionCard` show the prompt image and a small thumbnail per option that has one
+  (all through `components/ui/QuestionImage`).
 - **Adding a question type (T7)** touches `course/QuestionEditorPage.tsx` (type option, form
   state, `build…Payload`, `formToPayload`, `questionToForm`, type label, list preview),
   `../types/game.ts` (`QuestionPayload.type`, `AnswerReveal`), `game/QuestionPage` (`typeLabel`),

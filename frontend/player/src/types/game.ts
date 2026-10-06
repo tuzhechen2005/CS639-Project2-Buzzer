@@ -1,3 +1,13 @@
+/** A question's client-visible config. Image ids follow the T8 convention
+ * (docs/plans/t8-image-support.md §E): `option_image_ids` is parallel to `options`. */
+export interface QuestionConfig {
+  options?: string[];
+  maxLength?: number;
+  unit?: string; // numeric_estimate
+  image_id?: string | null;
+  option_image_ids?: (string | null)[];
+}
+
 export interface SyncStatePayload {
   status: 'LOBBY' | 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED';
   playerCount: number;
@@ -21,7 +31,7 @@ export interface QuestionPayload {
   totalQuestions: number;
   type: QuestionType;
   prompt: string;
-  config: { options?: string[]; maxLength?: number; unit?: string };
+  config: QuestionConfig;
   timeLimitSeconds: number;
   pointsValue: number;
 }
@@ -61,7 +71,7 @@ export interface QuestionSummaryItem {
   prompt: string;
   type: QuestionType;
   gradingType: 'ACCURACY' | 'COMPLETENESS';
-  config: { options?: string[]; maxLength?: number; unit?: string };
+  config: QuestionConfig;
   pointsAwarded: number;
   maxPoints: number;
   answerTimeMs: number | null;

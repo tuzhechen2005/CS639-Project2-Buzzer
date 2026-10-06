@@ -10,6 +10,10 @@ there are no app-specific composite components yet (those live inline in pages).
 - `ui/input.tsx` — styled `Input`.
 - `ui/TimerBar.tsx` — countdown bar (green → yellow → red) with a seconds readout. Props:
   `totalSeconds`, optional `initialSeconds` (for reconnect / locked state), `paused`.
+- `ui/QuestionImage.tsx` — (T8) a question or option image by id (`/api/images/{id}`, no
+  login). Shows a same-size pulsing placeholder while loading, and on failure a short note or
+  nothing (`fallbackText={null}`, used where the text label stays visible). `className` sizes the
+  box; `align="left"` pins the picture to the left edge. No pre-loading; it never delays a question.
 
 ## How it fits in
 Used by everything in `pages/`. Styling is Tailwind via `lib/utils.ts`'s `cn`; callers can

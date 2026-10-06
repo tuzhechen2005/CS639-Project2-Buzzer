@@ -12,6 +12,8 @@ client-side JWT expiry check.
   and login failures show the backend's reason.
 - `utils.ts` — `cn(...)` = `twMerge(clsx(...))`, plus `isTokenExpired(token)`: decodes the JWT
   payload (no signature check) and returns true if it is missing, malformed, or past `exp`.
+- `images.ts` — (T8) `imageUrl(id)` → `/api/images/{id}`. Question `config` may carry
+  `image_id` and `option_image_ids` (parallel to `options`); see `types/game.ts` `QuestionConfig`.
 
 ## How it fits in
 Pages use `api` for the pre-game REST calls only: room ping (`/game/rooms/:code/ping`), guest

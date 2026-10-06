@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useGame } from './GameLayout';
+import { QuestionImage } from '../../components/ui/QuestionImage';
 import { Button } from '../../components/ui/button';
 import type { AnswerReveal, HostQuestionSummaryItem } from '../../types/game';
 import { buildNumericBars, withUnit, type NumericReveal } from '../../lib/numericEstimate';
@@ -137,6 +138,7 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
 
       {/* Prompt */}
       <p className="text-slate-100 text-lg font-semibold leading-snug">{prompt}</p>
+      <QuestionImage imageId={config.image_id} alt="Image for the question" className="h-32 w-full max-w-sm" align="left" />
 
       {/* Distribution */}
       <div className="space-y-2">
@@ -147,6 +149,12 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
             <div key={i} className="space-y-0.5">
               <div className="flex items-center gap-2 text-xs text-slate-400">
                 <span className={`font-bold ${correct ? 'text-green-400' : ''}`}>{optionLabel(i)}.</span>
+                <QuestionImage
+                  imageId={config.option_image_ids?.[i]}
+                  alt={opt}
+                  className="h-8 w-12 shrink-0"
+                  fallbackText={null}
+                />
                 <span className={correct ? 'text-green-300' : ''}>{opt}</span>
               </div>
               <AnswerBar
