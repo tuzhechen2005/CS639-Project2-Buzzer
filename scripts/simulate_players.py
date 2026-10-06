@@ -21,6 +21,8 @@ All question types are handled automatically:
   fill_in_the_blank — random word from --fitb-words; if --game-json supplied,
                       correct answers are drawn from acceptedAnswers and wrong
                       answers from --fitb-words
+  plot_point        — a random grid point {col, row}; if --game-json supplied,
+                      accurate players pick the target or one of its neighbours
 
 Usage:
     # Basic — 20 players, default profile mix, default FITB word pool
@@ -270,6 +272,26 @@ class SimPlayer:
                 return {"value": round(target + random.uniform(-spread, spread), 2)}
             return {"value": random.randint(0, 1000)}
 
+        if q_type == "plot_point":
+            # The phone answers grid indices {col, row}; the grid comes from the config
+            # every player receives (docs/plans/t7-plot-the-point.md).
+            c = q.get("config", {})
+            try:
+                n_cols = round((c["xMax"] - c["xMin"]) / c["xStep"])
+                n_rows = round((c["yMax"] - c["yMin"]) / c["yStep"])
+            except (KeyError, TypeError, ZeroDivisionError):
+                return None
+            target = (jq or {}).get("answer_data", {}).get("target")
+            if isinstance(target, dict) and random.random() < p.accuracy:
+                # with --game-json: the target, or one of its neighbours
+                tcol = round((target.get("x", 0) - c["xMin"]) / c["xStep"])
+                trow = round((target.get("y", 0) - c["yMin"]) / c["yStep"])
+                dcol, drow = random.choice([(0, 0), (0, 0), (1, 0), (0, -1), (-1, 1)])
+                col = min(max(tcol + dcol, 0), n_cols)
+                row = min(max(trow + drow, 0), n_rows)
+                return {"col": col, "row": row}
+            return {"col": random.randint(0, n_cols), "row": random.randint(0, n_rows)}
+
         return None  # unknown type
 
     def _answer_str(self, answer: dict) -> str:
@@ -281,6 +303,8 @@ class SimPlayer:
             return f"options {answer['selectedIndices']}"
         if "selectedValue" in answer:
             return str(answer["selectedValue"])
+        if "col" in answer and "row" in answer:
+            return f"grid ({answer['col']}, {answer['row']})"
         return repr(answer)
 
     # ── per-question handler ──────────────────────────────────────────────────
