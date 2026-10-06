@@ -26,6 +26,10 @@ numeric_estimate text, and the plot_point plane).
   rules (`commitAxis`, `commitForSubmit`, `canSubmitTyped`, `flipSign`) and the result text
   (`plotResultLine`, `plotVerdict`). Tested by `plotPoint.test.ts`; `plotGeometry.test.ts` tests
   the geometry.
+- `promptMarkup.ts` — parses a question prompt for display: the four tags the backend keeps
+  (`<b>`, `<i>`, `<u>`, `<br>`) become nodes and the entities it stores (`&lt;`, `&amp;`, …) are
+  decoded; anything else stays plain text. **Byte-identical to the host's copy**
+  (`tests/unit/test_prompt_markup_copies.py`); tests in `promptMarkup.test.ts`. Imports nothing.
 - `images.ts` — (T8) `imageUrl(id)` → `/api/images/{id}`. Question `config` may carry
   `image_id` and `option_image_ids` (parallel to `options`); see `types/game.ts` `QuestionConfig`.
 

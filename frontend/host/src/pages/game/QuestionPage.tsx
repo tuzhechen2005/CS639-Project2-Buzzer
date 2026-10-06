@@ -3,6 +3,7 @@ import { useGame } from './GameLayout';
 import { Button } from '../../components/ui/button';
 import { TimerBar } from '../../components/ui/TimerBar';
 import { QuestionImage } from '../../components/ui/QuestionImage';
+import { PromptText } from '../../components/PromptText';
 import { PlotScatter } from '../../components/PlotScatter';
 import { plotConfigOf } from '../../lib/plotPoint';
 
@@ -83,7 +84,7 @@ export default function QuestionPage() {
 
       {!questionLocked && (
         <h2 className="text-4xl font-bold text-slate-100 text-center max-w-3xl leading-tight">
-          {currentQuestion.prompt}
+          <PromptText prompt={currentQuestion.prompt} />
         </h2>
       )}
 

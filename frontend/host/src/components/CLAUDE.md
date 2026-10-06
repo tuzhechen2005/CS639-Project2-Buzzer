@@ -21,6 +21,9 @@ inline in pages.
   `QuestionPage` (plane only), `ResultsPage`, the game-over `QuestionCard`, and the editor preview
   (`onPick` turns a click into the snapped target). `scale` enlarges text for the projector.
   Exposes `data-testid="plot-scatter"` and `data-plot-left` / `data-plot-top` / `data-cell-px`.
+- `PromptText.tsx` — shows a question prompt with its formatting (via `lib/promptMarkup.ts`),
+  as React elements and text, never raw HTML. Use it wherever a prompt is displayed; printing
+  `{prompt}` directly shows `<b>` tags and `&lt;` codes literally.
 
 ## How it fits in
 Used by everything in `pages/`. Styling is Tailwind via `lib/utils.ts`'s `cn`; callers can

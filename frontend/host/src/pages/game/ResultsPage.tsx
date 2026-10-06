@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useGame } from './GameLayout';
 import { Button } from '../../components/ui/button';
 import { QuestionImage } from '../../components/ui/QuestionImage';
+import { PromptText } from '../../components/PromptText';
 import type { AnswerReveal, QuestionConfig } from '../../types/game';
 import { buildNumericBars, withUnit, type NumericReveal } from '../../lib/numericEstimate';
 import { PlotScatter } from '../../components/PlotScatter';
@@ -290,7 +291,7 @@ export default function ResultsPage() {
 
       {currentQuestion && (
         <p className="text-slate-300 text-xl text-center max-w-2xl">
-          {currentQuestion.prompt}
+          <PromptText prompt={currentQuestion.prompt} />
         </p>
       )}
 

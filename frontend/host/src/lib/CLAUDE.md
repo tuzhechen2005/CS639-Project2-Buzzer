@@ -24,6 +24,10 @@ pure logic behind the T7 question types (numeric_estimate bars and the plot_poin
   projector.
 - `plotPoint.ts` — `plotConfigOf`, `plotRevealOf` and `targetText` ("(3, −2)", snapped so float
   noise never shows).
+- `promptMarkup.ts` — parses a question prompt for display: the four tags the backend keeps
+  (`<b>`, `<i>`, `<u>`, `<br>`) become nodes and the entities it stores (`&lt;`, `&amp;`, …) are
+  decoded; anything else stays plain text. **Byte-identical to the player's copy**
+  (`tests/unit/test_prompt_markup_copies.py`); tests in `promptMarkup.test.ts`. Imports nothing.
 - `images.ts` — (T8) `imageUrl(id, version?)` → `/api/images/{id}` (`?v=<sha256>` in the editor,
   so a replaced image is not served from the 60 s browser cache). Question `config` may carry
   `image_id` and `option_image_ids` (parallel to `options`); see `types/game.ts` `QuestionConfig`.
