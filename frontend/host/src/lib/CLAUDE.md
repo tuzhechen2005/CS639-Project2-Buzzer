@@ -18,7 +18,8 @@ pure logic behind the T7 question types (numeric_estimate bars and the plot_poin
   player's copy**; `tests/unit/test_plot_geometry_copies.py` fails if they drift. Imports nothing;
   its tests live in the player app (the host has no test runner).
 - `plotPalette.ts` — every canvas colour (plane, answer dots, target star, band squares) in one
-  place; T9 switches these to theme tokens.
+  place. `plotPalette()` builds them from the theme tokens on every call
+  (`tokenColor` from `../theme/theme`), so callers must call it at draw time, not cache it.
 - `plotDraw.ts` — paints the plane (background image, grid, axes, tick labels, overlays). The
   host's own copy of the player's drawing code, with a `scale` that enlarges text for the
   projector.

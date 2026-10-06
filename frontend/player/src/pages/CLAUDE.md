@@ -18,10 +18,14 @@ Socket.io events.
 - `game/GameLayout.tsx` — owns the game: checks the token, opens Socket.io, emits
   `join_room {role: PLAYER}`, listens to server events, holds state in `GameContext` /
   `useGame()`, and exposes `emitAnswer` → `submit_answer`. **Server events drive navigation.**
-  Shows a "Host disconnected" banner. Disconnects itself after `game_over`.
+  Shows a "Host disconnected" banner (`z-30`, `px-16`, so the theme toggle stays on top and
+  clear of its text; note the backend currently never sends `host_disconnected`, it only logs
+  it). Disconnects itself after `game_over`.
 - `game/LobbyPage.tsx` — room code, spinner, player count; "waiting for host to start" or
   "waiting for next question" depending on game status.
-- `game/QuestionPage.tsx` — one layout per question type: coloured MC buttons (tap = submit),
+- `game/QuestionPage.tsx` — one layout per question type: MC buttons in the fixed answer colours
+  (literal `bg-option-N text-on-option-N border-line-strong` classes, darkening on press; tap =
+  submit),
   True/False, a text box for fill-in-the-blank, toggle-and-submit for multi-select, and for
   numeric_estimate a decimal text box with a ± button, an echo line ("= 1,665 steps") and a
   Submit that is enabled only when `lib/parseNumber` accepts the text. plot_point renders
@@ -63,6 +67,11 @@ answer reveal after the question closes; the full distribution goes only to the 
 - **Answer correctness reaches the client early.** The backend's `answer_received` includes
   `isCorrect` and `pointsAwarded`. `FeedbackPage` doesn't display them, but they are visible in
   the browser's dev tools before the host reveals results.
+- **The theme toggle is hidden on the question screen** (`components/ThemeToggle`, rendered in
+  `App.tsx`) and fixed top-right everywhere else; keep top-right content clear of it. Every
+  control on these pages is at least 44 px tall (`min-h-11`); keep new ones that size.
+- Correct / Incorrect lines carry a check / X icon as well as their colour (`ResultsPage`,
+  `GameOverPage`); keep meaning out of colour alone.
 - `emitAnswer` is fire-and-forget: if the socket is down, the button stays disabled and nothing
   retries. Duplicate-submit echoes (`alreadyAnswered: true`) are ignored.
 - **Identity sticks.** Any unexpired token (a previous guest or account) skips the mode picker on

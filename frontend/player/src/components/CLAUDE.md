@@ -7,10 +7,11 @@ The big answer buttons and option colours of the other types are built inline in
 
 ## Contents
 - `ui/button.tsx` — `Button` with `variant` (default / outline / ghost / destructive) and `size`
-  (sm / md / lg); larger tap targets and an `active:scale-95` press effect.
+  (sm / md / lg); every size is at least 44 px tall (`min-h-11`), with an `active:scale-95`
+  press effect. Hovers are `enabled:hover:` (and only on devices that hover; see `src/theme/`).
 - `ui/card.tsx` — `Card`, `CardHeader`, `CardContent` wrappers.
 - `ui/input.tsx` — styled `Input` (larger padding, `text-base` so iOS doesn't zoom on focus).
-- `ui/TimerBar.tsx` — countdown bar (green → yellow → red) with seconds readout. Props:
+- `ui/TimerBar.tsx` — countdown bar (`success` → `warning` → `danger`) with seconds readout. Props:
   `totalSeconds`, `paused`.
 - `ui/QuestionImage.tsx` — (T8) a question or option image by id (`/api/images/{id}`, no
   login). Shows a same-size pulsing placeholder while loading, and on failure a short note or
@@ -29,9 +30,13 @@ The big answer buttons and option colours of the other types are built inline in
 - `PromptText.tsx` — shows a question prompt with its formatting (via `lib/promptMarkup.ts`),
   as React elements and text, never raw HTML. Use it wherever a prompt is displayed; printing
   `{prompt}` directly shows `<b>` tags and `&lt;` codes literally.
+- `ThemeToggle.tsx` — (T9) the light/dark switch, rendered **once** in `App.tsx`: fixed in the
+  top-right corner below the safe-area inset (`z-40`, 44 px), and `null` on
+  `/game/:code/question` so every tap there is an answer. Name "Dark theme", state in
+  `aria-pressed`; reads `<html data-theme>` and re-renders on `themechange`.
 
 ## How it fits in
-Used by the pages in `pages/`. Styling is Tailwind via `lib/utils.ts`'s `cn`; callers can
+Used by the pages in `pages/`. Colours are theme tokens (`bg-surface`, `text-fg-muted`, …; `src/theme/`, T9), never palette classes. Styling is Tailwind via `lib/utils.ts`'s `cn`; callers can
 override with `className`.
 
 ## Gotchas
@@ -44,3 +49,7 @@ override with `className`.
   Any remount restarts it at full time (it has no remaining-time input), so never move it between
   element trees mid-question.
 - The timer is display-only; the server decides when the question closes.
+- `PlotCanvas` takes its colours from the tokens at draw time (`lib/plotPalette.ts`) and redraws
+  on `themechange`.
+- Anything fixed in the top-right corner sits under the theme toggle; keep content clear of it
+  (the host-disconnected banner is `z-30` with `px-16` for that reason).

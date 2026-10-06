@@ -7,7 +7,7 @@ Game, question and roster editing moved to the host app (`frontend/host/src/page
 
 ## Contents
 - `LoginPage.tsx` — username/password login (`POST /auth/login`), stores the token, goes to
-  `/users`. No UW NetID button (unlike host and player).
+  `/users`. No UW NetID button (unlike host and player). Theme toggle fixed top-right.
 - `UsersPage.tsx` — list users (role badge); create a local account (username, display name,
   password ≥ 8 chars, optional email).
 - `UserDetailPage.tsx` — edit a user (display name, email, password, role), delete them, and grant
@@ -30,7 +30,8 @@ Game, question and roster editing moved to the host app (`frontend/host/src/page
 ## How it fits in
 Routes are declared in `../App.tsx`: everything except `/login` sits inside `RequireAdmin` and the
 sidebar `AdminLayout` (Users, Courses, Guests, Sessions, then a secondary "Host & Play" group
-linking to `/host/` and `/player/`); unknown paths go to `/users`. Each page loads its own data
+linking to `/host/` and `/player/`; the theme toggle and Logout in its footer); unknown paths
+go to `/users`. Each page loads its own data
 with `../lib/api` on mount and re-fetches after each change; there is no shared store or cache.
 Backend endpoints are in `backend/app/routers/admin.py` (all `require_admin`), except session
 delete (`/game/sessions/:id`).
