@@ -12,8 +12,11 @@ from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 
-from .test_host_management import World, world  # noqa: F401 (world is a fixture)
+from . import test_host_management
+from .test_host_management import World
 from .test_images import MIB, noise_png
+
+world = test_host_management.world  # the shared pytest fixture
 
 _TIMEOUT = 120.0
 
