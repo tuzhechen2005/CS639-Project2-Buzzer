@@ -154,7 +154,7 @@ export default function SessionsPage() {
             <button
               key={f}
               onClick={() => setStatusFilter(f)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              className={`focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 statusFilter === f
                   ? 'bg-accent text-on-accent'
                   : 'text-fg-muted hover:text-fg'
@@ -252,7 +252,7 @@ export default function SessionsPage() {
                           <button
                             key={fmt}
                             onClick={() => setOpt(s.session_id, s.game_title, 'format', fmt)}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                            className={`focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
                               opts.format === fmt
                                 ? 'bg-accent border-accent text-on-accent'
                                 : 'border-line-strong text-fg-muted hover:border-line-strong'
@@ -323,7 +323,7 @@ export default function SessionsPage() {
                               type="checkbox"
                               checked={opts.rosterOnly}
                               onChange={(e) => setOpt(s.session_id, s.game_title, 'rosterOnly', e.target.checked)}
-                              className="rounded border-line-strong accent-accent"
+                              className="rounded border-line-strong accent-accent focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                             />
                             <span className="text-sm text-fg-muted">
                               Roster-matched players only
@@ -335,7 +335,7 @@ export default function SessionsPage() {
                               type="checkbox"
                               checked={opts.perQuestion}
                               onChange={(e) => setOpt(s.session_id, s.game_title, 'perQuestion', e.target.checked)}
-                              className="rounded border-line-strong accent-accent"
+                              className="rounded border-line-strong accent-accent focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                             />
                             <span className="text-sm text-fg-muted">
                               Per-question breakdown

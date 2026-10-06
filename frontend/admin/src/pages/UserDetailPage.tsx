@@ -194,7 +194,7 @@ export default function UserDetailPage() {
     <div className="p-8 max-w-3xl space-y-6">
       <button
         onClick={() => navigate('/users')}
-        className="flex items-center gap-2 text-fg-muted hover:text-fg text-sm"
+        className="flex items-center gap-2 text-fg-muted hover:text-fg text-sm focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
       >
         <ArrowLeft size={14} /> Back to Users
       </button>
@@ -274,7 +274,7 @@ export default function UserDetailPage() {
               <div>
                 <label className="block text-xs text-fg-muted mb-1">Role</label>
                 <select
-                  className="rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm"
+                  className="rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                   value={editRole}
                   onChange={(e) => setEditRole(e.target.value)}
                 >
@@ -338,7 +338,7 @@ export default function UserDetailPage() {
               <div className="flex items-center gap-2 pb-1 mb-1 border-b border-line">
                 <input
                   type="checkbox"
-                  className="rounded"
+                  className="rounded focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                   checked={courseSelections.every((s) => s.checked)}
                   onChange={(e) =>
                     setCourseSelections((prev) => prev.map((s) => ({ ...s, checked: e.target.checked })))
@@ -353,7 +353,7 @@ export default function UserDetailPage() {
                   <div key={sel.id} className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      className="rounded"
+                      className="rounded focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                       checked={sel.checked}
                       onChange={(e) =>
                         setCourseSelections((prev) =>
@@ -366,11 +366,11 @@ export default function UserDetailPage() {
                     </span>
                     <div className="flex rounded overflow-hidden border border-line-strong text-xs">
                       <button
-                        className={`px-2 py-1 ${sel.role === 'HOST' ? 'bg-accent text-on-accent' : 'text-fg-muted hover:text-fg'}`}
+                        className={`focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page px-2 py-1 ${sel.role === 'HOST' ? 'bg-accent text-on-accent' : 'text-fg-muted hover:text-fg'}`}
                         onClick={() => setCourseSelections((prev) => prev.map((s, j) => j === i ? { ...s, role: 'HOST' } : s))}
                       >HOST</button>
                       <button
-                        className={`px-2 py-1 ${sel.role === 'PLAYER' ? 'bg-accent text-on-accent' : 'text-fg-muted hover:text-fg'}`}
+                        className={`focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page px-2 py-1 ${sel.role === 'PLAYER' ? 'bg-accent text-on-accent' : 'text-fg-muted hover:text-fg'}`}
                         onClick={() => setCourseSelections((prev) => prev.map((s, j) => j === i ? { ...s, role: 'PLAYER' } : s))}
                       >PLAYER</button>
                     </div>
@@ -443,7 +443,7 @@ export default function UserDetailPage() {
               <div className="flex items-center gap-2 pb-1 mb-1 border-b border-line">
                 <input
                   type="checkbox"
-                  className="rounded"
+                  className="rounded focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                   checked={gameSelections.every((s) => s.checked)}
                   onChange={(e) =>
                     setGameSelections((prev) => prev.map((s) => ({ ...s, checked: e.target.checked })))
@@ -457,7 +457,7 @@ export default function UserDetailPage() {
                   <div key={sel.id} className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      className="rounded"
+                      className="rounded focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                       checked={sel.checked}
                       onChange={(e) =>
                         setGameSelections((prev) =>

@@ -97,10 +97,11 @@ export default function UsersPage() {
       ) : (
         <div className="space-y-2">
           {users.map((u) => (
-            <div
+            <button
+              type="button"
               key={u.id}
               onClick={() => navigate(`/users/${u.id}`)}
-              className="flex items-center justify-between px-4 py-3 rounded-xl border border-line bg-surface cursor-pointer hover:bg-surface-raised"
+              className="w-full text-left flex items-center justify-between px-4 py-3 rounded-xl border border-line bg-surface hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
             >
               <div>
                 <span className="font-medium text-fg">{u.display_name ?? u.username ?? u.netid}</span>
@@ -110,7 +111,7 @@ export default function UsersPage() {
                 </span>
               </div>
               <span className="text-fg-subtle text-xs">{u.email ?? ''}</span>
-            </div>
+            </button>
           ))}
         </div>
       )}

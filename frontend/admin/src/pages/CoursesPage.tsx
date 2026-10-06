@@ -260,7 +260,7 @@ export default function CoursesPage() {
                     <select
                       value={moveTarget[g.id] ?? ''}
                       onChange={(e) => setMoveTarget((prev) => ({ ...prev, [g.id]: e.target.value }))}
-                      className="rounded-xl border border-line-strong bg-surface-raised px-2 py-1 text-sm text-fg"
+                      className="rounded-xl border border-line-strong bg-surface-raised px-2 py-1 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                     >
                       <option value="">Move to course…</option>
                       {realCourses.map((c) => (
@@ -303,7 +303,7 @@ export default function CoursesPage() {
                       {/* The roster editor lives in the host app (works behind nginx on :8080). */}
                       <a
                         href={`/host/courses/${c.id}/roster`}
-                        className="inline-flex items-center justify-center rounded-xl font-semibold transition-colors border border-line-strong text-fg hover:bg-surface-raised px-3 py-1.5 text-sm"
+                        className="inline-flex items-center justify-center rounded-xl font-semibold transition-colors border border-line-strong text-fg hover:bg-surface-raised px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
                       >
                         <Users size={14} className="mr-1" /> Roster
                       </a>
@@ -316,7 +316,7 @@ export default function CoursesPage() {
                     {hosts.length === 0 ? (
                       <p className="text-fg-subtle">None</p>
                     ) : hosts.map((a) => (
-                      <Link key={a.user_id} to={`/users/${a.user_id}`} className="block text-fg hover:text-accent-text">
+                      <Link key={a.user_id} to={`/users/${a.user_id}`} className="block text-fg hover:text-accent-text focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page">
                         {accessName(a)}
                       </Link>
                     ))}
@@ -326,7 +326,7 @@ export default function CoursesPage() {
                     {players.length === 0 ? (
                       <p className="text-fg-subtle">None</p>
                     ) : players.map((a) => (
-                      <Link key={a.user_id} to={`/users/${a.user_id}`} className="block text-fg hover:text-accent-text">
+                      <Link key={a.user_id} to={`/users/${a.user_id}`} className="block text-fg hover:text-accent-text focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page">
                         {accessName(a)}
                       </Link>
                     ))}

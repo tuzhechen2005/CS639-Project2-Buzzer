@@ -23,7 +23,7 @@ function AdminLayout() {
   }
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+    `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page ${
       isActive
         ? 'bg-accent-subtle text-accent-text'
         : 'text-fg-muted hover:bg-surface-raised hover:text-fg'
@@ -68,7 +68,7 @@ function AdminLayout() {
           </div>
           <button
             onClick={logout}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-fg-muted hover:bg-surface-raised hover:text-fg w-full transition-colors"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-fg-muted hover:bg-surface-raised hover:text-fg w-full transition-colors focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
           >
             <LogOut size={16} /> Logout
           </button>
