@@ -10,12 +10,16 @@ from __future__ import annotations
 
 import pytest
 
+from app.services import question_types
 from app.services.question_types import (
     QuestionSpec,
+    QuestionType,
+    accept_answer,
     answer_reveal,
     distribution_keys_for,
     known_types,
     label_for,
+    normalize_answer,
     payload_extras,
     score_answer,
     validate_answer,
@@ -213,3 +217,63 @@ def test_validate_definition_accepts_valid_and_completeness():
     validate_definition(q("multiple_choice", "COMPLETENESS", {"options": ["A", "B"]}))
     with pytest.raises(ValueError):
         validate_definition(q("multiple_choice", "COMPLETENESS", {"options": ["A"]}))
+
+
+# ---------------------------------------------------------------------------
+# normalize_answer (requested for the Canvas type, docs/plans/t7-plot-the-point.md)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "question,answer",
+    [
+        (MC, {"selectedIndex": 1}),
+        (TF, {"selectedValue": True}),
+        (FITB, {"text": "  new   york "}),
+        (MS, {"selectedIndices": [2, 0]}),
+        (q("multiple_choice", grading="COMPLETENESS", config={"options": ["A", "B"]}), {"selectedIndex": 0}),
+        (q("no_such_type"), {"anything": 1}),
+    ],
+)
+def test_normalize_answer_default_returns_the_answer_unchanged(question, answer):
+    before = repr(answer)
+    assert normalize_answer(question, answer) is answer
+    assert accept_answer(question, answer) == (None, answer)
+    assert repr(answer) == before
+
+
+def _snapping_type(calls: list) -> QuestionType:
+    def validate(q, a):
+        return None if isinstance(a, dict) and isinstance(a.get("x"), (int, float)) else "need x"
+
+    def normalize(q, a):
+        calls.append(a)
+        return {"cell": int(a["x"] // 10)}
+
+    return QuestionType(
+        key="snap",
+        label="Snap",
+        validate_definition=lambda q: None,
+        validate_answer=validate,
+        score=lambda q, a: question_types._zero(),
+        reveal=lambda q: {},
+        distribution_keys=lambda q, a: [str(a.get("cell"))],
+        payload_extras=lambda q: {},
+        normalize_answer=normalize,
+    )
+
+
+@pytest.mark.parametrize("grading", ["ACCURACY", "COMPLETENESS"])
+def test_accept_answer_validates_then_normalizes_for_every_grading_type(monkeypatch, grading):
+    calls: list = []
+    monkeypatch.setitem(question_types._TYPES, "snap", _snapping_type(calls))
+    question = q("snap", grading=grading)
+
+    assert accept_answer(question, {"x": 37.5}) == (None, {"cell": 3})
+    assert normalize_answer(question, {"x": 5}) == {"cell": 0}
+    # The normalized answer is what the distribution keys are computed from.
+    assert distribution_keys_for(question, accept_answer(question, {"x": 99})[1]) == ["9"]
+
+    calls.clear()
+    assert accept_answer(question, {"y": 1}) == ("need x", None)
+    assert calls == [], "a rejected answer is never normalized"
