@@ -427,6 +427,240 @@ def _numeric_keys(q: Any, answer_data: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# plot_point
+# ---------------------------------------------------------------------------
+# A point placed on a coordinate plane, scored by how many grid cells it is from the target
+# (docs/plans/t7-plot-the-point.md). The phone answers grid indices {"col", "row"}; the
+# target is stored in graph units {"x", "y"} and checked once to lie on a grid point, so
+# scoring and buckets only ever compare whole numbers.
+# config: {"xMin", "xMax", "xStep", "yMin", "yMax", "yStep", "xLabel"?, "yLabel"?,
+#          "overlays"?, "image_id"? (T8, checked by image_service)}
+# answer_data (ACCURACY): {"target": {"x", "y"}, "bands": [{"within": cells, "points": p}]}
+
+_PLOT_LIMIT = 1e6
+_PLOT_TOL = 1e-9
+_PLOT_MAX_CELLS = 20
+_PLOT_MAX_OVERLAYS = 20
+_PLOT_LABEL_MAX = 20
+# Allowed steps: 1, 2 or 5 times a power of ten, 0.001 ... 500000.
+_PLOT_STEPS = tuple(m * 10.0**k for k in range(-3, 6) for m in (1, 2, 5))
+_PLOT_ANSWER_ERROR = "plot_point answer must be a grid point inside the plane"
+
+
+def _plot_number(v: Any) -> bool:
+    """A Number (int or float, not bool, finite) with |v| <= 1e6. The range comparison also
+    rejects NaN and infinities, and is safe for arbitrarily large ints."""
+    return _is_number(v) and -_PLOT_LIMIT <= v <= _PLOT_LIMIT
+
+
+def _plot_label_ok(v: Any) -> bool:
+    """An optional label: absent (None) or a 1-20 character string, not whitespace only."""
+    return v is None or (
+        isinstance(v, str) and 1 <= len(v) <= _PLOT_LABEL_MAX and bool(v.strip())
+    )
+
+
+def _plot_whole(v: float) -> bool:
+    return abs(v - round(v)) <= _PLOT_TOL
+
+
+def _plot_axes_problem(config: Any) -> str | None:
+    """Rules 1-4 (limits, steps, multiples, cell counts): the first problem, or None."""
+    c = config if isinstance(config, dict) else {}
+    limits = [c.get(k) for k in ("xMin", "xMax", "yMin", "yMax")]
+    if not all(_plot_number(v) for v in limits) or not (
+        c["xMin"] < c["xMax"] and c["yMin"] < c["yMax"]
+    ):
+        return "plot_point axis limits must be finite numbers with min < max"
+    steps = (c.get("xStep"), c.get("yStep"))
+    if not all(
+        _is_number(s)
+        and any(math.isclose(s, a, rel_tol=_PLOT_TOL) for a in _PLOT_STEPS)
+        for s in steps
+    ):
+        return "plot_point steps must be 1, 2 or 5 times a power of ten"
+    for lo, hi, step in (
+        (c["xMin"], c["xMax"], c["xStep"]),
+        (c["yMin"], c["yMax"], c["yStep"]),
+    ):
+        if not (_plot_whole(lo / step) and _plot_whole(hi / step)):
+            return "plot_point axis limits must be multiples of their step"
+    for lo, hi, step in (
+        (c["xMin"], c["xMax"], c["xStep"]),
+        (c["yMin"], c["yMax"], c["yStep"]),
+    ):
+        if not 1 <= round((hi - lo) / step) <= _PLOT_MAX_CELLS:
+            return "plot_point allows 1 to 20 cells per axis"
+    return None
+
+
+def _plot_grid(config: Any) -> tuple[int, int] | None:
+    """(nCols, nRows) for a config that passes rules 1-4, else None. Never raises."""
+    if _plot_axes_problem(config) is not None:
+        return None
+    return (
+        round((config["xMax"] - config["xMin"]) / config["xStep"]),
+        round((config["yMax"] - config["yMin"]) / config["yStep"]),
+    )
+
+
+def _plot_overlay_ok(item: Any) -> bool:
+    """Rule 6 for one overlay. Unknown keys are ignored."""
+    if not isinstance(item, dict) or not _plot_label_ok(item.get("label")):
+        return False
+    kind = item.get("kind")
+    if kind == "point":
+        return all(_plot_number(item.get(k)) for k in ("x", "y"))
+    if kind == "line":
+        pts = [item.get(k) for k in ("x1", "y1", "x2", "y2")]
+        return all(_plot_number(v) for v in pts) and (pts[0], pts[1]) != (
+            pts[2],
+            pts[3],
+        )
+    if kind == "polynomial":
+        coeffs = item.get("coefficients")
+        return (
+            isinstance(coeffs, list)
+            and 1 <= len(coeffs) <= 4
+            and all(_plot_number(v) for v in coeffs)
+        )
+    return False
+
+
+def _plot_target(q: Any) -> tuple[int, int] | None:
+    """Rule 8: the target's grid indices (tcol, trow), or None if the config is unusable or
+    the target is not a grid point inside the plane. The only float comparison in the type."""
+    grid = _plot_grid(q.config)
+    target = _answer_data(q).get("target")
+    if grid is None or not isinstance(target, dict):
+        return None
+    x, y = target.get("x"), target.get("y")
+    if not (_plot_number(x) and _plot_number(y)):
+        return None
+    c = q.config
+    kx = (x - c["xMin"]) / c["xStep"]
+    ky = (y - c["yMin"]) / c["yStep"]
+    if not (_plot_whole(kx) and _plot_whole(ky)):
+        return None
+    tcol, trow = round(kx), round(ky)
+    if not (0 <= tcol <= grid[0] and 0 <= trow <= grid[1]):
+        return None
+    return tcol, trow
+
+
+def _plot_index(v: Any) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
+def _plot_validate_definition(q: Any) -> None:
+    config = q.config if isinstance(q.config, dict) else {}
+    problem = _plot_axes_problem(config)
+    if problem:
+        raise ValueError(problem)
+    if not (
+        _plot_label_ok(config.get("xLabel")) and _plot_label_ok(config.get("yLabel"))
+    ):
+        raise ValueError("plot_point labels must be 1 to 20 characters")
+    overlays = config.get("overlays")
+    if overlays is not None and not (
+        isinstance(overlays, list)
+        and len(overlays) <= _PLOT_MAX_OVERLAYS
+        and all(_plot_overlay_ok(item) for item in overlays)
+    ):
+        raise ValueError("plot_point overlay is invalid")
+    if q.grading_type != "ACCURACY":
+        return
+    if _plot_target(q) is None:
+        raise ValueError("plot_point target must be a grid point inside the plane")
+    n_cols, n_rows = _plot_grid(config)  # rules 1-4 passed above
+    bands = _answer_data(q).get("bands")
+    if not isinstance(bands, list) or not 1 <= len(bands) <= _MAX_BANDS:
+        raise ValueError("bands must be a list of 1 to 5 items")
+    for band in bands:
+        if not (
+            isinstance(band, dict)
+            and _plot_index(band.get("within"))
+            and 0 <= band["within"] <= max(n_cols, n_rows)
+            and _is_number(band.get("points"))
+            and 0 < band["points"] <= _PLOT_LIMIT
+        ):
+            raise ValueError("each band needs whole-cell within ≥ 0 and points > 0")
+    withins = [b["within"] for b in bands]
+    points = [b["points"] for b in bands]
+    if any(b <= a for a, b in zip(withins, withins[1:])):
+        raise ValueError("band within values must strictly increase")
+    if any(b >= a for a, b in zip(points, points[1:])):
+        raise ValueError("band points must strictly decrease")
+    if not math.isclose(float(q.points_value), float(points[0]), abs_tol=1e-9):
+        raise ValueError("points_value must equal the first band's points")
+
+
+def _plot_validate_answer(q: Any, answer_data: Any) -> str | None:
+    grid = _plot_grid(q.config)
+    if grid is None or not isinstance(answer_data, dict):
+        return _PLOT_ANSWER_ERROR
+    col, row = answer_data.get("col"), answer_data.get("row")
+    if not (_plot_index(col) and _plot_index(row)):
+        return _PLOT_ANSWER_ERROR
+    if not (0 <= col <= grid[0] and 0 <= row <= grid[1]):
+        return _PLOT_ANSWER_ERROR
+    return None
+
+
+def _plot_normalize_answer(q: Any, answer_data: Any) -> Any:
+    """Only called for answers validate_answer accepted: keep exactly {col, row}."""
+    return {"col": answer_data["col"], "row": answer_data["row"]}
+
+
+def plot_band_index(q: Any, col: Any, row: Any) -> int | None:
+    """Index of the first band a grid point falls in (cell distance max(|dcol|, |drow|)),
+    or None for a miss or anything unusable. Never raises. Also used by the report."""
+    target = _plot_target(q)
+    if target is None or not (_plot_index(col) and _plot_index(row)):
+        return None
+    distance = max(abs(col - target[0]), abs(row - target[1]))
+    bands = _answer_data(q).get("bands")
+    for i, band in enumerate(bands if isinstance(bands, list) else []):
+        within = band.get("within") if isinstance(band, dict) else None
+        if _plot_index(within) and distance <= within:
+            return i
+    return None
+
+
+def _plot_score(q: Any, answer_data: dict) -> ScoreResult:
+    index = plot_band_index(q, answer_data.get("col"), answer_data.get("row"))
+    if index is None:
+        return _zero()
+    points = _answer_data(q)["bands"][index].get("points")
+    if not _is_number(points):
+        return _zero()
+    return ScoreResult(points_awarded=points, is_correct=(index == 0))
+
+
+def _plot_reveal(q: Any) -> dict:
+    data = _answer_data(q)
+    target = data.get("target") if isinstance(data.get("target"), dict) else {}
+    bands = data.get("bands") if isinstance(data.get("bands"), list) else []
+    return {
+        "type": "plot_point",
+        "target": {"x": target.get("x"), "y": target.get("y")},
+        "bands": [
+            {"within": b.get("within"), "points": b.get("points")}
+            for b in bands
+            if isinstance(b, dict)
+        ],
+    }
+
+
+def _plot_keys(q: Any, answer_data: dict) -> list[str]:
+    """The grid point, for both grading types (a COMPLETENESS poll still gets a scatter)."""
+    col, row = answer_data.get("col"), answer_data.get("row")
+    if not (_plot_index(col) and _plot_index(row)):
+        return []
+    return [f"{col},{row}"]
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -482,6 +716,17 @@ _TYPES: dict[str, QuestionType] = {
             reveal=_numeric_reveal,
             distribution_keys=_numeric_keys,
             payload_extras=_no_extras,
+        ),
+        QuestionType(
+            key="plot_point",
+            label="Plot the Point",
+            validate_definition=_plot_validate_definition,
+            validate_answer=_plot_validate_answer,
+            score=_plot_score,
+            reveal=_plot_reveal,
+            distribution_keys=_plot_keys,
+            payload_extras=_no_extras,
+            normalize_answer=_plot_normalize_answer,
         ),
     )
 }

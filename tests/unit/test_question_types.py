@@ -50,6 +50,7 @@ MS = q("multi_select", config={"options": ["A", "B", "C"]},
 def test_known_types_and_labels():
     assert known_types() == {
         "multiple_choice", "true_false", "fill_in_the_blank", "multi_select", "numeric_estimate",
+        "plot_point",
     }
     assert label_for("multi_select") == "Multi Select"
     assert label_for("something_else") == "something_else"
