@@ -3,7 +3,8 @@ Question-type registry: everything that differs between question types, in one p
 
 Each type is one `QuestionType` handler (below). The module-level functions at the bottom
 (`score_answer`, `answer_reveal`, `distribution_keys_for`, `validate_definition`,
-`validate_answer`, `payload_extras`, `known_types`, `label_for`) are the only entry points
+`validate_answer`, `normalize_answer`, `accept_answer`, `payload_extras`, `known_types`,
+`label_for`) are the only entry points
 the rest of the backend uses; they add the behaviour that is the same for every type
 (empty answers, COMPLETENESS grading, unknown types).
 
@@ -47,6 +48,10 @@ class QuestionSpec:
     points_value: float
 
 
+def _unchanged(q: Any, answer_data: Any) -> Any:
+    return answer_data
+
+
 @dataclass(frozen=True)
 class QuestionType:
     key: str
@@ -63,6 +68,9 @@ class QuestionType:
     distribution_keys: Callable[[Any, dict], list[str]]
     # Extra client-safe keys for the new_question payload.
     payload_extras: Callable[[Any], dict]
+    # Optional: the answer to score, bucket and store (e.g. a click snapped to its grid
+    # cell). Pure, never raises, only sees answers validate_answer accepted.
+    normalize_answer: Callable[[Any, Any], Any] = _unchanged
 
 
 def _no_answer_check(q: Any, answer_data: Any) -> str | None:
@@ -512,6 +520,23 @@ def validate_answer(q: QuestionLike, answer_data: Any) -> str | None:
     None. Never raises."""
     handler = _TYPES.get(q.type)
     return handler.validate_answer(q, answer_data) if handler else None
+
+
+def normalize_answer(q: QuestionLike, answer_data: Any) -> Any:
+    """The answer to score, bucket and store; unchanged unless the type normalizes it.
+    Runs for every grading type. Never raises."""
+    handler = _TYPES.get(q.type)
+    return handler.normalize_answer(q, answer_data) if handler else answer_data
+
+
+def accept_answer(q: QuestionLike, answer_data: Any) -> tuple[str | None, Any]:
+    """What the gateway does with a submitted answer, in order: validate it, then
+    normalize it. Returns (error message, None) for a rejected answer, which is never
+    normalized, or (None, the answer to score and store)."""
+    problem = validate_answer(q, answer_data)
+    if problem:
+        return problem, None
+    return None, normalize_answer(q, answer_data)
 
 
 def score_answer(q: QuestionLike, answer_data: Any) -> ScoreResult:
