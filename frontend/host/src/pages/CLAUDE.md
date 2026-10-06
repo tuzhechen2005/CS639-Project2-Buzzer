@@ -34,6 +34,13 @@ over) driven by Socket.io events from the backend.
   are read-only with Duplicate. Answer keys are shown only here. The numeric_estimate form (target,
   mode, unit, 1-5 bands; `points_value` is the first band's points) validates inline with
   `numericProblems`, mirroring `backend/app/services/question_types.py`; the server is the authority.
+- `course/PlotPointEditor.tsx` — (T7) the plot_point part of the editor, wired in by
+  `QuestionEditorPage` (`FormState` extends its `PpForm`): plane, step select, axis labels,
+  overlays, bands, a `PlotScatter` preview that sets the target when clicked (a target the axes
+  no longer fit is kept and flagged, never moved), `plotProblems` (the server's rules and messages,
+  in order; Save is disabled while any apply), `buildPpPayload`, `ppFromQuestion` and the list
+  line "Target (3, −2) · 20×20 grid". The "Prompt image" picker reads "Background image" for this
+  type. COMPLETENESS hides the target and bands and sends `answer_data` `{}`.
 - `course/ImageLibrary.tsx` — (T8) `useImageLibrary(gameId)` (list, upload, replace, delete; 2 MB
   checked before sending; server messages such as `IMAGE_IN_USE` shown as-is),
   `ImageLibraryPanel` (thumbnails, size, "Used by Q…"/"Unused", Replace/Delete, disabled when the
@@ -58,11 +65,15 @@ over) driven by Socket.io events from the backend.
 - `game/LobbyPage.tsx` — big QR code and room code, player count, auto-advance toggle, Start
   (disabled with 0 players).
 - `game/QuestionPage.tsx` — prompt, type/grading labels, `TimerBar`, answered count,
-  Lock/Unlock, and Show Results. With auto-advance on, advances 1.5 s after the answer phase ends.
+  Lock/Unlock, and Show Results. For plot_point the plane (`components/PlotScatter`, no answers)
+  replaces the prompt image. With auto-advance on, advances 1.5 s after the answer phase ends.
 - `game/ResultsPage.tsx` — answer reveal: bar chart for MC / TF / multi-select / completeness,
-  a word cloud for fill-in-the-blank. Next Question / Show Final Results; auto-advance countdown.
+  band bars for numeric_estimate, a word cloud for fill-in-the-blank, and for plot_point
+  "Target: (x, y)" with the class scatter (`PlotScatter`; "Class responses" for COMPLETENESS).
+  Next Question / Show Final Results; auto-advance countdown.
 - `game/GameOverPage.tsx` — score histogram (auto-bucketed), average / high / player count, and a
-  per-question breakdown card (distribution, correct count, average answer time).
+  per-question breakdown card (distribution, correct count, average answer time; a smaller
+  `PlotScatter` for plot_point).
 
 ## How it fits in
 Routes are declared in `../App.tsx`: `/login`, `/home`, `/courses/:courseId/{games,roster,sessions}`
@@ -76,10 +87,12 @@ sends `host_advance`; the backend state machine in `backend/app/websocket/gatewa
 what comes next. The host receives the full answer distribution and reveal; players never do.
 
 ## Gotchas
-- Images (T8): `QuestionPage` shows the prompt image under the prompt; `ResultsPage` and the
-  game-over `QuestionCard` show the prompt image and a small thumbnail per option that has one
+- Images (T8): `QuestionPage` shows the prompt image under the prompt (for plot_point the image
+  is the plane's background instead); `ResultsPage` and the game-over `QuestionCard` show the
+  prompt image and a small thumbnail per option that has one
   (all through `components/ui/QuestionImage`).
-- **Adding a question type (T7)** touches `course/QuestionEditorPage.tsx` (type option, form
+- **Adding a question type (T7)** touches `course/QuestionEditorPage.tsx` (or a sibling module it
+  wires in, as `course/PlotPointEditor.tsx` does; type option, form
   state, `build…Payload`, `formToPayload`, `questionToForm`, type label, list preview),
   `../types/game.ts` (`QuestionPayload.type`, `AnswerReveal`), `game/QuestionPage` (`typeLabel`),
   `game/ResultsPage` (`buildBars` / word cloud), and `game/GameOverPage` (`QuestionCard`). Reveal

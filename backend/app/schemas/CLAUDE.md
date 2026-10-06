@@ -34,6 +34,8 @@ structural validation** live — including the per-question-type rules for `conf
 | `true_false` | — | `answer_points`: dict with exactly keys `"true"`, `"false"` |
 | `fill_in_the_blank` | — | `acceptedAnswers`: non-empty strings; `answerPoints`: same length; `editDistance`: int ≥ 0 |
 | `multi_select` | `options`: list, ≥2 | `answer_points`: numbers (negatives allowed as penalties), same length as options |
+| `numeric_estimate` | optional `unit`: string, 1–20 chars | `target`: finite, \|v\| ≤ 1e15; `mode`: `relative` / `absolute` (relative needs a non-zero target); `bands`: 1–5 `{within > 0, points > 0}`, within increasing, points decreasing; `points_value` = first band's points |
+| `plot_point` | `xMin`/`xMax`/`yMin`/`yMax` (min < max, multiples of their step), `xStep`/`yStep` (1, 2 or 5 × 10^k), 1–20 cells per axis; optional `xLabel`/`yLabel` (1–20 chars) and up to 20 `overlays` (point, line, polynomial) | `target` `{x, y}` on a grid point inside the plane; `bands`: 1–5 `{within: int ≥ 0 cells, points > 0}`, within increasing, points decreasing; `points_value` = first band's points |
 
 COMPLETENESS questions skip the `answer_data` checks. The structure rules themselves live in
 `services/question_types.py` (`validate_definition`); `QuestionCreate` calls it from its
@@ -46,10 +48,10 @@ import (`routers/admin.py::import_game`), so its rules also define what a valid 
 question is.
 
 ## Gotchas
-- **`QuestionUpdate` does no structural validation.** A `PUT` can change `type` or replace
-  `config`/`answer_data` with anything. The T7 instructions flag this asymmetry explicitly. When
-  adding question types, validate on update too (e.g. merge with the stored question and re-run
-  the create validator).
+- **`QuestionUpdate` itself checks only field types**, but updates are not unchecked:
+  `game_admin_service.update_question` merges the update into the stored question and re-runs
+  `validate_definition` (then the image checks) on the result, so a `PUT` cannot leave a
+  question that create would reject (422 `VALIDATION_ERROR`).
 - Adding a question type means adding one handler to `services/question_types.py` (see
   `services/CLAUDE.md`); nothing in this directory needs editing for it.
 - Key naming is inconsistent by type: `answer_points` (snake) vs `acceptedAnswers`/`answerPoints`/

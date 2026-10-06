@@ -66,10 +66,12 @@ only), `_user_room` / `sid` (one player).
 - **Duplicate-answer race:** `has_answered` is checked before `record_answer`, and the answered
   set is updated only after the DB insert, with no DB unique constraint. Two concurrent submits
   from one player can both be scored.
-- **Only multi_select answers are shape-validated.** `question_types.validate_answer` is called
-  here; the other existing types accept anything, so a malformed MC `selectedIndex` still
-  reaches `calculate_score` and raises inside a handler that has no try/except. A new question
-  type gets its answer validation by implementing `validate_answer` in its handler.
+- **Answer shape is checked per type.** `question_types.accept_answer` (validate, then
+  normalize) is called here: multi_select, numeric_estimate and plot_point reject malformed
+  answers with an `error` event (nothing recorded, the player may resubmit), but MC, TF and FITB
+  accept anything, so a malformed MC `selectedIndex` still reaches `calculate_score` and raises
+  inside a handler that has no try/except. A new question type gets its answer validation by
+  implementing `validate_answer` in its handler.
 - Any ADMIN is treated as host on `join_room` (role HOST) and **always** on `rejoin_room`, so an
   admin can't rejoin a room as a player.
 - Disconnected players stay in the players set, so "all answered" waits for them (the timer still

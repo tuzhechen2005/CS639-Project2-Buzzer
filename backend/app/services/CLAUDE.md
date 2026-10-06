@@ -40,7 +40,8 @@ and access checks, scoring, Redis live state, roster import, and CSV/HTML export
   - `get_leaderboard`, `get_player_question_summary` and `get_host_question_summary` build the
     game-over payloads, including the answer reveal and distributions.
 - `question_types.py` — the **question-type registry**. One `QuestionType` handler per type
-  (`multiple_choice`, `true_false`, `fill_in_the_blank`, `multi_select`) with `label`,
+  (`multiple_choice`, `true_false`, `fill_in_the_blank`, `multi_select`, `numeric_estimate`,
+  `plot_point`) with `label`,
   `validate_definition`, `validate_answer`, `score`, `reveal`, `distribution_keys`,
   `payload_extras` and the optional `normalize_answer` (default: unchanged), all pure functions of a question-like object (`type`, `grading_type`,
   `config`, `answer_data`, `points_value`; `QuestionSpec` for raw rows). The module-level
@@ -49,6 +50,11 @@ and access checks, scoring, Redis live state, roster import, and CSV/HTML export
   gateway calls), `payload_extras`, `known_types` and `label_for` add the cross-type rules
   (empty answer = 0 points, COMPLETENESS, unknown type). **To add a question type, write one
   handler and register it in `_TYPES`.** Imports no routers, gateway, database or Redis.
+  `plot_point` (T7, `docs/plans/t7-plot-the-point.md`): a coordinate plane in `config`
+  (limits, "nice" steps, at most 20 cells per axis, optional labels and overlays), a target
+  `{x, y}` that must be a grid point, answers `{col, row}` (normalized to exactly those keys),
+  scoring by cell distance `max(|Δcol|, |Δrow|)` in 1–5 bands, and `"col,row"` distribution keys
+  for both grading types. Its public `plot_band_index` is used by the report.
 - `state_service.py` — the Redis live-state layer. Key layout is documented in the module
   docstring: `room:{code}` (JSON, 90-min TTL refreshed on activity), and
   `session:{id}:players | player:{uid} | question | answered:{qid} | dist:{qid}`.
@@ -80,8 +86,9 @@ and access checks, scoring, Redis live state, roster import, and CSV/HTML export
   (Canvas import format, SIS Login ID = netid[@domain], optional per-question columns, optional
   `roster_only`).
 - `report_service.py` — `build_session_report`: a self-contained HTML report with aggregate
-  statistics only (no names), bar charts (including multi_select), a word cloud, and a score
-  histogram.
+  statistics only (no names), bar charts (including multi_select), band bars for
+  numeric_estimate and plot_point (plot_point also prints "Target: (x, y)" with the step's
+  decimals), a word cloud, and a score histogram.
 
 ## How it fits in
 `routers/` and `websocket/gateway.py` call these; services use `models/` and `state_service`, and
@@ -96,12 +103,13 @@ through `record_answer` / the models.
   places that used to repeat them (`record_answer`, both `get_*_question_summary` functions, the
   gateway and `report_service`) call it. What is still per type outside the registry is only
   presentation: the type badge colour and the chart choice in `report_service.py` (bar chart for
-  MC, TF and multi_select, word cloud for FITB).
+  MC, TF and multi_select, band bars for numeric_estimate and plot_point, word cloud for FITB).
 - The FITB distribution key is the same everywhere (lowercase, internal whitespace collapsed),
   because the live counter, the game-over summary and the report all use `distribution_keys_for`.
 - The existing handlers assume well-formed `answer_data`: a string `selectedIndex` for MC
-  raises `TypeError` in `score`. Only multi_select answers are shape-checked (`validate_answer`,
-  called by the gateway).
+  raises `TypeError` in `score`. Answers are shape-checked (`validate_answer`, called by the
+  gateway) only for multi_select, numeric_estimate and plot_point; MC, TF and FITB use
+  `_no_answer_check` and accept anything.
 - `update_player_score` is read-modify-write on a JSON blob (not atomic). It's safe today only
   because each player writes their own key and duplicates are filtered upstream.
 - `create_room` and `delete_room_state` use `redis.keys(...)` (O(N) scans). Fine at 50 rooms.

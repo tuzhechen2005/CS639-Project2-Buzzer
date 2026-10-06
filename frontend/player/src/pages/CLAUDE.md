@@ -24,14 +24,18 @@ Socket.io events.
 - `game/QuestionPage.tsx` — one layout per question type: coloured MC buttons (tap = submit),
   True/False, a text box for fill-in-the-blank, toggle-and-submit for multi-select, and for
   numeric_estimate a decimal text box with a ± button, an echo line ("= 1,665 steps") and a
-  Submit that is enabled only when `lib/parseNumber` accepts the text. Measures
+  Submit that is enabled only when `lib/parseNumber` accepts the text. plot_point renders
+  `components/PlotPointAnswer` (a coordinate-plane canvas plus a "Type coordinates" panel) and
+  sends `{col, row}`. Measures
   answer time from when the page mounted. Disables input while the host has locked the question.
 - `game/FeedbackPage.tsx` — static "Answer locked in!" screen shown after `answer_received`.
 - `game/ResultsPage.tsx` — Correct / Close! (partial numeric credit) / Incorrect / "Answer recorded"
   (completeness), what you answered, accepted answers for fill-in-the-blank, target, difference and
-  band for numeric_estimate, points for this question, running total and rank.
+  band for numeric_estimate, one line for plot_point ("You: (4, −2) · Target: (3, −2) · 1 cell
+  off · 50 pts", from `lib/plotPoint`), points for this question, running total and rank.
 - `game/GameOverPage.tsx` — final score and rank, plus a per-question list of your answer vs the
-  correct one. "Play again" clears the token and goes to `/join`.
+  correct one (plot_point: the same one line, and no image, since its image is the plane's
+  background). "Play again" clears the token and goes to `/join`.
 
 ## How it fits in
 Routes are declared in `../App.tsx` (`/join`, `/login`, `/name/:code`,

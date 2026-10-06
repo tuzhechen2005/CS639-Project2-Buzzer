@@ -1,7 +1,8 @@
 # frontend/host/src/lib/
 
 ## Purpose
-Tiny shared helpers for the host app: the REST client and the Tailwind class-merging helper.
+Shared helpers for the host app: the REST client, the Tailwind class-merging helper, and the
+pure logic behind the T7 question types (numeric_estimate bars and the plot_point plane).
 
 ## Contents
 - `api.ts` — `api.get/post/put/patch/delete` over `fetch`, prefixed with `/api`, plus
@@ -11,6 +12,18 @@ Tiny shared helpers for the host app: the REST client and the Tailwind class-mer
   (204). Errors throw `Error(text)` where `text` is, in order: `body.message`, `body.detail` if a
   string, the joined `msg` fields of a 422 `detail` array, else `HTTP <status>`.
 - `utils.ts` — `cn(...)` = `twMerge(clsx(...))`, used by every `components/ui` primitive.
+- `numericEstimate.ts` — (T7) numeric_estimate band bars and target text for the results screens.
+- `plotGeometry.ts` — (T7 plot_point) pure plane geometry (grid size, grid ↔ graph ↔ pixel,
+  snapping, cell distance, line and polynomial clipping, `formatCoord`). **Byte-identical to the
+  player's copy**; `tests/unit/test_plot_geometry_copies.py` fails if they drift. Imports nothing;
+  its tests live in the player app (the host has no test runner).
+- `plotPalette.ts` — every canvas colour (plane, answer dots, target star, band squares) in one
+  place; T9 switches these to theme tokens.
+- `plotDraw.ts` — paints the plane (background image, grid, axes, tick labels, overlays). The
+  host's own copy of the player's drawing code, with a `scale` that enlarges text for the
+  projector.
+- `plotPoint.ts` — `plotConfigOf`, `plotRevealOf` and `targetText` ("(3, −2)", snapped so float
+  noise never shows).
 - `images.ts` — (T8) `imageUrl(id, version?)` → `/api/images/{id}` (`?v=<sha256>` in the editor,
   so a replaced image is not served from the 60 s browser cache). Question `config` may carry
   `image_id` and `option_image_ids` (parallel to `options`); see `types/game.ts` `QuestionConfig`.

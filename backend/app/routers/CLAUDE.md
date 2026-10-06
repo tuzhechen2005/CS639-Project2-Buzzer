@@ -69,8 +69,9 @@ The `get_db` dependency **commits automatically** when the request finishes with
   `game_sessions`, `images`, `questions`; any new write path on a game must follow it.
 - **Ownership of child ids:** a roster entry or question that doesn't belong to the course/game
   in the path is a 404 — the permission check only covers the path parent.
-- `update_question` applies `QuestionUpdate` field by field with **no structural re-validation**
-  (see `schemas/CLAUDE.md`) — T7 should fix this.
+- `update_question` re-validates in the service: `game_admin_service.update_question` merges the
+  update into the stored question and runs the type's structure rules and the image checks on the
+  result before saving (422 on failure), as create does.
 - Prompt HTML is sanitized in `game_admin_service.sanitize_prompt` (b, i, br, u); any new write
   path must call it.
 - `delete_user` still removes scores by hand and never touches Redis.
