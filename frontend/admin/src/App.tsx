@@ -6,6 +6,7 @@ import UsersPage from './pages/UsersPage';
 import UserDetailPage from './pages/UserDetailPage';
 import GuestsPage from './pages/GuestsPage';
 import SessionsPage from './pages/SessionsPage';
+import { ThemeToggle } from './components/ThemeToggle';
 
 function RequireAdmin() {
   const token = localStorage.getItem('token');
@@ -61,7 +62,10 @@ function AdminLayout() {
             </a>
           </div>
         </nav>
-        <div className="p-3 border-t border-line">
+        <div className="p-3 border-t border-line space-y-2">
+          <div className="px-4">
+            <ThemeToggle />
+          </div>
           <button
             onClick={logout}
             className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-fg-muted hover:bg-surface-raised hover:text-fg w-full transition-colors"
