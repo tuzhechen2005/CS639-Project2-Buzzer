@@ -10,10 +10,6 @@ export type Theme = 'light' | 'dark';
 const STORAGE_KEY = 'buzzer-theme';
 const OS_DARK = '(prefers-color-scheme: dark)';
 
-// T9 step 1: only the dark values exist yet, so native controls stay dark whatever the theme.
-// Step 7 of the spec's implementation order sets this to true.
-const LIGHT_THEME_READY = false;
-
 /** The saved choice, or null ("follow the OS") for no value, any other value or a storage error. */
 export function getStoredTheme(): Theme | null {
   try {
@@ -44,7 +40,7 @@ export function tokenColor(name: string): string {
 export function applyTheme(theme: Theme): void {
   const root = document.documentElement;
   root.dataset.theme = theme;
-  root.style.colorScheme = LIGHT_THEME_READY ? theme : 'dark';
+  root.style.colorScheme = theme;
   const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (meta) meta.content = tokenColor('page');
   window.dispatchEvent(new Event('themechange'));

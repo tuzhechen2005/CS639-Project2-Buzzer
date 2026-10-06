@@ -2,41 +2,41 @@
  * triple so Tailwind can add opacity: `rgb(var(--surface) / <alpha-value>)` in colors.js.
  * This folder (src/theme/) is byte-identical in host, player and admin
  * (tests/unit/test_theme_copies.py) and is the one place colour values may be written.
- *
- * T9 step 1: :root holds the DARK values too, so every page renders in the new dark theme whatever
- * data-theme says. Step 7 of the spec's implementation order puts the light values here. */
+ * :root holds every token's light value (including the theme-independent ones: qr and the answer
+ * options); the dark block comes after it and redefines only the tokens whose dark value differs.
+ * Every allowed text/background pair is checked in both themes by tests/unit/test_theme_contrast.py. */
 :root {
-  /* Interim: dark values (light values land in step 7). */
-  color-scheme: dark;
-  --page:           17 19 24;
-  --surface:        26 29 36;
-  --surface-raised: 37 42 51;
-  --line:           46 52 63;
-  --line-strong:    115 123 138;
-  --fg:             236 238 242;
-  --fg-muted:       163 169 181;
-  --fg-subtle:      148 154 166;
-  --accent:         129 140 248;
-  --accent-hover:   165 180 252;
-  --on-accent:      17 19 24;
-  --accent-text:    165 180 252;
-  --success:        74 222 128;
-  --on-success:     17 19 24;
-  --success-text:   74 222 128;
-  --warning:        251 191 36;
-  --on-warning:     17 19 24;
-  --warning-text:   251 191 36;
-  --danger:         248 113 113;
-  --on-danger:      17 19 24;
-  --danger-text:    248 113 113;
-  --success-subtle: 19 41 28;
-  --warning-subtle: 45 36 16;
-  --danger-subtle:  51 25 27;
-  --accent-subtle:  31 34 64;
-  --focus:          165 180 252;
+  /* Light theme (the default). */
+  color-scheme: light;
+  --page:           246 247 249;
+  --surface:        255 255 255;
+  --surface-raised: 238 240 244;
+  --line:           223 227 234;
+  --line-strong:    123 132 148;
+  --fg:             20 22 27;
+  --fg-muted:       74 81 96;
+  --fg-subtle:      99 107 122;
+  --accent:         79 70 229;
+  --accent-hover:   67 56 202;
+  --on-accent:      255 255 255;
+  --accent-text:    67 56 202;
+  --success:        21 128 61;
+  --on-success:     255 255 255;
+  --success-text:   22 101 52;
+  --warning:        180 83 9;
+  --on-warning:     255 255 255;
+  --warning-text:   146 64 14;
+  --danger:         220 38 38;
+  --on-danger:      255 255 255;
+  --danger-text:    185 28 28;
+  --success-subtle: 220 252 231;
+  --warning-subtle: 254 243 199;
+  --danger-subtle:  254 226 226;
+  --accent-subtle:  224 231 255;
+  --focus:          79 70 229;
   --qr:             255 255 255;
-  --plot-overlay:   56 189 248;
-  --plot-point:     245 158 11;
+  --plot-overlay:   3 105 161;
+  --plot-point:     180 83 9;
   --option-1:       220 38 38;
   --on-option-1:    255 255 255;
   --option-2:       37 99 235;
@@ -56,7 +56,7 @@
 }
 
 [data-theme="dark"] {
-  /* Dark theme. */
+  /* Dark theme: only the tokens that differ from :root. */
   color-scheme: dark;
   --page:           17 19 24;
   --surface:        26 29 36;
@@ -84,25 +84,8 @@
   --danger-subtle:  51 25 27;
   --accent-subtle:  31 34 64;
   --focus:          165 180 252;
-  --qr:             255 255 255;
   --plot-overlay:   56 189 248;
   --plot-point:     245 158 11;
-  --option-1:       220 38 38;
-  --on-option-1:    255 255 255;
-  --option-2:       37 99 235;
-  --on-option-2:    255 255 255;
-  --option-3:       250 204 21;
-  --on-option-3:    17 19 24;
-  --option-4:       21 128 61;
-  --on-option-4:    255 255 255;
-  --option-5:       124 58 237;
-  --on-option-5:    255 255 255;
-  --option-6:       251 146 60;
-  --on-option-6:    17 19 24;
-  --option-7:       190 24 93;
-  --on-option-7:    255 255 255;
-  --option-8:       15 118 110;
-  --on-option-8:    255 255 255;
 }
 
 body {

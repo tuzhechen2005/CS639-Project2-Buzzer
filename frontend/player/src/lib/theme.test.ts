@@ -93,11 +93,10 @@ describe('applyTheme', () => {
     window.removeEventListener('themechange', onChange);
   });
 
-  it('keeps color-scheme dark for the light theme until the light values exist (T9 step 1)', () => {
-    // When step 7 of the spec's order puts the light values in tokens.css, this expects 'light'.
+  it('sets color-scheme to the theme, so native controls follow it', () => {
     applyTheme('light');
     expect(document.documentElement.dataset.theme).toBe('light');
-    expect(document.documentElement.style.colorScheme).toBe('dark');
+    expect(document.documentElement.style.colorScheme).toBe('light');
   });
 
   it('never creates a theme-color meta tag', () => {

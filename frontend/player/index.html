@@ -6,7 +6,7 @@
     <meta name="theme-color" content="" />
     <script>
       // Theme before first paint (docs/plans/t9-theming.md): the saved choice, else the OS. Same key
-      // and rule as getStoredTheme() in src/theme/theme.ts. Dark only until step 7 adds light values.
+      // and rule as getStoredTheme() in src/theme/theme.ts.
       (function () {
         var theme = null;
         try {
@@ -15,7 +15,7 @@
         } catch (e) {}
         if (!theme) theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', theme);
-        document.documentElement.style.colorScheme = 'dark';
+        document.documentElement.style.colorScheme = theme;
       })();
     </script>
     <title>Buzzer</title>
