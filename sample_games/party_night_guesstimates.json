@@ -299,6 +299,24 @@
       "answer_data": {},
       "time_limit_seconds": 25,
       "points_value": 1.0
+    },
+    {
+      "type": "plot_point",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Just for fun: think of the last movie you watched. Tap where it lands: x = how good the story was, y = how good the acting was (0 to 10).",
+      "config": {
+        "xMax": 10,
+        "xMin": 0,
+        "yMax": 10,
+        "yMin": 0,
+        "xStep": 1,
+        "yStep": 1,
+        "xLabel": "Story",
+        "yLabel": "Acting"
+      },
+      "answer_data": {},
+      "time_limit_seconds": 45,
+      "points_value": 1.0
     }
   ],
   "images": [
