@@ -67,7 +67,10 @@ Cross-cutting ones. Each subdirectory's `CLAUDE.md` has the details.
   (the registry: structure rules, answer validation, score, reveal, distribution keys, payload
   extras). Scoring, the gateway, the summaries, the schemas and the report all call it. The
   report's badge colour and chart choice (`services/report_service.py`) are the only per-type
-  presentation left outside it. `QuestionUpdate` still has no structural validation.
+  presentation left outside it. The same rules guard create, update (the merged question is
+  re-validated in `game_admin_service.update_question`) and import. Six types are registered,
+  T7's `numeric_estimate` and `plot_point` among them; answer shapes are checked only for
+  multi_select, numeric_estimate and plot_point.
 - **Single-process assumption:** the gateway keeps sid context and timers in process memory, so
   the app can't scale past one worker even with the Redis socket.io manager.
 - **Deletes are two-datastore problems:** MySQL FKs mostly don't cascade. Game and session
