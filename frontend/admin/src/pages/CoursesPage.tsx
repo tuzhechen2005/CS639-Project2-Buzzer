@@ -154,10 +154,10 @@ export default function CoursesPage() {
   function gameRow(g: Game, extra?: React.ReactNode) {
     return (
       <div key={g.id} className="flex items-center justify-between gap-3 py-1.5">
-        <span className="flex items-center gap-2 text-sm text-slate-200 min-w-0">
+        <span className="flex items-center gap-2 text-sm text-fg min-w-0">
           <span className="truncate">{g.title}</span>
           {g.locked && (
-            <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-300 shrink-0">
+            <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-warning-subtle text-warning-text shrink-0">
               <Lock size={10} /> played
             </span>
           )}
@@ -181,17 +181,17 @@ export default function CoursesPage() {
   return (
     <div className="p-8 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-slate-100">Courses</h2>
+        <h2 className="text-2xl font-bold text-fg">Courses</h2>
         <Button onClick={() => { setShowForm(!showForm); setEditingCourse(null); }} size="sm">
           <Plus size={16} className="mr-1" /> New Course
         </Button>
       </div>
 
-      {error && <p className="text-red-400 mb-4 text-sm">{error}</p>}
+      {error && <p className="text-danger-text mb-4 text-sm">{error}</p>}
 
       {showForm && (
         <Card className="mb-6">
-          <CardHeader><h3 className="text-lg font-semibold text-slate-100">Create Course</h3></CardHeader>
+          <CardHeader><h3 className="text-lg font-semibold text-fg">Create Course</h3></CardHeader>
           <CardContent>
             <form onSubmit={handleCreate} className="flex gap-3 flex-wrap">
               <Input
@@ -217,7 +217,7 @@ export default function CoursesPage() {
 
       {editingCourse && (
         <Card className="mb-6">
-          <CardHeader><h3 className="text-lg font-semibold text-slate-100">Edit Course</h3></CardHeader>
+          <CardHeader><h3 className="text-lg font-semibold text-fg">Edit Course</h3></CardHeader>
           <CardContent>
             <form onSubmit={handleEdit} className="flex gap-3 flex-wrap">
               <Input
@@ -242,25 +242,25 @@ export default function CoursesPage() {
       )}
 
       {loading ? (
-        <p className="text-slate-400">Loading…</p>
+        <p className="text-fg-muted">Loading…</p>
       ) : (
         <div className="space-y-4">
           {unassignedGames.length > 0 && (
-            <Card className="border-amber-500/40">
+            <Card className="border-warning/40">
               <CardHeader>
-                <h3 className="font-semibold text-amber-400">Unassigned games</h3>
-                <p className="text-slate-400 text-sm">
+                <h3 className="font-semibold text-warning-text">Unassigned games</h3>
+                <p className="text-fg-muted text-sm">
                   These games had no course after the upgrade. They can't be run until you move each one
                   to a course; its HOSTs then get access to it.
                 </p>
               </CardHeader>
-              <CardContent className="divide-y divide-slate-700/60">
+              <CardContent className="divide-y divide-line">
                 {unassignedGames.map((g) => gameRow(g, (
                   <>
                     <select
                       value={moveTarget[g.id] ?? ''}
                       onChange={(e) => setMoveTarget((prev) => ({ ...prev, [g.id]: e.target.value }))}
-                      className="rounded-lg border border-slate-600 bg-slate-800 px-2 py-1 text-sm text-slate-100"
+                      className="rounded-lg border border-line-strong bg-surface-raised px-2 py-1 text-sm text-fg"
                     >
                       <option value="">Move to course…</option>
                       {realCourses.map((c) => (
@@ -282,7 +282,7 @@ export default function CoursesPage() {
           )}
 
           {realCourses.length === 0 ? (
-            <p className="text-slate-400">No courses yet. Create one above.</p>
+            <p className="text-fg-muted">No courses yet. Create one above.</p>
           ) : realCourses.map((c) => {
             const grants = access[c.id] ?? [];
             const hosts = grants.filter((a) => a.role === 'HOST');
@@ -293,8 +293,8 @@ export default function CoursesPage() {
                 <CardHeader>
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="font-semibold text-slate-100">{c.name}</p>
-                      <p className="text-slate-400 text-sm">{c.semester}</p>
+                      <p className="font-semibold text-fg">{c.name}</p>
+                      <p className="text-fg-muted text-sm">{c.semester}</p>
                     </div>
                     <div className="flex gap-2 shrink-0">
                       <Button variant="outline" size="sm" onClick={() => startEdit(c)} title="Edit course">
@@ -303,7 +303,7 @@ export default function CoursesPage() {
                       {/* The roster editor lives in the host app (works behind nginx on :8080). */}
                       <a
                         href={`/host/courses/${c.id}/roster`}
-                        className="inline-flex items-center justify-center rounded-lg font-semibold transition-colors border border-slate-600 text-slate-200 hover:bg-slate-700 px-3 py-1.5 text-sm"
+                        className="inline-flex items-center justify-center rounded-lg font-semibold transition-colors border border-line-strong text-fg hover:bg-surface-raised px-3 py-1.5 text-sm"
                       >
                         <Users size={14} className="mr-1" /> Roster
                       </a>
@@ -312,31 +312,31 @@ export default function CoursesPage() {
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-3 text-sm">
                   <div>
-                    <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">Hosts</p>
+                    <p className="text-xs uppercase tracking-wider text-fg-subtle mb-1">Hosts</p>
                     {hosts.length === 0 ? (
-                      <p className="text-slate-500">None</p>
+                      <p className="text-fg-subtle">None</p>
                     ) : hosts.map((a) => (
-                      <Link key={a.user_id} to={`/users/${a.user_id}`} className="block text-slate-200 hover:text-indigo-300">
+                      <Link key={a.user_id} to={`/users/${a.user_id}`} className="block text-fg hover:text-accent-text">
                         {accessName(a)}
                       </Link>
                     ))}
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">Players (explicit access)</p>
+                    <p className="text-xs uppercase tracking-wider text-fg-subtle mb-1">Players (explicit access)</p>
                     {players.length === 0 ? (
-                      <p className="text-slate-500">None</p>
+                      <p className="text-fg-subtle">None</p>
                     ) : players.map((a) => (
-                      <Link key={a.user_id} to={`/users/${a.user_id}`} className="block text-slate-200 hover:text-indigo-300">
+                      <Link key={a.user_id} to={`/users/${a.user_id}`} className="block text-fg hover:text-accent-text">
                         {accessName(a)}
                       </Link>
                     ))}
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">Games</p>
+                    <p className="text-xs uppercase tracking-wider text-fg-subtle mb-1">Games</p>
                     {courseGames.length === 0 ? (
-                      <p className="text-slate-500">None</p>
+                      <p className="text-fg-subtle">None</p>
                     ) : (
-                      <div className="divide-y divide-slate-700/60">
+                      <div className="divide-y divide-line">
                         {courseGames.map((g) => gameRow(g))}
                       </div>
                     )}
