@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Outlet, useNavigate, useParams } from 'react-router-dom';
+import { Outlet, useNavigate, useParams, type NavigateOptions, type To } from 'react-router-dom';
 import { isTokenExpired } from '../../lib/utils';
 import { io, Socket } from 'socket.io-client';
 import type {
@@ -46,6 +46,13 @@ export function useGame(): GameContextValue {
 export default function GameLayout() {
   const { code = '' } = useParams<{ code: string }>();
   const navigate = useNavigate();
+  // useNavigate() returns a new function after every route change (react-router v6
+  // without a data router). With it in the socket effect's deps, every phase change
+  // (lobby → question → feedback → results) tore the socket down and rejoined, and an
+  // event sent in that gap, such as question_results, was lost. The effect reads the
+  // latest navigate through this ref instead and only reconnects when the room changes.
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
   const socketRef = useRef<Socket | null>(null);
   // Ref mirrors phase so socket event closures (registered once) can read current value.
   const phaseRef = useRef<PlayerPhase>('lobby');
@@ -63,14 +70,15 @@ export default function GameLayout() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const go = (to: To, options?: NavigateOptions) => navigateRef.current(to, options);
     const token = localStorage.getItem('token');
     if (!token || isTokenExpired(token)) {
       localStorage.removeItem('token');
-      navigate(code ? `/name/${code}` : '/join', { replace: true });
+      go(code ? `/name/${code}` : '/join', { replace: true });
       return;
     }
     if (!code) {
-      navigate('/join', { replace: true });
+      go('/join', { replace: true });
       return;
     }
 
@@ -100,7 +108,7 @@ export default function GameLayout() {
       if (data.status === 'LOBBY') {
         setGameStatus('LOBBY');
         setPhase('lobby');
-        navigate(`/game/${code}/lobby`, { replace: true });
+        go(`/game/${code}/lobby`, { replace: true });
       } else if (data.status === 'IN_PROGRESS') {
         // Game already running — update state but don't navigate; new_question
         // (or question_results) will drive routing to the correct page.
@@ -120,7 +128,7 @@ export default function GameLayout() {
       setQuestionResults(null);
       setHostDisconnected(false);
       setPhase('question');
-      navigate(`/game/${code}/question`);
+      go(`/game/${code}/question`);
     });
 
     sock.on('question_locked', () => {
@@ -135,20 +143,20 @@ export default function GameLayout() {
       if (data.alreadyAnswered) return; // ignore duplicate-submit echo
       setAnswerResult(data);
       setPhase('feedback');
-      navigate(`/game/${code}/feedback`);
+      go(`/game/${code}/feedback`);
     });
 
     sock.on('question_results', (data: PlayerResultsPayload) => {
       setQuestionResults(data);
       setPhase('results');
-      navigate(`/game/${code}/results`);
+      go(`/game/${code}/results`);
     });
 
     sock.on('game_over', (data: PlayerGameOverPayload) => {
       phaseRef.current = 'gameover';
       setGameOver(data);
       setPhase('gameover');
-      navigate(`/game/${code}/gameover`);
+      go(`/game/${code}/gameover`);
       sock.disconnect();
     });
 
@@ -157,7 +165,7 @@ export default function GameLayout() {
     });
 
     sock.on('game_abandoned', () => {
-      navigate('/join', { replace: true });
+      go('/join', { replace: true });
     });
 
     sock.on('error', (data: { message: string }) => {
@@ -170,7 +178,7 @@ export default function GameLayout() {
       sock.disconnect();
       socketRef.current = null;
     };
-  }, [code, navigate]);
+  }, [code]);
 
   function emitAnswer(questionId: number, answerData: Record<string, unknown>, answerTimeMs: number) {
     setLastAnswerData(answerData);
