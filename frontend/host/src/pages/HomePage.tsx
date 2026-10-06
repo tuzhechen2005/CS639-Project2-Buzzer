@@ -4,6 +4,7 @@ import { ChevronRight } from 'lucide-react';
 import { api } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 interface Course { id: number; name: string; semester: string }
 interface ActiveSession {
@@ -112,12 +113,15 @@ export default function HomePage() {
 
       <Card className="w-full max-w-lg">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-fg">Your Courses</h1>
               <p className="text-fg-muted text-sm mt-1">Pick a course to manage its games, roster and past sessions</p>
             </div>
-            <Button variant="ghost" size="sm" onClick={logout}>Sign Out</Button>
+            <div className="flex items-center gap-2 shrink-0">
+              <ThemeToggle />
+              <Button variant="ghost" size="sm" onClick={logout}>Sign Out</Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-2">

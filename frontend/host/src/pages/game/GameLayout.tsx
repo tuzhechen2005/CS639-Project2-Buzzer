@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Outlet, useNavigate, useParams, type NavigateOptions, type To } from 'react-router-dom';
 import { api } from '../../lib/api';
+import { ThemeToggle } from '../../components/ThemeToggle';
 import { QRCodeSVG } from 'qrcode.react';
 import { io, Socket } from 'socket.io-client';
 import type {
@@ -248,6 +249,7 @@ export default function GameLayout() {
           <p className="text-fg-subtle text-[10px] uppercase tracking-widest leading-none mb-0.5">Room Code</p>
           <p className="text-fg font-mono font-black tracking-widest text-lg leading-none">{code}</p>
         </div>
+        <ThemeToggle />
       </div>
     </GameContext.Provider>
   );

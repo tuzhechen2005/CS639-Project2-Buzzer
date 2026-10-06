@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useMatch, useOutletContext, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { api } from '../../lib/api';
+import { ThemeToggle } from '../../components/ThemeToggle';
 
 export interface Course { id: number; name: string; semester: string }
 
@@ -50,6 +51,7 @@ export default function CourseLayout() {
   if (state !== 'ready' || !course) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
+        <ThemeToggle className="fixed top-4 right-4" />
         <div className="text-center space-y-4">
           <p className="text-fg-muted text-lg">
             {state === 'error' ? error : "You don't have access to this course."}
@@ -70,9 +72,12 @@ export default function CourseLayout() {
           >
             <ArrowLeft size={14} /> {onEditor ? 'Back to Games' : 'All courses'}
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-fg">{course.name}</h1>
-            <p className="text-fg-muted text-sm">{course.semester}</p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-fg">{course.name}</h1>
+              <p className="text-fg-muted text-sm">{course.semester}</p>
+            </div>
+            <ThemeToggle />
           </div>
           {!onEditor && (
             <nav className="inline-flex gap-1 bg-surface-raised rounded-lg p-1">
