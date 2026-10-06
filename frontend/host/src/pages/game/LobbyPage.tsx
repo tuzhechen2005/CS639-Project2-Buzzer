@@ -16,7 +16,7 @@ export default function LobbyPage() {
       )}
 
       {/* Join instructions */}
-      <p className="text-fg-muted text-base uppercase tracking-widest">
+      <p className="text-fg-muted text-xl uppercase tracking-widest">
         Scan QR code or go to <span className="text-fg">{window.location.host}/player</span>
       </p>
 
@@ -27,7 +27,7 @@ export default function LobbyPage() {
         </div>
 
         <div className="text-center">
-          <p className="text-fg-muted text-xs uppercase tracking-widest mb-2">Room Code</p>
+          <p className="text-fg-muted text-base uppercase tracking-widest mb-2">Room Code</p>
           <div className="bg-surface border-2 border-accent rounded-2xl px-10 py-5 inline-block">
             <p className="text-8xl font-black tracking-widest text-fg font-mono">{roomCode}</p>
           </div>
@@ -52,7 +52,7 @@ export default function LobbyPage() {
         <div className={`w-12 h-6 rounded-full transition-colors relative ${autoAdvance ? 'bg-accent' : 'bg-line-strong'}`}>
           <div className={`absolute top-1 w-4 h-4 rounded-full bg-surface shadow transition-transform ${autoAdvance ? 'translate-x-7' : 'translate-x-1'}`} />
         </div>
-        <span className="text-fg-muted text-sm group-hover:text-fg transition-colors select-none">
+        <span className="text-fg-muted text-xl group-hover:text-fg transition-colors select-none">
           Auto-advance — run game hands-free
         </span>
       </button>

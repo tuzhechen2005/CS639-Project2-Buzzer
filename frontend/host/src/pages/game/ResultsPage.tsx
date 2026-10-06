@@ -78,12 +78,12 @@ function WordCloud({ distribution, answerReveal, totalAnswered, totalPlayers }: 
   return (
     <div className="w-full max-w-3xl flex flex-col gap-4">
       {isAccuracy && acceptedAnswers.length > 0 && (
-        <p className="text-center text-fg-muted text-base">
+        <p className="text-center text-fg-muted text-xl">
           Correct answer:{' '}
           <span className="text-success-text font-semibold">
             {(answerReveal as { acceptedAnswers: string[] }).acceptedAnswers.join(' / ')}
             {editDistance > 0 && (
-              <span className="text-fg-subtle font-normal text-sm ml-1">(±{editDistance})</span>
+              <span className="text-fg-subtle font-normal ml-1">(±{editDistance})</span>
             )}
           </span>
         </p>
@@ -109,11 +109,11 @@ function WordCloud({ distribution, answerReveal, totalAnswered, totalPlayers }: 
           </span>
         ))}
         {entries.length === 0 && (
-          <p className="text-fg-subtle text-sm">No answers submitted</p>
+          <p className="text-fg-subtle text-xl">No answers submitted</p>
         )}
       </div>
 
-      <p className="text-fg-subtle text-sm text-right">
+      <p className="text-fg-muted text-xl text-right">
         {totalAnswered} / {totalPlayers} answered
       </p>
     </div>
@@ -136,7 +136,7 @@ function AnswerBarChart({ bars, totalAnswered, totalPlayers, wideLabels }: BarCh
   const anyImage = bars.some(b => b.imageId);
 
   return (
-    <div className="w-full max-w-2xl space-y-3">
+    <div className="w-full max-w-4xl space-y-3">
       {bars.map((bar, i) => {
         const pct = Math.round((bar.count / maxCount) * 100);
         // Fill and the count printed inside it (docs/plans/t9-theming.md, host result bars).
@@ -155,7 +155,10 @@ function AnswerBarChart({ bars, totalAnswered, totalPlayers, wideLabels }: BarCh
 
         return (
           <div key={i} className="flex items-center gap-3">
-            <span className={`text-fg-muted font-bold font-mono text-right shrink-0 ${wideLabels ? 'w-44' : 'w-8'}`}>
+            <span
+              title={bar.label}
+              className={`text-xl font-semibold text-right truncate shrink-0 ${wideLabels ? 'w-56' : 'w-48'} ${bar.correct === true ? 'text-success-text' : 'text-fg-muted'}`}
+            >
               {bar.label}
             </span>
             {anyImage && (
@@ -168,27 +171,33 @@ function AnswerBarChart({ bars, totalAnswered, totalPlayers, wideLabels }: BarCh
                 />
               </span>
             )}
-            <div className="flex-1 bg-surface-raised rounded-full h-10 overflow-hidden">
-              <div
-                className={`h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500 ${barColor}`}
-                style={{ width: `${Math.max(pct, bar.count > 0 ? 4 : 0)}%` }}
-              >
-                {bar.count > 0 && (
-                  <span className={`font-bold text-sm ${countColor}`}>{bar.count}</span>
-                )}
-              </div>
+            <div className="flex-1 bg-surface-raised rounded-full h-12 overflow-hidden">
+              {/* No fill at all for zero answers: padding alone would draw a stub. */}
+              {bar.count > 0 && (
+                <div
+                  className={`h-full min-w-16 rounded-full flex items-center justify-end pr-4 transition-all duration-500 ${barColor}`}
+                  style={{ width: `${pct}%` }}
+                >
+                  <span className={`text-2xl font-semibold tabular-nums ${countColor}`}>{bar.count}</span>
+                </div>
+              )}
             </div>
-            {bar.correct === true && (
-              <span className="text-success-text text-sm font-semibold shrink-0">✓ Correct</span>
-            )}
-            {bar.count === 0 && bar.correct !== true && (
-              <span className="text-fg-subtle text-sm shrink-0">0</span>
-            )}
+            {/* One fixed-width column, so every track has the same length. */}
+            <span className="w-40 shrink-0 inline-flex items-center gap-3">
+              {bar.count === 0 && (
+                <span className="text-fg-muted text-2xl font-semibold tabular-nums">0</span>
+              )}
+              {bar.correct === true && (
+                <span className="text-success-text text-xl font-semibold inline-flex items-center gap-1">
+                  <Check aria-hidden className="h-5 w-5" strokeWidth={3} /> Correct
+                </span>
+              )}
+            </span>
           </div>
         );
       })}
 
-      <p className="text-fg-subtle text-sm text-right pt-1">
+      <p className="text-fg-muted text-xl text-right pt-1">
         {totalAnswered} / {totalPlayers} answered
       </p>
     </div>
@@ -335,7 +344,7 @@ export default function ResultsPage() {
             scale={1.5}
             className="w-full max-w-4xl h-[60vh]"
           />
-          <p className="text-fg-muted text-lg">
+          <p className="text-fg-muted text-xl">
             {questionResults.totalAnswered} / {questionResults.totalPlayers} answered
           </p>
         </>
@@ -367,7 +376,7 @@ export default function ResultsPage() {
           {isLast ? 'Show Final Results' : 'Next Question'}
         </Button>
         {autoAdvance && (
-          <p className="text-fg-subtle text-sm tabular-nums">
+          <p className="text-fg-muted text-xl tabular-nums">
             Auto-advancing in {countdown}s
           </p>
         )}

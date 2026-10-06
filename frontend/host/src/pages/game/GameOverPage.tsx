@@ -63,7 +63,7 @@ function AnswerBar({ label, count, total, correct, colorClass }: {
   const pct = total > 0 ? (count / total) * 100 : 0;
   return (
     <div className="flex items-center gap-3">
-      <span className={`w-6 text-center font-bold text-sm shrink-0 ${correct ? 'text-success-text' : 'text-fg-muted'}`}>
+      <span className={`w-6 text-center font-bold text-base shrink-0 ${correct ? 'text-success-text' : 'text-fg-muted'}`}>
         {label}
       </span>
       <div className="flex-1 h-6 bg-surface-raised rounded overflow-hidden">
@@ -72,10 +72,10 @@ function AnswerBar({ label, count, total, correct, colorClass }: {
           style={{ width: `${Math.max(pct, count > 0 ? 2 : 0)}%` }}
         />
       </div>
-      <span className={`w-8 text-right text-sm font-semibold shrink-0 ${correct ? 'text-success-text' : 'text-fg-muted'}`}>
+      <span className={`w-8 text-right text-base font-semibold shrink-0 ${correct ? 'text-success-text' : 'text-fg-muted'}`}>
         {count}
       </span>
-      {correct && <span className="text-success-text text-xs font-bold shrink-0">✓</span>}
+      {correct && <span className="text-success-text text-sm font-bold shrink-0">✓</span>}
       {!correct && <span className="w-4 shrink-0" />}
     </div>
   );
@@ -122,21 +122,21 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-fg-subtle text-xs uppercase tracking-widest font-semibold">
+          <span className="text-fg-subtle text-sm uppercase tracking-widest font-semibold">
             Q{index + 1}
           </span>
           <span className="text-fg-subtle">·</span>
-          <span className="text-fg-muted text-xs uppercase tracking-widest">
+          <span className="text-fg-muted text-sm uppercase tracking-widest">
             {typeLabel[type] ?? type}
           </span>
           <span className="text-fg-subtle">·</span>
-          <span className={`text-xs uppercase tracking-widest font-semibold ${gradingType === 'COMPLETENESS' ? 'text-warning-text' : 'text-accent-text'}`}>
+          <span className={`text-sm uppercase tracking-widest font-semibold ${gradingType === 'COMPLETENESS' ? 'text-warning-text' : 'text-accent-text'}`}>
             {gradingType === 'COMPLETENESS' ? 'Participation' : 'Accuracy'}
           </span>
           <span className="text-fg-subtle">·</span>
-          <span className="text-fg-muted text-xs">{pointsValue} {pointsValue === 1 ? 'pt' : 'pts'}</span>
+          <span className="text-fg-muted text-sm">{pointsValue} {pointsValue === 1 ? 'pt' : 'pts'}</span>
         </div>
-        <div className="text-right text-xs text-fg-subtle shrink-0">
+        <div className="text-right text-sm text-fg-subtle shrink-0">
           <span className="text-fg-muted font-semibold">{totalAnswered}</span>/{totalPlayers} answered
           {avgAnswerTimeMs !== null && (
             <span className="ml-2 text-fg-subtle">· avg {(avgAnswerTimeMs / 1000).toFixed(1)}s</span>
@@ -145,7 +145,7 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
       </div>
 
       {/* Prompt */}
-      <p className="text-fg text-lg font-semibold leading-snug"><PromptText prompt={prompt} /></p>
+      <p className="text-fg text-xl font-semibold leading-snug"><PromptText prompt={prompt} /></p>
       {!plotConfig && (
         <QuestionImage imageId={config.image_id} alt="Image for the question" className="h-32 w-full max-w-sm" align="left" />
       )}
@@ -157,7 +157,7 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
           const correct = isCorrectIndex(i);
           return (
             <div key={i} className="space-y-0.5">
-              <div className="flex items-center gap-2 text-xs text-fg-muted">
+              <div className="flex items-center gap-2 text-sm text-fg-muted">
                 <span className={`font-bold ${correct ? 'text-success-text' : ''}`}>{optionLabel(i)}.</span>
                 <QuestionImage
                   imageId={config.option_image_ids?.[i]}
@@ -195,12 +195,12 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
 
         {type === 'numeric_estimate' && reveal.type === 'numeric_estimate' && (
           <div className="space-y-2">
-            <p className="text-fg text-base font-semibold">
+            <p className="text-fg text-lg font-semibold">
               Target: <span className="text-success-text">{withUnit((reveal as NumericReveal).target, config.unit)}</span>
             </p>
             {buildNumericBars(reveal as NumericReveal, answerDistribution, config.unit).map((bar, i) => (
               <div key={i} className="space-y-0.5">
-                <span className={`text-xs ${bar.correct ? 'text-success-text' : 'text-fg-muted'}`}>{bar.label}</span>
+                <span className={`text-sm ${bar.correct ? 'text-success-text' : 'text-fg-muted'}`}>{bar.label}</span>
                 <AnswerBar
                   label=""
                   count={bar.count}
@@ -215,7 +215,7 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
 
         {plotConfig && (
           <div className="space-y-2">
-            <p className="text-fg text-base font-semibold">
+            <p className="text-fg text-lg font-semibold">
               {plotReveal ? (
                 <>Target: <span className="text-success-text">{targetText(plotConfig, plotReveal)}</span></>
               ) : (
@@ -235,7 +235,7 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
         {type === 'fill_in_the_blank' && (
           <div className="space-y-2">
             {reveal.type === 'fill_in_the_blank' && (
-              <p className="text-fg-muted text-sm">
+              <p className="text-fg-muted text-base">
                 Accepted:{' '}
                 {(reveal as { type: 'fill_in_the_blank'; acceptedAnswers: string[]; editDistance: number }).acceptedAnswers.map((a, i, arr) => (
                   <span key={i}>
@@ -255,7 +255,7 @@ function QuestionCard({ item, index }: { item: HostQuestionSummaryItem; index: n
       </div>
 
       {/* Footer stats */}
-      <div className="flex items-center gap-4 pt-1 border-t border-line text-sm">
+      <div className="flex items-center gap-4 pt-1 border-t border-line text-base">
         {gradingType === 'ACCURACY' ? (
           <>
             <span className="text-success-text font-semibold">{correctCount} correct</span>
@@ -305,18 +305,18 @@ export default function GameOverPage() {
     <div className="min-h-screen flex flex-col items-center p-8 gap-8">
       <div className="text-center">
         <h1 className="text-5xl font-black text-fg">Game Over!</h1>
-        <p className="text-fg-muted mt-2">{playerCount} players · Max possible: {maxPossibleScore.toLocaleString()} pts</p>
+        <p className="text-fg-muted text-xl mt-2">{playerCount} players · Max possible: {maxPossibleScore.toLocaleString()} pts</p>
       </div>
 
       {/* Histogram */}
       <div className="w-full max-w-3xl">
-        <p className="text-fg-muted text-sm uppercase tracking-widest text-center mb-4">Score Distribution</p>
-        <div className="flex items-end gap-2 h-48">
+        <p className="text-fg-muted text-base uppercase tracking-widest text-center mb-4">Score Distribution</p>
+        <div className="flex items-end gap-2">
           {buckets.map((bucket, i) => {
             const heightPct = (bucket.count / maxCount) * 100;
             return (
               <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                <span className="text-fg-muted text-sm font-semibold">
+                <span className="text-fg-muted text-2xl font-semibold tabular-nums">
                   {bucket.count > 0 ? bucket.count : ''}
                 </span>
                 <div className="w-full bg-surface-raised rounded-t-lg relative" style={{ height: '160px' }}>
@@ -325,27 +325,27 @@ export default function GameOverPage() {
                     style={{ height: `${Math.max(heightPct, bucket.count > 0 ? 4 : 0)}%` }}
                   />
                 </div>
-                <span className="text-fg-subtle text-xs">{bucket.label}</span>
+                <span className="text-fg-subtle text-base">{bucket.label}</span>
               </div>
             );
           })}
         </div>
-        <p className="text-fg-subtle text-xs text-center mt-1">Score (points) →</p>
+        <p className="text-fg-subtle text-base text-center mt-1">Score (points) →</p>
       </div>
 
       {/* Summary stats */}
       <div className="flex gap-12 text-center">
         <div>
-          <p className="text-fg-muted text-xs uppercase tracking-widest">Average</p>
-          <p className="text-fg text-2xl font-bold">{avg.toLocaleString()}</p>
+          <p className="text-fg-muted text-base uppercase tracking-widest">Average</p>
+          <p className="text-fg text-5xl font-bold tabular-nums">{avg.toLocaleString()}</p>
         </div>
         <div>
-          <p className="text-fg-muted text-xs uppercase tracking-widest">High Score</p>
-          <p className="text-fg text-2xl font-bold">{high.toLocaleString()}</p>
+          <p className="text-fg-muted text-base uppercase tracking-widest">High Score</p>
+          <p className="text-fg text-5xl font-bold tabular-nums">{high.toLocaleString()}</p>
         </div>
         <div>
-          <p className="text-fg-muted text-xs uppercase tracking-widest">Players</p>
-          <p className="text-fg text-2xl font-bold">{playerCount}</p>
+          <p className="text-fg-muted text-base uppercase tracking-widest">Players</p>
+          <p className="text-fg text-5xl font-bold tabular-nums">{playerCount}</p>
         </div>
       </div>
 
@@ -354,7 +354,7 @@ export default function GameOverPage() {
       {/* Per-question breakdown */}
       {questionSummary.length > 0 && (
         <div className="w-full max-w-3xl space-y-4 pb-8">
-          <p className="text-fg-muted text-sm uppercase tracking-widest text-center">
+          <p className="text-fg-muted text-base uppercase tracking-widest text-center">
             Question Breakdown
           </p>
           {questionSummary.map((item, i) => (

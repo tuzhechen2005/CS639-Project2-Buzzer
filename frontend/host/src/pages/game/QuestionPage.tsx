@@ -53,7 +53,7 @@ export default function QuestionPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8 gap-8">
-      <div className="flex items-center gap-3 text-sm uppercase tracking-wider">
+      <div className="flex items-center gap-3 text-base uppercase tracking-wider">
         <span className="text-fg-muted">
           Question {currentQuestion.questionNumber} of {currentQuestion.totalQuestions}
         </span>
@@ -89,7 +89,7 @@ export default function QuestionPage() {
       )}
 
       {currentQuestion.type === 'numeric_estimate' && currentQuestion.config.unit && !questionLocked && (
-        <p className="text-fg-muted text-lg">Answer in {currentQuestion.config.unit}</p>
+        <p className="text-fg-muted text-xl">Answer in {currentQuestion.config.unit}</p>
       )}
 
       {!questionLocked && plotConfig && (
