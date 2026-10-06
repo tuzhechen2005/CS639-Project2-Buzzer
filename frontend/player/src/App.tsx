@@ -8,6 +8,7 @@ import QuestionPage from './pages/game/QuestionPage';
 import FeedbackPage from './pages/game/FeedbackPage';
 import ResultsPage from './pages/game/ResultsPage';
 import GameOverPage from './pages/game/GameOverPage';
+import { ThemeToggle } from './components/ThemeToggle';
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
         </Route>
         <Route path="*" element={<Navigate to="/join" replace />} />
       </Routes>
+      <ThemeToggle />
     </BrowserRouter>
   );
 }
