@@ -31,6 +31,14 @@ export function PlotCanvas({ config, imageId, point, onPoint, disabled, classNam
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [layout, setLayout] = useState<PlotLayout | null>(null);
+  // Bumped on every theme change, so the canvas redraws with the new token colours.
+  const [themeVersion, setThemeVersion] = useState(0);
+
+  useEffect(() => {
+    const onThemeChange = () => setThemeVersion((v) => v + 1);
+    window.addEventListener('themechange', onThemeChange);
+    return () => window.removeEventListener('themechange', onThemeChange);
+  }, []);
 
   // Size follows the parent box (resize and rotation both change it).
   useEffect(() => {
@@ -71,7 +79,7 @@ export function PlotCanvas({ config, imageId, point, onPoint, disabled, classNam
     drawPlane(ctx, config, l, palette, size.width, size.height, image);
     if (point) drawPlayerPoint(ctx, l, point, palette);
     setLayout(l);
-  }, [config, size, image, point]);
+  }, [config, size, image, point, themeVersion]);
 
   // Locking ends a drag in progress; the point stays where it is.
   useEffect(() => {
