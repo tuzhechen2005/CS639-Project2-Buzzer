@@ -2,7 +2,8 @@
 
 ## Purpose
 The Host React app (Vite + TypeScript + Tailwind), packaged as its own npm project. It is the
-instructor's big-screen display; see `src/CLAUDE.md` for how the app itself works.
+instructor's app: course management (games, questions, roster, past sessions) and the big-screen
+game display; see `src/CLAUDE.md` for how the app itself works.
 
 ## Contents
 - `src/` — all application code; see `src/CLAUDE.md`.

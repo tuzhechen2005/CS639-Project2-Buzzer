@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Download } from 'lucide-react';
-import { api } from '../lib/api';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Card, CardContent, CardHeader } from '../components/ui/card';
+import { Plus, Trash2, ChevronUp, ChevronDown, Download, Copy, Lock, Pencil } from 'lucide-react';
+import { api } from '../../lib/api';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Card, CardContent, CardHeader } from '../../components/ui/card';
+import type { Game } from './GamesTab';
 
 type QuestionType = 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'multi_select';
 type GradingType = 'ACCURACY' | 'COMPLETENESS';
@@ -20,8 +21,6 @@ interface Question {
   points_value: number;
   order_index: number;
 }
-
-interface Game { id: number; title: string }
 
 // ---- helpers for building config/answer_data per type ----
 
@@ -223,7 +222,7 @@ function QuestionForm({
         <textarea
           className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm"
           rows={3}
-          placeholder="Question text\u2026"
+          placeholder="Question text…"
           value={form.prompt}
           onChange={(e) => set('prompt', e.target.value)}
           required
@@ -490,7 +489,7 @@ function QuestionForm({
 
       <div className="flex gap-3">
         <Button type="button" onClick={() => onSave(formToPayload(form))} disabled={saving}>
-          {saving ? 'Saving\u2026' : 'Save Question'}
+          {saving ? 'Saving…' : 'Save Question'}
         </Button>
         <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
       </div>
@@ -500,8 +499,13 @@ function QuestionForm({
 
 // ---- Main page ----
 
+/**
+ * A game's questions, under its course (`/courses/:courseId/games/:gameId/questions`).
+ * Locked games (with recorded answers) are read-only apart from the title, description
+ * and max players; Duplicate makes an editable copy.
+ */
 export default function QuestionEditorPage() {
-  const { gameId } = useParams<{ gameId: string }>();
+  const { courseId, gameId } = useParams<{ courseId: string; gameId: string }>();
   const navigate = useNavigate();
   const [game, setGame] = useState<Game | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -511,33 +515,89 @@ export default function QuestionEditorPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
+  // Game details header
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [detailTitle, setDetailTitle] = useState('');
+  const [detailDescription, setDetailDescription] = useState('');
+  const [detailMaxPlayers, setDetailMaxPlayers] = useState('');
+  const [detailSaving, setDetailSaving] = useState(false);
 
   async function load() {
+    let redirected = false;
     try {
       const [g, qs] = await Promise.all([
-        api.get<Game>(`/admin/games/${gameId}`),
-        api.get<Question[]>(`/admin/games/${gameId}/questions`),
+        api.get<Game>(`/games/${gameId}`),
+        api.get<Question[]>(`/games/${gameId}/questions`),
       ]);
+      if (String(g.course_id) !== courseId) {
+        // The game belongs to another course: show it under the right one. Keep the
+        // spinner up until the new route loads, so "Game not found" doesn't flash.
+        redirected = true;
+        navigate(`/courses/${g.course_id}/games/${g.id}/questions`, { replace: true });
+        return;
+      }
       setGame(g);
       setQuestions(qs);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load');
     } finally {
-      setLoading(false);
+      if (!redirected) setLoading(false);
     }
   }
 
-  useEffect(() => { void load(); }, [gameId]);
+  useEffect(() => {
+    // The page stays mounted when only gameId changes (Duplicate opens the copy in the same
+    // course), so drop the previous game: a failed load must not leave it on screen while
+    // edits post to the new id.
+    setGame(null);
+    setQuestions([]);
+    setError('');
+    setLoading(true);
+    setShowAddForm(false);
+    setEditingId(null);
+    setEditingDetails(false);
+    void load();
+  }, [courseId, gameId]);
+
+  function startEditDetails(g: Game) {
+    setDetailTitle(g.title);
+    setDetailDescription(g.description);
+    setDetailMaxPlayers(String(g.max_players));
+    setEditingDetails(true);
+  }
+
+  async function saveDetails(e: React.FormEvent) {
+    e.preventDefault();
+    setDetailSaving(true);
+    setError('');
+    try {
+      const updated = await api.put<Game>(`/games/${gameId}`, {
+        title: detailTitle,
+        description: detailDescription,
+        max_players: Number(detailMaxPlayers),
+      });
+      setGame(updated);
+      setEditingDetails(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save game details');
+    } finally {
+      setDetailSaving(false);
+    }
+  }
 
   async function addQuestion(payload: ReturnType<typeof formToPayload>) {
     setSaving(true);
     setError('');
     try {
-      await api.post(`/admin/games/${gameId}/questions`, payload);
+      await api.post(`/games/${gameId}/questions`, payload);
       setShowAddForm(false);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save question');
+      // The game may have been played or opened in a room meanwhile (409); reload so
+      // the page shows its current state.
+      await load();
     } finally {
       setSaving(false);
     }
@@ -547,11 +607,12 @@ export default function QuestionEditorPage() {
     setSaving(true);
     setError('');
     try {
-      await api.put(`/admin/games/${gameId}/questions/${id}`, payload);
+      await api.put(`/games/${gameId}/questions/${id}`, payload);
       setEditingId(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update question');
+      await load();
     } finally {
       setSaving(false);
     }
@@ -559,11 +620,13 @@ export default function QuestionEditorPage() {
 
   async function deleteQuestion(id: number) {
     if (!confirm('Delete this question?')) return;
+    setError('');
     try {
-      await api.delete(`/admin/games/${gameId}/questions/${id}`);
+      await api.delete(`/games/${gameId}/questions/${id}`);
       setQuestions((prev) => prev.filter((q) => q.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete question');
+      await load();
     }
   }
 
@@ -572,13 +635,16 @@ export default function QuestionEditorPage() {
     const target = index + direction;
     if (target < 0 || target >= newOrder.length) return;
     [newOrder[index], newOrder[target]] = [newOrder[target], newOrder[index]];
+    setError('');
     try {
-      await api.post(`/admin/games/${gameId}/questions/reorder`, {
+      await api.post(`/games/${gameId}/questions/reorder`, {
         order: newOrder.map((q) => q.id),
       });
       setQuestions(newOrder);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reorder');
+      // A co-host may have changed the questions; show the current list.
+      await load();
     }
   }
 
@@ -586,11 +652,24 @@ export default function QuestionEditorPage() {
     setDownloading(true);
     setError('');
     try {
-      await api.download(`/admin/games/${gameId}/export`);
+      await api.download(`/games/${gameId}/export`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Export failed');
     } finally {
       setDownloading(false);
+    }
+  }
+
+  async function handleDuplicate() {
+    setDuplicating(true);
+    setError('');
+    try {
+      const copy = await api.post<Game>(`/games/${gameId}/duplicate`);
+      navigate(`/courses/${copy.course_id}/games/${copy.id}/questions`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to duplicate game');
+    } finally {
+      setDuplicating(false);
     }
   }
 
@@ -601,41 +680,92 @@ export default function QuestionEditorPage() {
     multi_select: 'Multi',
   };
 
-  if (loading) return <div className="p-8 text-slate-400">Loading\u2026</div>;
+  if (loading) return <div className="text-slate-400">Loading…</div>;
+  if (!game) return <p className="text-red-400 text-sm">{error || 'Game not found.'}</p>;
+
+  const locked = game.locked;
 
   return (
-    <div className="p-8 max-w-4xl space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <button
-            onClick={() => navigate('/games')}
-            className="flex items-center gap-2 text-slate-400 hover:text-slate-100 text-sm mb-2"
-          >
-            <ArrowLeft size={14} /> Back to Games
-          </button>
-          <h2 className="text-2xl font-bold text-slate-100">{game?.title}</h2>
-          <p className="text-slate-400 text-sm mt-0.5">{questions.length} question{questions.length !== 1 ? 's' : ''}</p>
+    <div className="max-w-4xl space-y-6">
+      {/* Game details */}
+      <Card>
+        {editingDetails ? (
+          <>
+            <CardHeader><h3 className="text-lg font-semibold text-slate-100">Game details</h3></CardHeader>
+            <CardContent>
+              <form onSubmit={saveDetails} className="space-y-3">
+                <Input placeholder="Title" value={detailTitle} onChange={(e) => setDetailTitle(e.target.value)} required />
+                <textarea
+                  placeholder="Description (optional)"
+                  value={detailDescription}
+                  onChange={(e) => setDetailDescription(e.target.value)}
+                  className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                  rows={3}
+                />
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Max players</label>
+                  <Input
+                    type="number"
+                    value={detailMaxPlayers}
+                    onChange={(e) => setDetailMaxPlayers(e.target.value)}
+                    min="1"
+                    max="500"
+                    className="w-32"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <Button type="submit" disabled={detailSaving}>{detailSaving ? 'Saving…' : 'Save'}</Button>
+                  <Button type="button" variant="ghost" onClick={() => setEditingDetails(false)}>Cancel</Button>
+                </div>
+              </form>
+            </CardContent>
+          </>
+        ) : (
+          <div className="flex items-start justify-between gap-4 px-6 py-4">
+            <div className="min-w-0">
+              <h2 className="text-2xl font-bold text-slate-100">{game.title}</h2>
+              {game.description && <p className="text-slate-400 text-sm mt-1">{game.description}</p>}
+              <p className="text-slate-500 text-xs mt-1">
+                {questions.length} question{questions.length !== 1 ? 's' : ''} · Max {game.max_players} players
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Button variant="outline" size="sm" onClick={() => startEditDetails(game)}>
+                <Pencil size={14} className="mr-1" /> Edit details
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => void handleExport()} disabled={downloading}>
+                <Download size={14} className="mr-1" />
+                {downloading ? 'Exporting…' : 'Export JSON'}
+              </Button>
+              {locked ? (
+                <Button size="sm" onClick={() => void handleDuplicate()} disabled={duplicating}>
+                  <Copy size={14} className="mr-1" /> {duplicating ? 'Duplicating…' : 'Duplicate to edit'}
+                </Button>
+              ) : (
+                <Button size="sm" onClick={() => { setShowAddForm(true); setEditingId(null); }}>
+                  <Plus size={14} className="mr-1" /> Add Question
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {locked && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-900/20 px-4 py-3 text-sm text-amber-200">
+          <Lock size={16} className="mt-0.5 shrink-0" />
+          <p>
+            This game has been played and has recorded answers, so its questions can't be changed
+            (past scores and reports depend on them). Use <strong>Duplicate to edit</strong> to make an
+            editable copy. The title, description and max players can still be edited.
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void handleExport()}
-            disabled={downloading}
-          >
-            <Download size={14} className="mr-1" />
-            {downloading ? 'Exporting\u2026' : 'Export JSON'}
-          </Button>
-          <Button size="sm" onClick={() => { setShowAddForm(true); setEditingId(null); }}>
-            <Plus size={14} className="mr-1" /> Add Question
-          </Button>
-        </div>
-      </div>
+      )}
 
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
       {/* Add question form */}
-      {showAddForm && (
+      {showAddForm && !locked && (
         <Card>
           <CardHeader><h3 className="font-semibold text-slate-100">New Question</h3></CardHeader>
           <CardContent>
@@ -657,7 +787,7 @@ export default function QuestionEditorPage() {
       <div className="space-y-4">
         {questions.map((q, i) => (
           <Card key={q.id}>
-            {editingId === q.id ? (
+            {editingId === q.id && !locked ? (
               <>
                 <CardHeader>
                   <h3 className="font-semibold text-slate-100">Edit Question {i + 1}</h3>
@@ -674,22 +804,26 @@ export default function QuestionEditorPage() {
             ) : (
               <div className="flex items-start gap-4 px-6 py-4">
                 {/* Reorder buttons */}
-                <div className="flex flex-col gap-1 mt-1">
-                  <button
-                    onClick={() => void moveQuestion(i, -1)}
-                    disabled={i === 0}
-                    className="text-slate-500 hover:text-slate-200 disabled:opacity-20"
-                  >
-                    <ChevronUp size={16} />
-                  </button>
-                  <button
-                    onClick={() => void moveQuestion(i, 1)}
-                    disabled={i === questions.length - 1}
-                    className="text-slate-500 hover:text-slate-200 disabled:opacity-20"
-                  >
-                    <ChevronDown size={16} />
-                  </button>
-                </div>
+                {!locked && (
+                  <div className="flex flex-col gap-1 mt-1">
+                    <button
+                      onClick={() => void moveQuestion(i, -1)}
+                      disabled={i === 0}
+                      className="text-slate-500 hover:text-slate-200 disabled:opacity-20"
+                      title="Move up"
+                    >
+                      <ChevronUp size={16} />
+                    </button>
+                    <button
+                      onClick={() => void moveQuestion(i, 1)}
+                      disabled={i === questions.length - 1}
+                      className="text-slate-500 hover:text-slate-200 disabled:opacity-20"
+                      title="Move down"
+                    >
+                      <ChevronDown size={16} />
+                    </button>
+                  </div>
+                )}
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -700,7 +834,7 @@ export default function QuestionEditorPage() {
                     <span className="px-1.5 py-0.5 rounded text-xs bg-slate-700 text-slate-300">
                       {q.grading_type}
                     </span>
-                    <span className="text-slate-500 text-xs">{q.time_limit_seconds}s \u00b7 {q.points_value}pts</span>
+                    <span className="text-slate-500 text-xs">{q.time_limit_seconds}s · {q.points_value}pts</span>
                   </div>
                   <p className="text-slate-100 text-sm leading-relaxed">{q.prompt}</p>
 
@@ -711,7 +845,7 @@ export default function QuestionEditorPage() {
                         return (
                           <div key={oi} className="flex items-center gap-2 text-xs">
                             <span className={pts > 0 ? 'text-green-400' : 'text-slate-500'}>
-                              {pts > 0 ? '\u2713' : '\u25cb'}
+                              {pts > 0 ? '✓' : '○'}
                             </span>
                             <span className={pts > 0 ? 'text-slate-200' : 'text-slate-400'}>{opt}</span>
                             {pts > 0 && <span className="text-slate-500">({pts}pts)</span>}
@@ -738,7 +872,7 @@ export default function QuestionEditorPage() {
                     <div className="mt-2 text-xs text-slate-400">
                       Accepted: {((q.answer_data['acceptedAnswers'] as string[]) ?? []).join(', ')}
                       {(q.answer_data['editDistance'] as number) > 0 && (
-                        <span className="ml-2 text-slate-500">(\u00b1{q.answer_data['editDistance'] as number} edit distance)</span>
+                        <span className="ml-2 text-slate-500">(±{q.answer_data['editDistance'] as number} edit distance)</span>
                       )}
                     </div>
                   )}
@@ -751,7 +885,7 @@ export default function QuestionEditorPage() {
                         return (
                           <div key={oi} className="flex items-center gap-2 text-xs">
                             <span className={isCorrect ? 'text-green-400' : pts < 0 ? 'text-red-400' : 'text-slate-500'}>
-                              {isCorrect ? '\u2713' : pts < 0 ? '\u2212' : '\u25cb'}
+                              {isCorrect ? '✓' : pts < 0 ? '−' : '○'}
                             </span>
                             <span className={isCorrect ? 'text-slate-200' : 'text-slate-400'}>{opt}</span>
                             {pts !== 0 && <span className="text-slate-500">({pts > 0 ? '+' : ''}{pts}pts)</span>}
@@ -762,22 +896,25 @@ export default function QuestionEditorPage() {
                   )}
                 </div>
 
-                <div className="flex gap-1 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => { setEditingId(q.id); setShowAddForm(false); }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => void deleteQuestion(q.id)}
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
+                {!locked && (
+                  <div className="flex gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setEditingId(q.id); setShowAddForm(false); }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void deleteQuestion(q.id)}
+                      title="Delete question"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </Card>

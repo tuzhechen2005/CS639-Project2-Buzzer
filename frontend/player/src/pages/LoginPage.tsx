@@ -43,7 +43,7 @@ export default function LoginPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tempToken}` },
     })
-      .then(res => res.ok ? res.json() : res.json().then((e: { detail?: string }) => Promise.reject(e.detail ?? 'Sign-in failed')))
+      .then(res => res.ok ? res.json() : res.json().then((e: { message?: string; detail?: string }) => Promise.reject(e.message ?? e.detail ?? 'Sign-in failed')))
       .then((data: { access_token: string }) => {
         localStorage.setItem('token', data.access_token);
         window.history.replaceState(null, '', window.location.pathname);

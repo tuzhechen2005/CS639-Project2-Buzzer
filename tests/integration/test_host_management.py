@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 import httpx
 import pytest
 
-from engine.socket_client import TestSocketClient
+from .engine.socket_client import TestSocketClient
 
 _REPO_ROOT = pathlib.Path(__file__).parent.parent.parent
 
@@ -499,6 +499,47 @@ def test_roster_csv_upload_parses_a_canvas_export(world: World):
     assert by_netid[f"jdoe{t}"]["email"] == f"jdoe{t}@wisc.edu"
 
 
+def test_replace_refuses_an_upload_cut_at_the_row_limit(world: World):
+    """Replace deactivates everyone missing from the upload; rows past the 1000-row limit
+    are not processed, so their students must not be deactivated. Dry runs only: nothing
+    is written either way."""
+    w = world
+    keep = f"keep{_tag()}"
+    path = f"/courses/{w.course_a}/roster/import"
+    w.ok(
+        "POST",
+        path,
+        w.host_a,
+        json={"rows": [{"netid": keep, "full_name": "Keep", "email": f"{keep}@example.com"}]},
+    )
+    rows = [{"netid": f"n{i}", "full_name": "S", "email": f"n{i}@example.com"} for i in range(1001)]
+
+    r = w.req("POST", f"{path}?mode=replace&dry_run=true", w.host_a, json={"rows": rows})
+    assert r.status_code == 422 and err(r) == "ROSTER_TOO_LARGE", r.text
+    r = w.req("POST", f"{path}?mode=replace", w.host_a, json={"rows": rows})
+    assert r.status_code == 422 and err(r) == "ROSTER_TOO_LARGE", r.text
+
+    csv_text = "Student,SIS Login ID\nPoints Possible,\n" + "".join(
+        f"Last{i}, First{i},n{i}@wisc.edu\n" for i in range(1001)
+    )
+    r = w.req(
+        "POST",
+        f"/courses/{w.course_a}/roster?mode=replace&dry_run=true",
+        w.host_a,
+        files={"file": ("roster.csv", csv_text.encode())},
+    )
+    assert r.status_code == 422 and err(r) == "ROSTER_TOO_LARGE", r.text
+
+    # add_only never deactivates anyone, so it keeps the old behaviour: process the first
+    # 1000 rows and report the rest.
+    res = w.ok("POST", f"{path}?mode=add_only&dry_run=true", w.host_a, json={"rows": rows})
+    assert res["imported"] == 1000 and res["deactivated"] == 0
+    assert any("1000-row limit" in e for e in res["errors"])
+
+    still = [e for e in w.ok("GET", f"/courses/{w.course_a}/roster", w.host_a) if e["netid"] == keep]
+    assert still and still[0]["is_active"], "the existing student must not be deactivated"
+
+
 # ---------------------------------------------------------------------------
 # Locked games, downloads
 # ---------------------------------------------------------------------------
@@ -668,6 +709,34 @@ async def test_host_deleting_a_session_ends_its_room(world: World):
     redis_del_room(other["room_code"])
 
 
+async def test_exports_work_with_non_ascii_titles(world: World):
+    """A title in Chinese (alphanumeric, but not latin-1) used to make the download
+    endpoints fail with a 500 while building the Content-Disposition header."""
+    w = world
+    game = w.ok(
+        "POST", f"/courses/{w.course_a}/games", w.host_a, json={"title": "数据库基础"}, status=201
+    )
+    w.track_game(game["id"])
+    for path in (f"/games/{game['id']}/export", f"/admin/games/{game['id']}/export"):
+        r = w.req("GET", path, w.host_a if path.startswith("/games") else None)
+        assert r.status_code == 200, f"{path}: {r.status_code}"
+        r.headers["content-disposition"].encode("latin-1")
+        assert "数据库基础" in r.content.decode(), "the bundle itself keeps the real title"
+
+    # Canvas CSV with a Chinese assignment title (any readable session will do).
+    room, host, player = await play_one_answer(w, w.game_a, w.course_a, finish=False)
+    await host.disconnect()
+    await player.disconnect()
+    redis_del_room(room["room_code"])
+    r = w.req(
+        "GET",
+        f"/sessions/{room['session_id']}/export?format=canvas&title=数据库",
+        w.host_a,
+    )
+    assert r.status_code == 200, r.text
+    r.headers["content-disposition"].encode("latin-1")
+
+
 # ---------------------------------------------------------------------------
 # Deletes
 # ---------------------------------------------------------------------------
@@ -681,9 +750,24 @@ def test_host_delete_removes_empty_abandoned_lobby(world: World):
     assert room["session_id"] not in {s["session_id"] for s in w.ok("GET", "/admin/sessions")}
 
 
-async def test_admin_delete_ends_live_room(world: World):
-    w = world
-    game_id, _ = w.admin_game(w.course_a, time_limit=2)
+def backend_logged(event: str, session_id: str) -> bool:
+    """True if the backend logged `event` for this session. A cancelled question timer leaves
+    no socket trace (its host-room emit would need a socket still in the room), but a timer
+    that expires logs `question_timer_expired` with its session id."""
+    out = subprocess.run(
+        ["docker", "compose", "logs", "--no-color", "backend"],
+        cwd=_REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return any(event in line and session_id in line for line in out.splitlines())
+
+
+async def _start_timed_question(w: World, time_limit: int):
+    """Open a room on a fresh game and start its (short) question. Returns
+    (game_id, room, host, player); the caller disconnects both clients."""
+    game_id, _ = w.admin_game(w.course_a, time_limit=time_limit)
     room = w.room(game_id, w.course_a)
     code = room["room_code"]
     host = TestSocketClient(w.base, w.admin, "host")
@@ -694,17 +778,36 @@ async def test_admin_delete_ends_live_room(world: World):
     await player.connect()
     await player.emit("join_room", {"room_code": code, "role": "PLAYER"})
     await player.wait_for("sync_state")
+    await host.emit("host_advance", {})
+    await player.wait_for("new_question")
+    return game_id, room, host, player
+
+
+async def test_question_timer_expiry_is_visible_in_backend_logs(world: World):
+    """Control for the next test: without a delete, the timer expires and is logged, so
+    the log probe really can see a timer that fires."""
+    w = world
+    game_id, room, host, player = await _start_timed_question(w, time_limit=2)
     try:
-        # Start a question with a running timer, then delete the game mid-question.
-        await host.emit("host_advance", {})
-        q = await player.wait_for("new_question")
+        await host.wait_for("answer_phase_ended", timeout=6)
+        assert backend_logged("question_timer_expired", room["session_id"])
+    finally:
+        await player.disconnect()
+        await host.disconnect()
+
+
+async def test_admin_delete_ends_live_room(world: World):
+    w = world
+    game_id, room, host, player = await _start_timed_question(w, time_limit=2)
+    code = room["room_code"]
+    try:
         w.ok("DELETE", f"/admin/games/{game_id}", status=204)
         await player.wait_for("game_abandoned", timeout=5)
-        player.drain("question_results")
-        # The question's timer must not fire after the delete.
-        await asyncio.sleep(q["timeLimitSeconds"] + 2)
-        with pytest.raises(asyncio.TimeoutError):
-            await player.wait_for("question_results", timeout=0.5)
+        # The question's timer must not fire after the delete. Its only effects are an
+        # emit to the host room (which the host socket has left) and a log line, so the
+        # log is what we check, after the 2 s limit has passed.
+        await asyncio.sleep(4)
+        assert not backend_logged("question_timer_expired", room["session_id"])
     finally:
         await player.disconnect()
         await host.disconnect()
@@ -712,22 +815,18 @@ async def test_admin_delete_ends_live_room(world: World):
     assert w.req("GET", f"/admin/games/{game_id}").status_code == 404
 
 
-async def test_admin_delete_spares_reused_room_code(world: World):
-    """Room codes are reused once a room expires. Deleting a game must not abandon or
-    wipe a different session that now holds the old session's code."""
+async def test_admin_delete_leaves_a_room_key_owned_by_another_session(world: World):
+    """Guard in end_session_from_rest: the room key is only deleted while it still holds
+    this session's id. This cannot happen through the API today (game_sessions.room_code
+    is UNIQUE, so a code is never reused), so the other session's room key is made by hand
+    and only the key is asserted: no socket can be a bystander of a session that has no
+    MySQL row."""
     w = world
     room = w.room(w.game_a, w.course_a)
     code = room["room_code"]
     other = {"session_id": f"other-{_tag()}", "status": "LOBBY", "course_id": w.course_b}
-    redis_set_room(code, other)  # the code now belongs to someone else's live game
-    bystander = TestSocketClient(w.base, w.guest(code), "bystander")
-    await bystander.connect()
-    try:
-        w.ok("DELETE", f"/admin/games/{w.game_a}", status=204)
-        with pytest.raises(asyncio.TimeoutError):
-            await bystander.wait_for("game_abandoned", timeout=1)
-    finally:
-        await bystander.disconnect()
+    redis_set_room(code, other)
+    w.ok("DELETE", f"/admin/games/{w.game_a}", status=204)
     assert redis_get_room(code) == other
     redis_del_room(code)
 

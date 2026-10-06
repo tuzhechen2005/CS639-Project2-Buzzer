@@ -1,57 +1,49 @@
 # frontend/admin/src/pages/
 
 ## Purpose
-The admin dashboard screens: managing courses and rosters, users and their access, guests, games
-and their questions, and past game sessions with their exports.
+The admin dashboard screens, admin-first since T4: user accounts and their course/game access,
+courses (with their hosts, players and games), guests, and all past sessions with their exports.
+Game, question and roster editing moved to the host app (`frontend/host/src/pages/course/`).
 
 ## Contents
 - `LoginPage.tsx` — username/password login (`POST /auth/login`), stores the token, goes to
-  `/courses`. No UW NetID button (unlike host and player).
-- `CoursesPage.tsx` — list, create and edit (name + semester) courses; links to each roster.
-- `RosterPage.tsx` — a course's roster: active and inactive entries, inline edit (netid, name,
-  email, active flag via `PATCH`). CSV import is a client-side wizard: a hand-written RFC-4180
-  parser (`parseCSV`), auto-detection of Canvas gradebook exports (`SIS Login ID` column, the
-  "Points Possible" row, `Last, First` names, `@domain` netids), column mapping, preview, then
-  `POST /admin/courses/:id/roster/import` with already-mapped JSON rows.
+  `/users`. No UW NetID button (unlike host and player).
 - `UsersPage.tsx` — list users (role badge); create a local account (username, display name,
   password ≥ 8 chars, optional email).
 - `UserDetailPage.tsx` — edit a user (display name, email, password, role), delete them, and grant
-  or revoke **course access** (HOST or PLAYER per course) and **game access**.
+  or revoke **course access** (HOST or PLAYER per course; the system course is never offered) and
+  **game access**. The game picker only offers games from courses the user is HOST of (the
+  backend returns 409 `NOT_COURSE_HOST` otherwise); each game shows its course, and grants whose
+  game's course the user no longer hosts get an **inactive** badge and can be revoked. Grants run
+  in parallel (`Promise.allSettled`) and every failure's message is shown.
+- `CoursesPage.tsx` — create and edit (name + semester) courses. Per course: its HOSTs and
+  PLAYERs (from `GET /admin/courses/:id/access`, linking to user detail), its games (with a
+  "played" badge and Delete, `DELETE /admin/games/:id`), and a **Roster** link to the host app
+  (`/host/courses/:id/roster`). The system course is hidden; its games appear in an
+  **Unassigned games** section with a course picker (`PUT /admin/games/:id {course_id}`) and Delete.
 - `GuestsPage.tsx` — list guest accounts, merge a guest's scores into a netid
   (`POST /admin/users/merge-guest`), delete a guest and their scores.
-- `GamesPage.tsx` — list, create and edit games (title, description, max players), import a game
-  from JSON (`postForm` → opens the new game's editor), delete a game and all its sessions.
-- `QuestionEditorPage.tsx` (~790 lines) — a game's questions: add, edit, delete, reorder (up/down
-  arrows → `POST …/questions/reorder` with the full id order), export the game as JSON. The
-  `QuestionForm` has per-type editors, and `formToPayload` / `questionToForm` convert between
-  form state and the API's `config` / `answer_data`.
-- `SessionsPage.tsx` — past sessions filtered by status; per session: score export (plain CSV or
+- `SessionsPage.tsx` — all sessions filtered by status; per session: score export (plain CSV or
   Canvas-gradebook CSV with assignment title, SIS domain, roster-only and per-question options),
-  the HTML report, and delete.
+  the HTML report, and delete (the confirm warns that recorded scores — grades — are deleted).
 
 ## How it fits in
 Routes are declared in `../App.tsx`: everything except `/login` sits inside `RequireAdmin` and the
-sidebar `AdminLayout` (Courses, Users, Games, Guests, Sessions); unknown paths go to `/courses`.
-Each page loads its own data with `../lib/api` on mount and re-fetches after each change; there is
-no shared store or cache. Backend endpoints are in `backend/app/routers/admin.py`.
+sidebar `AdminLayout` (Users, Courses, Guests, Sessions, then a secondary "Host & Play" group
+linking to `/host/` and `/player/`); unknown paths go to `/users`. Each page loads its own data
+with `../lib/api` on mount and re-fetches after each change; there is no shared store or cache.
+Backend endpoints are in `backend/app/routers/admin.py` (all `require_admin`), except session
+delete (`/game/sessions/:id`).
 
 ## Gotchas
-- **Adding a question type (T7)** needs a new option in `QuestionForm`, a form-state branch, a
-  `build…Payload` function, branches in `formToPayload` and `questionToForm`, a type label, and a
-  preview block in the question list, on top of the backend, host and player changes. The
-  `answer_data` shape must match what `backend/app/schemas/` validates.
-- **`answer_data` key style is inconsistent:** multiple choice, true/false and multi-select use
-  `answer_points` (snake_case), but fill-in-the-blank uses `acceptedAnswers`, `answerPoints` and
-  `editDistance` (camelCase). Copy the backend's expectation exactly; don't "fix" one side alone.
-- **`points_value` is computed in the browser** for accuracy questions (MC / FITB: highest option;
-  TF: higher of the two; multi-select: sum of positive options). Only completeness questions use
-  the typed-in value. Imported or API-created questions don't go through this.
-- **There is no way to delete a course** (no button and no backend endpoint). Rosters can only be
-  deactivated entry by entry.
-- **Two CSV parsers:** the UI parses rosters itself and posts JSON to `/roster/import`, while
-  `POST /courses/:id/roster` (raw CSV upload, used in the README's curl example) parses on the
-  backend. They can disagree on the same file.
-- Granting several courses or games fires parallel requests (`Promise.all`); if one fails, the
-  others may already have been applied.
-- Session delete calls `/game/sessions/:id` (the host endpoint), not an `/admin` path.
-- Deleting a game also deletes its sessions and scores; deletes use the browser's `confirm()`.
+- **Host and player work happens in the other apps.** The Roster and Host & Play links are plain
+  `/host/…` and `/player/` URLs: they work behind nginx on :8080, where the apps share
+  `localStorage['token']`, not under the Vite dev servers (separate ports).
+- `GET /admin/courses` and `GET /admin/games` include the system course and its games
+  (`is_system`, `course_id`); the pages filter them. Moving a game to a course grants it to that
+  course's HOSTs (backend); moving into the system course or while the game is live returns 409.
+- **There is no way to delete a course** (no button and no backend endpoint).
+- Deleting a game also deletes its sessions and scores (grades); played games get a stronger
+  `confirm()` warning. Deletes use the browser's `confirm()`.
+- `CoursesPage` makes one `/access` request per course on load; fine for a class's worth of
+  courses, slow with hundreds.
