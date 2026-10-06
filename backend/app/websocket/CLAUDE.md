@@ -34,7 +34,9 @@ phase state machine, answer submission, question timers, and host-disconnect han
     - `RESULTS` → the next `new_question`, or `game_over` with summaries for the host and each
       player.
   - `on_submit_answer`: checks the phase, the lock, the question id and duplicates (Redis
-    answered set), plus the type's `validate_answer`; calls `game_service.record_answer`; emits
+    answered set), plus `question_types.accept_answer` (the type's `validate_answer`, then its
+    `normalize_answer`, for every grading type; the normalized answer is what is scored and
+    stored); calls `game_service.record_answer`; emits
     `answer_received` to the player and `answer_status` to the host, and `answer_phase_ended` +
     timer cancel when everyone has answered.
   - `on_lock_question`: toggles the lock and pauses or resumes the timer by shifting a "virtual"

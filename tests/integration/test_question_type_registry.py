@@ -1,11 +1,14 @@
 """
 Question-type registry (docs/plans/t7-numeric-estimate.md, MR A): the downloadable HTML
-report now covers multi_select questions (badge and per-option bar chart), and an unknown
-question type is still rejected on create and update.
+report now covers multi_select questions (badge and per-option bar chart), an unknown
+question type is still rejected on create and update, and the answer stored for a
+submission is the one normalize_answer returns (validate_answer and normalize_answer run for
+every grading type).
 """
 
 from __future__ import annotations
 
+import json
 import subprocess
 import pathlib
 import uuid
@@ -108,3 +111,62 @@ def test_unknown_question_type_is_still_rejected(game_setup, base_url, admin_tok
         timeout=10.0,
     )
     assert r.status_code == 422
+
+
+def _mysql(sql: str) -> str:
+    out = subprocess.run(
+        ["docker", "compose", "exec", "-T", "mysql", "sh", "-c",
+         'mysql -N -uroot -p"$MYSQL_ROOT_PASSWORD" buzzer -e "$0"', sql],
+        cwd=_REPO_ROOT, check=True, capture_output=True, text=True,
+    )
+    return out.stdout.strip()
+
+
+async def test_stored_answer_is_the_normalized_answer_for_every_grading_type(game_setup, base_url, admin_token):
+    """The gateway validates, then normalizes, then scores and stores. With the built-in
+    handlers normalize_answer is the identity, so the stored answer is exactly what was
+    submitted; a malformed answer is refused even on a COMPLETENESS question."""
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    game_id, course_id = game_setup["game_id"], game_setup["course_id"]
+    body = {**MS_QUESTION, "grading_type": "COMPLETENESS", "answer_data": {}}
+    r = httpx.post(f"{base_url}/api/admin/games/{game_id}/questions", json=body, headers=headers, timeout=10.0)
+    assert r.status_code == 201, r.text
+    room = httpx.post(
+        f"{base_url}/api/game/rooms", json={"game_id": game_id, "course_id": course_id}, headers=headers, timeout=10.0
+    ).json()
+    code = room["room_code"]
+    tag = uuid.uuid4().hex[:8]
+    guest = httpx.post(
+        f"{base_url}/api/auth/guest",
+        json={"display_name": f"G{tag}", "email": f"g.{tag}@example.com", "room_code": code},
+        timeout=10.0,
+    ).json()["access_token"]
+    host = TestSocketClient(base_url, admin_token, "host")
+    player = TestSocketClient(base_url, guest, "player")
+    submitted = {"selectedIndices": [2, 0]}
+    try:
+        await host.connect()
+        await host.emit("join_room", {"room_code": code, "role": "HOST"})
+        await host.wait_for("sync_state")
+        await player.connect()
+        await player.emit("join_room", {"room_code": code, "role": "PLAYER"})
+        await player.wait_for("sync_state")
+        await host.emit("host_advance", {})
+        q = await player.wait_for("new_question")
+        await player.emit(
+            "submit_answer",
+            {"question_id": q["questionId"], "answer_data": {"selectedIndices": [7]}, "answer_time_ms": 300},
+        )
+        err = await player.wait_for("error")
+        assert "out of range" in err["message"] or "index" in err["message"].lower(), err
+        await player.emit(
+            "submit_answer", {"question_id": q["questionId"], "answer_data": submitted, "answer_time_ms": 500}
+        )
+        done = await player.wait_for("answer_received")
+        assert done["pointsAwarded"] == 2
+    finally:
+        await player.disconnect()
+        await host.disconnect()
+        _redis_del_room(code)
+    rows = _mysql(f"SELECT answer_data FROM session_scores WHERE session_id = '{room['session_id']}'").splitlines()
+    assert [json.loads(r) for r in rows] == [submitted], "one stored answer, exactly the normalized (= submitted) one"
