@@ -16,7 +16,8 @@ Each folder has its own `CLAUDE.md` (package level) and `src/CLAUDE.md` (app lev
 All three are laid out the same way: `src/App.tsx` (routes), `src/pages/` (screens; host and
 player have a `game/` subfolder whose `GameLayout.tsx` owns the socket and all live state; host
 also has `course/` for the management screens),
-`src/components/ui/` (primitives), and `src/lib/` (`api` REST client and `cn()`). Host and player
+`src/components/ui/` (primitives), `src/lib/` (`api` REST client and `cn()`), and `src/theme/`
+(the colour tokens and light/dark switching, identical in all three; T9). Host and player
 also have `src/types/game.ts` for socket payloads; admin declares types inside each page.
 
 ## How it fits in
@@ -53,12 +54,24 @@ Cross-app ones. Each app's `CLAUDE.md` files have the details.
   does (player `components/PlotPointAnswer`, host `components/PlotScatter` and
   `pages/course/PlotPointEditor`).
 - **Copied code that has drifted.** `lib/api.ts` (host and admin have the same methods, player
-  only `get`/`post`; all three share the same error-text logic), `components/ui/` (admin = host byte-for-byte; player is a mobile-sized fork, and its
-  `TimerBar` lacks `initialSeconds`), and `types/game.ts` (host and player differ). A bug fix in
-  one copy doesn't reach the others. The one exception is `lib/plotGeometry.ts` (T7 plot_point):
-  host and player copies must stay **byte-identical**, and `tests/unit/test_plot_geometry_copies.py`
-  fails if they drift. `lib/plotDraw.ts` is copied too but differs on purpose (the host's has a
+  only `get`/`post`; all three share the same error-text logic), `components/ui/` (admin = host
+  byte-for-byte; player is a mobile-sized fork, and its `TimerBar` lacks `initialSeconds`), and
+  `types/game.ts` (host and player differ). A bug fix in one copy doesn't reach the others. The
+  exceptions are checked copies that must stay **byte-identical**: `lib/plotGeometry.ts` (T7
+  plot_point; host and player, `tests/unit/test_plot_geometry_copies.py`), `lib/promptMarkup.ts`
+  (host and player, `test_prompt_markup_copies.py`) and the whole `src/theme/` folder (all three
+  apps, `test_theme_copies.py`). `components/ThemeToggle.tsx` is identical in host and admin but
+  not test-checked. `lib/plotDraw.ts` is copied too but differs on purpose (the host's has a
   projector `scale`).
+- **One theme for the product (T9).** Colours exist only in `src/theme/tokens.css` (light in
+  `:root`, dark overrides in `[data-theme="dark"]`); components use token classes (`bg-surface`,
+  `text-fg-muted`, `bg-option-3`, …). `tests/unit/test_no_raw_colours.py` fails on any palette
+  class or colour literal outside `src/theme/`, and `tests/unit/test_theme_contrast.py` checks
+  every allowed pair for WCAG AA in both themes; a new pair goes into the spec
+  (`docs/plans/t9-theming.md`) and that test together. The choice is one `localStorage` key,
+  `buzzer-theme`, so on :8080 a toggle in one app applies to the others on their next load
+  (never live); on the dev ports each app keeps its own. `tests/e2e/test_t9_theme_ui.py` covers
+  the toggle.
 - **Nothing checks the frontend types against the backend.** Payload types are hand-written and
   can silently fall out of date when `backend/app/websocket/gateway.py` or the schemas change.
 - **Auth is thin everywhere:** route guards only check that a token exists in
@@ -81,6 +94,6 @@ Cross-app ones. Each app's `CLAUDE.md` files have the details.
 - **Build gotchas apply to all three:** `dist/` is a snapshot (empty means nginx 403s), `tsc -b`
   leaves compiled `vite.config.js` / `tailwind.config.js` that shadow the `.ts` configs, and CI's
   `frontend-typecheck` (`npx tsc --noEmit`) is the only automated check. The player app has a
-  vitest suite (`npm test` in `frontend/player`: the number parser, numeric_estimate text, and the
-  plot_point geometry and typed-coordinate rules) that CI does not run. The host has no test
-  runner; its plot_point screens are covered by the Playwright tests in `tests/e2e/`.
+  vitest suite (`npm test` in `frontend/player`: the number parser, numeric_estimate text, the
+  plot_point geometry and typed-coordinate rules, and `theme.ts`) that CI does not run. The host
+  has no test runner; its plot_point screens are covered by the Playwright tests in `tests/e2e/`.
