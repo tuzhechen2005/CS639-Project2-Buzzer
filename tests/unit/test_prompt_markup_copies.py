@@ -14,12 +14,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 PLAYER = ROOT / "frontend" / "player" / "src" / "lib" / "promptMarkup.ts"
 HOST = ROOT / "frontend" / "host" / "src" / "lib" / "promptMarkup.ts"
+ADMIN = (
+    ROOT / "frontend" / "admin" / "src" / "lib" / "promptMarkup.ts"
+)  # the admin question editor shows prompts
 
 
 def test_prompt_markup_copies_are_byte_identical():
-    for path in (PLAYER, HOST):
-        assert path.is_file(), f"missing {path} (run from a full checkout, not the backend container)"
-    assert PLAYER.read_bytes() == HOST.read_bytes(), (
-        f"{PLAYER.relative_to(ROOT)} and {HOST.relative_to(ROOT)} differ: "
-        "edit both copies together (cp one over the other)"
-    )
+    for path in (PLAYER, HOST, ADMIN):
+        assert path.is_file(), (
+            f"missing {path} (run from a full checkout, not the backend container)"
+        )
+    for other in (HOST, ADMIN):
+        assert PLAYER.read_bytes() == other.read_bytes(), (
+            f"{PLAYER.relative_to(ROOT)} and {other.relative_to(ROOT)} differ: "
+            "edit all copies together (cp one over the others)"
+        )

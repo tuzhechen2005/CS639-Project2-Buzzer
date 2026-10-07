@@ -33,6 +33,9 @@ function accessName(a: CourseAccessItem): string {
   return a.display_name ?? a.username ?? a.netid ?? a.user_id;
 }
 
+/** How many per-course access lists are fetched at once. */
+const ACCESS_BATCH = 8;
+
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [games, setGames] = useState<Game[]>([]);
@@ -57,9 +60,16 @@ export default function CoursesPage() {
         api.get<Game[]>('/admin/games'),
       ]);
       const real = cs.filter((c) => !c.is_system);
-      const lists = await Promise.all(
-        real.map((c) => api.get<CourseAccessItem[]>(`/admin/courses/${c.id}/access`)),
-      );
+      // A few requests at a time: with hundreds of courses, firing them all at once makes the
+      // browser run out of connections and the whole page fails to load.
+      const lists: CourseAccessItem[][] = [];
+      for (let i = 0; i < real.length; i += ACCESS_BATCH) {
+        lists.push(
+          ...(await Promise.all(
+            real.slice(i, i + ACCESS_BATCH).map((c) => api.get<CourseAccessItem[]>(`/admin/courses/${c.id}/access`)),
+          )),
+        );
+      }
       setCourses(cs);
       setGames(gs);
       setAccess(Object.fromEntries(real.map((c, i) => [c.id, lists[i]])));
@@ -164,6 +174,15 @@ export default function CoursesPage() {
         </span>
         <div className="flex items-center gap-2 shrink-0">
           {extra}
+          {!systemIds.has(g.course_id) && (
+            <Link
+              to={`/courses/${g.course_id}/games/${g.id}/questions`}
+              className="inline-flex items-center gap-1 text-xs font-medium text-accent-text hover:underline focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page rounded"
+              title="Create and edit this game's questions"
+            >
+              <Pencil size={12} /> Questions
+            </Link>
+          )}
           <Button
             variant="ghost"
             size="sm"

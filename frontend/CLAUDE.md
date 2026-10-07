@@ -11,7 +11,7 @@ Each folder has its own `CLAUDE.md` (package level) and `src/CLAUDE.md` (app lev
 |---|---|---|---|---|
 | `host/` | Instructor: picks a course they HOST, manages its games and questions, roster and past-session downloads (T4), runs the game on the big screen | REST (`/api/courses`, `/api/games`, `/api/sessions`, `/api/game`) + Socket.io (sends `host_advance`, `host_lock_question`) | 5173 | `/host/` |
 | `player/` | Students, on phones: join with a code, answer, see their own score and rank | REST + Socket.io (sends `join_room`, `submit_answer`) | 5174 | `/player/` (also `/`) |
-| `admin/` | Admins, on desktop: users and their course/game access, courses (hosts, players, games, Unassigned games), guests, all-session exports; links to host and player apps | REST only (`/api/admin/*`) | 5175 | `/admin/` |
+| `admin/` | Admins, on desktop: users and their course/game access, courses (hosts, players, games, Unassigned games), a game's question editor (a copy of the host's), guests, all-session exports; links to host and player apps | REST only (`/api/admin/*`) | 5175 | `/admin/` |
 
 All three are laid out the same way: `src/App.tsx` (routes), `src/pages/` (screens; host and
 player have a `game/` subfolder whose `GameLayout.tsx` owns the socket and all live state; host
@@ -40,7 +40,8 @@ each player only gets their own results; admins see finished sessions and downlo
 
 ## Gotchas
 Cross-app ones. Each app's `CLAUDE.md` files have the details.
-- **Adding a question type (T7)** touches all three apps, on top of the backend
+- **Adding a question type (T7)** touches all three apps (the admin app has its own copy of the
+  host's question editor, so the editor changes are made twice), on top of the backend
   (`schemas/`, `services/game_service.py`, `services/report_service.py`, `websocket/gateway.py`):
   - host: `pages/course/QuestionEditorPage.tsx` (type option, form state, `build…Payload`,
     `formToPayload`, `questionToForm`, type label, list preview — the only editor since T4),
@@ -53,16 +54,16 @@ Cross-app ones. Each app's `CLAUDE.md` files have the details.
   A type with a lot of UI can live in its own modules that those files wire in, as `plot_point`
   does (player `components/PlotPointAnswer`, host `components/PlotScatter` and
   `pages/course/PlotPointEditor`).
-- **Copied code that has drifted.** `lib/api.ts` (host and admin have the same methods, player
+- **Copied code that has drifted.** `lib/api.ts` (host and admin are identical, player
   only `get`/`post`; all three share the same error-text logic), `components/ui/` (admin = host
   byte-for-byte; player is a mobile-sized fork, and its `TimerBar` lacks `initialSeconds`), and
   `types/game.ts` (host and player differ). A bug fix in one copy doesn't reach the others. The
   exceptions are checked copies that must stay **byte-identical**: `lib/plotGeometry.ts` (T7
-  plot_point; host and player, `tests/unit/test_plot_geometry_copies.py`), `lib/promptMarkup.ts`
-  (host and player, `test_prompt_markup_copies.py`) and the whole `src/theme/` folder (all three
+  plot_point; host, player and admin, `tests/unit/test_plot_geometry_copies.py`), `lib/promptMarkup.ts`
+  (host, player and admin, `test_prompt_markup_copies.py`) and the whole `src/theme/` folder (all three
   apps, `test_theme_copies.py`). `components/ThemeToggle.tsx` is identical in host and admin but
-  not test-checked. `lib/plotDraw.ts` is copied too but differs on purpose (the host's has a
-  projector `scale`).
+  not test-checked. `lib/plotDraw.ts` is copied too but differs on purpose (the host's and admin's have a
+  projector `scale`; the player's does not).
 - **One theme for the product (T9).** Colours exist only in `src/theme/tokens.css` (light in
   `:root`, dark overrides in `[data-theme="dark"]`); components use token classes (`bg-surface`,
   `text-fg-muted`, `bg-option-3`, …). `tests/unit/test_no_raw_colours.py` fails on any palette

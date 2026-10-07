@@ -3,7 +3,8 @@
 ## Purpose
 The admin dashboard screens, admin-first since T4: user accounts and their course/game access,
 courses (with their hosts, players and games), guests, and all past sessions with their exports.
-Game, question and roster editing moved to the host app (`frontend/host/src/pages/course/`).
+Rosters are edited in the host app. A game's questions can be created and edited here too, with a
+copy of the host's editor (`course/`, reached from the Courses page).
 
 ## Contents
 - `LoginPage.tsx` — username/password login (`POST /auth/login`), stores the token, goes to
@@ -18,9 +19,15 @@ Game, question and roster editing moved to the host app (`frontend/host/src/page
   in parallel (`Promise.allSettled`) and every failure's message is shown.
 - `CoursesPage.tsx` — create and edit (name + semester) courses. Per course: its HOSTs and
   PLAYERs (from `GET /admin/courses/:id/access`, linking to user detail), its games (with a
-  "played" badge and Delete, `DELETE /admin/games/:id`), and a **Roster** link to the host app
+  "played" badge, a **Questions** link to the editor and Delete, `DELETE /admin/games/:id`), and a **Roster** link to the host app
   (`/host/courses/:id/roster`). The system course is hidden; its games appear in an
   **Unassigned games** section with a course picker (`PUT /admin/games/:id {course_id}`) and Delete.
+- `GameQuestionsPage.tsx` — a back link to Courses around the question editor, at
+  `/courses/:courseId/games/:gameId/questions`.
+- `course/` — copies of the host's `QuestionEditorPage.tsx` (create, edit, delete, reorder, export
+  and duplicate a game's questions; all six types), `PlotPointEditor.tsx` (the plot_point form
+  and the clickable plane preview) and `ImageLibrary.tsx` (T8 pictures). Only the `Game`
+  declaration differs from the host's.
 - `GuestsPage.tsx` — list guest accounts, merge a guest's scores into a netid
   (`POST /admin/users/merge-guest`), delete a guest and their scores.
 - `SessionsPage.tsx` — all sessions filtered by status; per session: score export (plain CSV or
@@ -49,5 +56,6 @@ delete (`/game/sessions/:id`).
 - **There is no way to delete a course** (no button and no backend endpoint).
 - Deleting a game also deletes its sessions and scores (grades); played games get a stronger
   `confirm()` warning. Deletes use the browser's `confirm()`.
-- `CoursesPage` makes one `/access` request per course on load; fine for a class's worth of
-  courses, slow with hundreds.
+- `CoursesPage` makes one `/access` request per course on load, eight at a time (firing hundreds at
+  once makes the browser fail with `ERR_INSUFFICIENT_RESOURCES`, and the page shows "Failed to
+  fetch"). It still renders every course, so thousands of leftover test courses make it slow.
