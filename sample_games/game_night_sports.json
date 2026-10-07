@@ -1,0 +1,338 @@
+{
+  "format": "buzzer/game",
+  "version": 1,
+  "game": {
+    "title": "Game Night: Sports & Games",
+    "description": "Party trivia about sports, board games and game-night favourites, with a few just-for-fun polls.",
+    "max_players": 150
+  },
+  "questions": [
+    {
+      "type": "multiple_choice",
+      "grading_type": "ACCURACY",
+      "prompt": "How many players does each team have on the field in soccer?",
+      "config": {
+        "options": [
+          "9",
+          "10",
+          "11",
+          "12"
+        ]
+      },
+      "answer_data": {
+        "answer_points": [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ]
+      },
+      "time_limit_seconds": 20,
+      "points_value": 1.0
+    },
+    {
+      "type": "multiple_choice",
+      "grading_type": "ACCURACY",
+      "prompt": "Which chess piece can only move diagonally?",
+      "config": {
+        "options": [
+          "Rook",
+          "Knight",
+          "Bishop",
+          "Queen"
+        ]
+      },
+      "answer_data": {
+        "answer_points": [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ]
+      },
+      "time_limit_seconds": 20,
+      "points_value": 1.0
+    },
+    {
+      "type": "true_false",
+      "grading_type": "ACCURACY",
+      "prompt": "A regulation basketball rim is 10 feet off the ground.",
+      "config": {},
+      "answer_data": {
+        "answer_points": {
+          "true": 1.0,
+          "false": 0.0
+        }
+      },
+      "time_limit_seconds": 15,
+      "points_value": 1.0
+    },
+    {
+      "type": "true_false",
+      "grading_type": "ACCURACY",
+      "prompt": "In tennis, a score of \"love\" means one point.",
+      "config": {},
+      "answer_data": {
+        "answer_points": {
+          "true": 0.0,
+          "false": 1.0
+        }
+      },
+      "time_limit_seconds": 15,
+      "points_value": 1.0
+    },
+    {
+      "type": "fill_in_the_blank",
+      "grading_type": "ACCURACY",
+      "prompt": "In bowling, three strikes in a row is called a ____.",
+      "config": {},
+      "answer_data": {
+        "acceptedAnswers": [
+          "turkey"
+        ],
+        "answerPoints": [
+          1.0
+        ],
+        "editDistance": 1
+      },
+      "time_limit_seconds": 25,
+      "points_value": 1.0
+    },
+    {
+      "type": "fill_in_the_blank",
+      "grading_type": "ACCURACY",
+      "prompt": "Which board game has properties called Boardwalk and Park Place?",
+      "config": {},
+      "answer_data": {
+        "acceptedAnswers": [
+          "Monopoly"
+        ],
+        "answerPoints": [
+          1.0
+        ],
+        "editDistance": 1
+      },
+      "time_limit_seconds": 25,
+      "points_value": 1.0
+    },
+    {
+      "type": "multi_select",
+      "grading_type": "ACCURACY",
+      "prompt": "Which of these sports are played with a net? Select all that apply.",
+      "config": {
+        "options": [
+          "Volleyball",
+          "Badminton",
+          "Rugby",
+          "Tennis",
+          "Golf"
+        ]
+      },
+      "answer_data": {
+        "answer_points": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5,
+          -0.5
+        ]
+      },
+      "time_limit_seconds": 30,
+      "points_value": 1.5
+    },
+    {
+      "type": "multi_select",
+      "grading_type": "ACCURACY",
+      "prompt": "Which of these sports were part of the Paris 2024 Olympics? Select all that apply.",
+      "config": {
+        "options": [
+          "Breaking (breakdancing)",
+          "Skateboarding",
+          "Cricket",
+          "Surfing",
+          "Baseball"
+        ]
+      },
+      "answer_data": {
+        "answer_points": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5,
+          -0.5
+        ]
+      },
+      "time_limit_seconds": 30,
+      "points_value": 1.5
+    },
+    {
+      "type": "numeric_estimate",
+      "grading_type": "ACCURACY",
+      "prompt": "How long is a marathon, in kilometres?",
+      "config": {
+        "unit": "km"
+      },
+      "answer_data": {
+        "target": 42.195,
+        "mode": "absolute",
+        "bands": [
+          {
+            "within": 1,
+            "points": 1.0
+          },
+          {
+            "within": 5,
+            "points": 0.5
+          }
+        ]
+      },
+      "time_limit_seconds": 30,
+      "points_value": 1.0
+    },
+    {
+      "type": "numeric_estimate",
+      "grading_type": "ACCURACY",
+      "prompt": "How many dots (pips) are there in total on a standard six-sided die?",
+      "config": {
+        "unit": "dots"
+      },
+      "answer_data": {
+        "target": 21,
+        "mode": "absolute",
+        "bands": [
+          {
+            "within": 1,
+            "points": 1.0
+          },
+          {
+            "within": 3,
+            "points": 0.5
+          }
+        ]
+      },
+      "time_limit_seconds": 25,
+      "points_value": 1.0
+    },
+    {
+      "type": "plot_point",
+      "grading_type": "ACCURACY",
+      "prompt": "On a chessboard grid, a knight on (2, 1) moves two squares up and one square right. Where does it land?",
+      "config": {
+        "xMin": 0,
+        "xMax": 8,
+        "xStep": 1,
+        "yMin": 0,
+        "yMax": 8,
+        "yStep": 1,
+        "xLabel": "File",
+        "yLabel": "Rank",
+        "overlays": [
+          {
+            "kind": "point",
+            "x": 2,
+            "y": 1,
+            "label": "Knight"
+          }
+        ]
+      },
+      "answer_data": {
+        "target": {
+          "x": 3,
+          "y": 3
+        },
+        "bands": [
+          {
+            "within": 0,
+            "points": 1.0
+          },
+          {
+            "within": 1,
+            "points": 0.5
+          }
+        ]
+      },
+      "time_limit_seconds": 40,
+      "points_value": 1.0
+    },
+    {
+      "type": "multiple_choice",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Just for fun: what should we play next?",
+      "config": {
+        "options": [
+          "Charades",
+          "Cards",
+          "A board game",
+          "A video game"
+        ]
+      },
+      "answer_data": {},
+      "time_limit_seconds": 20,
+      "points_value": 1.0
+    },
+    {
+      "type": "true_false",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Just for fun: board games are better than video games.",
+      "config": {},
+      "answer_data": {},
+      "time_limit_seconds": 15,
+      "points_value": 1.0
+    },
+    {
+      "type": "fill_in_the_blank",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Just for fun: your favourite sports team, in a word or two.",
+      "config": {},
+      "answer_data": {},
+      "time_limit_seconds": 30,
+      "points_value": 1.0
+    },
+    {
+      "type": "multi_select",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Just for fun: which of these have you played this year? Select all that apply.",
+      "config": {
+        "options": [
+          "Chess",
+          "Monopoly",
+          "Uno",
+          "Mario Kart",
+          "Pickleball"
+        ]
+      },
+      "answer_data": {},
+      "time_limit_seconds": 25,
+      "points_value": 1.0
+    },
+    {
+      "type": "numeric_estimate",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Just for fun: how many hours of video games did you play last week?",
+      "config": {
+        "unit": "hours"
+      },
+      "answer_data": {},
+      "time_limit_seconds": 25,
+      "points_value": 1.0
+    },
+    {
+      "type": "plot_point",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Just for fun: place yourself. x = how competitive you are, y = how lucky you feel (0 to 10).",
+      "config": {
+        "xMin": 0,
+        "xMax": 10,
+        "xStep": 1,
+        "yMin": 0,
+        "yMax": 10,
+        "yStep": 1,
+        "xLabel": "Competitive",
+        "yLabel": "Lucky"
+      },
+      "answer_data": {},
+      "time_limit_seconds": 40,
+      "points_value": 1.0
+    }
+  ]
+}
