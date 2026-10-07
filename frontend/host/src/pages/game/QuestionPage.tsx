@@ -25,7 +25,7 @@ export default function QuestionPage() {
   if (!currentQuestion) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-slate-400">Loading question…</p>
+        <p className="text-fg-muted">Loading question…</p>
       </div>
     );
   }
@@ -53,20 +53,20 @@ export default function QuestionPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8 gap-8">
-      <div className="flex items-center gap-3 text-sm uppercase tracking-wider">
-        <span className="text-slate-400">
+      <div className="flex items-center gap-3 text-base uppercase tracking-wider">
+        <span className="text-fg-muted">
           Question {currentQuestion.questionNumber} of {currentQuestion.totalQuestions}
         </span>
-        <span className="text-slate-600">·</span>
-        <span className="text-slate-400">{typeLabel[currentQuestion.type] ?? currentQuestion.type}</span>
-        <span className="text-slate-600">·</span>
-        <span className={currentQuestion.gradingType === 'COMPLETENESS' ? 'text-amber-400' : 'text-indigo-400'}>
+        <span className="text-fg-subtle">·</span>
+        <span className="text-fg-muted">{typeLabel[currentQuestion.type] ?? currentQuestion.type}</span>
+        <span className="text-fg-subtle">·</span>
+        <span className={currentQuestion.gradingType === 'COMPLETENESS' ? 'text-warning-text' : 'text-accent-text'}>
           {currentQuestion.gradingType === 'COMPLETENESS' ? 'Participation' : 'Accuracy'}
         </span>
         {currentQuestion.type === 'fill_in_the_blank' && currentQuestion.gradingType === 'ACCURACY' && (
           <>
-            <span className="text-slate-600">·</span>
-            <span className="text-slate-400 normal-case">
+            <span className="text-fg-subtle">·</span>
+            <span className="text-fg-muted normal-case">
               {editDistanceLabel(currentQuestion.editDistance ?? 0)}
             </span>
           </>
@@ -83,13 +83,13 @@ export default function QuestionPage() {
       </div>
 
       {!questionLocked && (
-        <h2 className="text-4xl font-bold text-slate-100 text-center max-w-3xl leading-tight">
+        <h2 className="text-4xl font-bold text-fg text-center max-w-3xl leading-tight">
           <PromptText prompt={currentQuestion.prompt} />
         </h2>
       )}
 
       {currentQuestion.type === 'numeric_estimate' && currentQuestion.config.unit && !questionLocked && (
-        <p className="text-slate-400 text-lg">Answer in {currentQuestion.config.unit}</p>
+        <p className="text-fg-muted text-xl">Answer in {currentQuestion.config.unit}</p>
       )}
 
       {!questionLocked && plotConfig && (
@@ -109,10 +109,10 @@ export default function QuestionPage() {
         />
       )}
 
-      <div className="text-slate-300 text-xl">
+      <div className="text-fg-muted text-xl">
         {answeredCount} / {playerCount} answered
-        {allAnswered && <span className="ml-3 text-green-400 font-semibold">All answered!</span>}
-        {questionLocked && <span className="ml-3 text-amber-400 font-semibold">· Answers locked</span>}
+        {allAnswered && <span className="ml-3 text-success-text font-semibold">All answered!</span>}
+        {questionLocked && <span className="ml-3 text-warning-text font-semibold">· Answers locked</span>}
       </div>
 
       <div className="flex gap-4">
@@ -120,7 +120,7 @@ export default function QuestionPage() {
           size="lg"
           variant="outline"
           onClick={emitLockQuestion}
-          className={`px-10 ${questionLocked ? 'border-amber-500 text-amber-400 hover:bg-amber-500/10' : ''}`}
+          className={`px-10 ${questionLocked ? 'border-warning text-warning-text enabled:hover:bg-warning-subtle' : ''}`}
         >
           {questionLocked ? 'Unlock Question' : 'Lock Question'}
         </Button>

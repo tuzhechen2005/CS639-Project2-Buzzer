@@ -11,16 +11,17 @@ over) driven by Socket.io events from the backend.
   (its error text is read as `message`, then `detail`). Stores the access token in
   `localStorage`, then returns to the page `RequireAuth` remembered (`state.from`), else `/home`;
   the SSO round trip always lands on `/home`. It does not skip itself when a token exists, so
-  the form stays reachable with an expired token.
+  the form stays reachable with an expired token. Theme toggle fixed top-right.
 - `HomePage.tsx` — the **course picker**: lists `GET /game/my-courses` (courses the user hosts;
   admins see all, never the system course) and opens `/courses/:id/games`. Keeps the "Active
   Sessions" card (Rejoin / Delete); the Delete confirm warns that recorded scores (grades) are
-  permanently deleted.
+  permanently deleted. The theme toggle sits left of Sign Out.
 - `course/CourseLayout.tsx` — course header plus Games / Roster / Past Sessions tabs. There is no
   single-course endpoint, so it finds the course in `my-courses`; a course the user doesn't host
   (or the system course) shows "You don't have access to this course" and no tabs. Exposes the
   course to children via `useCourse()` (outlet context). On the editor route it hides the tabs
-  and shows "← Back to Games".
+  and shows "← Back to Games". The theme toggle is at the right end of the header (fixed
+  top-right on the no-access screen).
 - `course/GamesTab.tsx` — `GET /courses/:id/games` (only games the user holds a grant for).
   Create (`POST /courses/:id/games`) and Import JSON (`POST /courses/:id/games/import`) both open
   the new game's editor. Per game: **Start room** (`POST /game/rooms` → lobby), a "Played — locked"
@@ -61,15 +62,20 @@ over) driven by Socket.io events from the backend.
   `join_room {role: HOST}`, listens to every server event, holds all game state, and exposes it
   via `GameContext` / `useGame()` (including `emitAdvance` → `host_advance` and
   `emitLockQuestion` → `host_lock_question`). **Server events drive navigation** between the
-  child routes. Also renders the persistent QR + room-code corner panel.
-- `game/LobbyPage.tsx` — big QR code and room code, player count, auto-advance toggle, Start
-  (disabled with 0 players).
+  child routes. Also renders the persistent corner panel: QR, room code and the theme toggle.
+  Its full-screen socket-error state has no panel and no toggle (its "Back to Home" has one).
+- `game/LobbyPage.tsx` — big QR code and room code, player count, auto-advance switch
+  (`role="switch"`, `aria-checked`), Start (disabled with 0 players).
 - `game/QuestionPage.tsx` — prompt, type/grading labels, `TimerBar`, answered count,
   Lock/Unlock, and Show Results. For plot_point the plane (`components/PlotScatter`, no answers)
   replaces the prompt image. With auto-advance on, advances 1.5 s after the answer phase ends.
 - `game/ResultsPage.tsx` — answer reveal: bar chart for MC / TF / multi-select / completeness,
   band bars for numeric_estimate, a word cloud for fill-in-the-blank, and for plot_point
   "Target: (x, y)" with the class scatter (`PlotScatter`; "Class responses" for COMPLETENESS).
+  Bars (T9): a label column wide enough for the option text (truncated, full text in `title`),
+  the count inside the fill (`on-accent` / `on-success` / `surface` on the grey incorrect bar),
+  no fill at all for zero answers, and a fixed trailing column with the zero count and a
+  check-icon "Correct" (never colour alone; correct word-cloud words get a check too).
   Next Question / Show Final Results; auto-advance countdown.
 - `game/GameOverPage.tsx` — score histogram (auto-bucketed), average / high / player count, and a
   per-question breakdown card (distribution, correct count, average answer time; a smaller
@@ -126,6 +132,16 @@ what comes next. The host receives the full answer distribution and reveal; play
   it is only correct behind nginx (:8080).
 - Any socket `error` event replaces the whole screen with an error and a "Back to Home" link.
 - `QuestionPage` hides the prompt while the question is locked.
+- **Every button, link and field carries the shared focus ring** (`focus-visible:ring-2
+  ring-focus ring-offset-2 ring-offset-page`); `tests/unit/test_focus_rings.py` fails on any
+  that doesn't. Clickable things are real buttons or links, never `<div onClick>`.
+- **Projector type scale (T9):** on the game screens body text is at least `text-xl`, small
+  uppercase labels `text-base`, bar and histogram counts `text-2xl`, game-over headline numbers
+  `text-5xl`; only the corner panel and the game-over breakdown cards are smaller. Keep new game
+  text on that scale.
+- **Classes the e2e tests select by** (`tests/e2e/`): the lobby's Start button keeps `px-12`,
+  the timer readout stays a `span.font-mono`, the image-library tile keeps `rounded-lg border`
+  and the image picker popover `absolute z-20`. Change them together with the tests.
 - `answer_phase_ended` is ignored if its `questionId` isn't the current question
   (guards against stale timer tasks); keep that check if you touch it.
 - Games belong to a course: Start room sends the game's own course, and the backend rejects a

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Outlet, useNavigate, useParams, type NavigateOptions, type To } from 'react-router-dom';
 import { api } from '../../lib/api';
+import { ThemeToggle } from '../../components/ThemeToggle';
 import { QRCodeSVG } from 'qrcode.react';
 import { io, Socket } from 'socket.io-client';
 import type {
@@ -222,8 +223,8 @@ export default function GameLayout() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center space-y-4">
-          <p className="text-red-400 text-lg">{error}</p>
-          <button className="text-indigo-400 underline" onClick={() => navigate('/home')}>
+          <p className="text-danger-text text-lg">{error}</p>
+          <button className="text-accent-text underline focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page" onClick={() => navigate('/home')}>
             Back to Home
           </button>
         </div>
@@ -240,14 +241,15 @@ export default function GameLayout() {
       <Outlet />
 
       {/* Persistent join panel — always visible in the bottom-right corner */}
-      <div className="fixed bottom-4 right-4 flex flex-col items-center gap-2 bg-slate-900/90 border border-slate-700 rounded-2xl p-3 shadow-xl backdrop-blur-sm">
-        <div className="bg-white rounded-lg p-1.5">
+      <div className="fixed bottom-4 right-4 flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl p-3 shadow-xl backdrop-blur-sm">
+        <div className="bg-qr rounded-lg p-1.5">
           <QRCodeSVG value={playerJoinUrl} size={96} />
         </div>
         <div className="text-center">
-          <p className="text-slate-500 text-[10px] uppercase tracking-widest leading-none mb-0.5">Room Code</p>
-          <p className="text-white font-mono font-black tracking-widest text-lg leading-none">{code}</p>
+          <p className="text-fg-subtle text-[10px] uppercase tracking-widest leading-none mb-0.5">Room Code</p>
+          <p className="text-fg font-mono font-black tracking-widest text-lg leading-none">{code}</p>
         </div>
+        <ThemeToggle />
       </div>
     </GameContext.Provider>
   );

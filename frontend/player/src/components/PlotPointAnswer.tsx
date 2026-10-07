@@ -88,13 +88,13 @@ export function PlotPointAnswer({ config, imageId, locked, submitted, onSubmit, 
 
   const field = (axis: 'x' | 'y') => (
     <div className="flex items-stretch gap-2">
-      <span className="self-center w-5 text-slate-300 font-semibold">{axis}</span>
+      <span className="self-center w-5 text-fg-muted font-semibold">{axis}</span>
       <button
         type="button"
         disabled={inactive}
         onClick={() => flip(axis)}
         aria-label={`Toggle minus sign on ${axis}`}
-        className="w-12 shrink-0 rounded-xl bg-slate-700 text-white text-xl font-black active:scale-95 hover:bg-slate-600 disabled:opacity-40"
+        className="w-12 shrink-0 rounded-xl bg-surface-raised border border-line-strong text-fg text-xl font-black active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
       >
         ±
       </button>
@@ -113,14 +113,14 @@ export function PlotPointAnswer({ config, imageId, locked, submitted, onSubmit, 
           }
         }}
         aria-label={`${axis} coordinate`}
-        className="min-w-0 flex-1 rounded-xl px-3 py-2 text-slate-900 text-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+        className="min-w-0 flex-1 rounded-xl px-3 py-2 text-fg text-xl bg-surface-raised border border-line-strong placeholder:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page disabled:opacity-50 disabled:cursor-not-allowed"
       />
     </div>
   );
 
   const controls = (
     <div className="flex flex-col gap-2">
-      <p aria-live="polite" className="text-center text-slate-100 text-xl font-bold min-h-7">
+      <p aria-live="polite" className="text-center text-fg text-xl font-bold min-h-7">
         {readout}
       </p>
       {!submitted && (
@@ -128,7 +128,7 @@ export function PlotPointAnswer({ config, imageId, locked, submitted, onSubmit, 
           type="button"
           disabled={inactive || !canSubmitTyped(typed)}
           onClick={submit}
-          className="w-full rounded-2xl py-4 text-white font-black text-2xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-full rounded-2xl py-4 text-on-accent font-black text-2xl bg-accent hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Submit
         </button>
@@ -139,7 +139,7 @@ export function PlotPointAnswer({ config, imageId, locked, submitted, onSubmit, 
           type="button"
           aria-expanded={panelOpen}
           onClick={() => setPanelOpen((o) => !o)}
-          className="text-indigo-300 text-sm underline self-center py-1"
+          className="min-h-11 px-3 rounded-xl text-accent-text text-sm underline self-center focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
         >
           {panelOpen ? 'Hide coordinates' : 'Type coordinates'}
         </button>

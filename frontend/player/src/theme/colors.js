@@ -1,0 +1,55 @@
+// The Tailwind colour map: one entry per token in tokens.css (docs/plans/t9-theming.md).
+// Plain ESM JavaScript (typed by colors.d.ts), so `tsc -b` never emits a stale copy next to it.
+// Byte-identical in host, player and admin (tests/unit/test_theme_copies.py).
+
+const tokens = [
+  'page',
+  'surface',
+  'surface-raised',
+  'line',
+  'line-strong',
+  'fg',
+  'fg-muted',
+  'fg-subtle',
+  'accent',
+  'accent-hover',
+  'on-accent',
+  'accent-text',
+  'success',
+  'on-success',
+  'success-text',
+  'warning',
+  'on-warning',
+  'warning-text',
+  'danger',
+  'on-danger',
+  'danger-text',
+  'success-subtle',
+  'warning-subtle',
+  'danger-subtle',
+  'accent-subtle',
+  'focus',
+  'qr',
+  'plot-overlay',
+  'plot-point',
+  'option-1',
+  'on-option-1',
+  'option-2',
+  'on-option-2',
+  'option-3',
+  'on-option-3',
+  'option-4',
+  'on-option-4',
+  'option-5',
+  'on-option-5',
+  'option-6',
+  'on-option-6',
+  'option-7',
+  'on-option-7',
+  'option-8',
+  'on-option-8',
+];
+
+const colors = Object.fromEntries(tokens.map((name) => [name, `rgb(var(--${name}) / <alpha-value>)`]));
+
+export default colors;

@@ -145,8 +145,8 @@ export function ImageLibraryPanel({
       <CardHeader>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h3 className="font-semibold text-slate-100">Image library</h3>
-            <p className="text-slate-500 text-xs mt-0.5">
+            <h3 className="font-semibold text-fg">Image library</h3>
+            <p className="text-fg-subtle text-xs mt-0.5">
               PNG, JPEG or WebP, up to 2 MB each. Large photos are scaled down to 1600 px.
             </p>
           </div>
@@ -162,13 +162,13 @@ export function ImageLibraryPanel({
       </CardHeader>
       <CardContent>
         {locked && (
-          <p className="text-amber-300/80 text-xs mb-3">
+          <p className="text-warning-text text-xs mb-3">
             This game has been played, so its images can't be changed. Duplicate it to edit them.
           </p>
         )}
-        {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
+        {error && <p className="text-danger-text text-sm mb-3">{error}</p>}
         {images.length === 0 ? (
-          <p className="text-slate-500 text-sm">No images yet.</p>
+          <p className="text-fg-subtle text-sm">No images yet.</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {images.map((img) => {
@@ -177,19 +177,19 @@ export function ImageLibraryPanel({
                 .filter((n): n is number => n !== undefined)
                 .sort((a, b) => a - b);
               return (
-                <div key={img.id} className="rounded-lg border border-slate-700 bg-slate-800/60 p-2 space-y-2">
-                  <a href={`/api/images/${img.id}?v=${img.sha256}`} target="_blank" rel="noreferrer" title="Open full size">
+                <div key={img.id} className="rounded-lg border border-line bg-surface p-2 space-y-2">
+                  <a className="focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page" href={`/api/images/${img.id}?v=${img.sha256}`} target="_blank" rel="noreferrer" title="Open full size">
                     <QuestionImage
                       imageId={img.id}
                       version={img.sha256}
                       alt="Library image"
-                      className="h-24 w-full bg-slate-900/60 rounded-lg"
+                      className="h-24 w-full bg-surface-raised rounded-lg"
                     />
                   </a>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-fg-muted">
                     {img.width}×{img.height} · {formatSize(img.size_bytes)}
                   </p>
-                  <p className={`text-xs ${used.length ? 'text-indigo-300' : 'text-slate-500'}`}>
+                  <p className={`text-xs ${used.length ? 'text-accent-text' : 'text-fg-subtle'}`}>
                     {used.length ? `Used by ${used.map((n) => `Q${n}`).join(', ')}` : 'Unused'}
                   </p>
                   {!locked && (
@@ -245,12 +245,12 @@ export function ImagePicker({
             type="button"
             onClick={() => setOpen(!open)}
             title={`${label}: change`}
-            className="h-9 w-12 rounded border border-slate-600 bg-slate-900/60 overflow-hidden"
+            className="h-9 w-12 rounded border border-line bg-surface-raised overflow-hidden focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
           >
             {selected ? (
               <QuestionImage imageId={value} version={selected.sha256} alt={label} className="h-full w-full" fallbackText={null} />
             ) : (
-              <span className="text-[10px] text-red-300">missing</span>
+              <span className="text-[10px] text-danger-text">missing</span>
             )}
           </button>
         ) : (
@@ -265,10 +265,10 @@ export function ImagePicker({
         )}
       </div>
       {open && (
-        <div className="absolute z-20 right-0 mt-1 w-72 rounded-lg border border-slate-600 bg-slate-900 p-3 shadow-xl space-y-2">
+        <div className="absolute z-20 right-0 mt-1 w-72 rounded-xl border border-line bg-surface p-3 shadow-xl space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400">{label}</span>
-            <button type="button" className="text-slate-500 hover:text-slate-200" onClick={() => setOpen(false)}>
+            <span className="text-xs text-fg-muted">{label}</span>
+            <button type="button" className="text-fg-subtle hover:text-fg focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page" onClick={() => setOpen(false)}>
               <X size={14} />
             </button>
           </div>
@@ -279,14 +279,14 @@ export function ImagePicker({
                   key={img.id}
                   type="button"
                   onClick={() => { onChange(img.id); setOpen(false); }}
-                  className={`h-16 rounded border bg-slate-800 ${img.id === value ? 'border-indigo-400' : 'border-slate-700 hover:border-slate-500'}`}
+                  className={`focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page h-16 rounded border bg-surface-raised ${img.id === value ? 'border-accent' : 'border-line hover:border-line-strong'}`}
                 >
                   <QuestionImage imageId={img.id} version={img.sha256} alt="Library image" className="h-full w-full" fallbackText={null} />
                 </button>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-slate-500">The library is empty.</p>
+            <p className="text-xs text-fg-subtle">The library is empty.</p>
           )}
           <FileButton
             label={library.busy ? 'Uploading…' : 'Upload new'}
@@ -297,7 +297,7 @@ export function ImagePicker({
               if (img) { onChange(img.id); setOpen(false); }
             }}
           />
-          {library.error && <p className="text-xs text-red-400">{library.error}</p>}
+          {library.error && <p className="text-xs text-danger-text">{library.error}</p>}
         </div>
       )}
     </div>

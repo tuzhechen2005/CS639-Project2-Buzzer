@@ -8,6 +8,9 @@ game display; see `src/CLAUDE.md` for how the app itself works.
 ## Contents
 - `src/` — all application code; see `src/CLAUDE.md`.
 - `index.html` — Vite entry page (title "Buzzer — Host"), loads `/src/main.tsx`.
+  Before any script loads, a small inline script sets `<html data-theme>` and `color-scheme`
+  from `localStorage['buzzer-theme']` (else the OS preference) so there is no flash of the wrong
+  theme; `<meta name="theme-color" content="">` starts empty and `initTheme()` fills it. (T9)
 - `package.json` — scripts `dev` (Vite on :5173), `build` (`tsc -b && vite build`), `preview`.
   Runtime deps: react 18, react-router-dom 6, socket.io-client 4, qrcode.react, lucide-react,
   clsx + tailwind-merge.
@@ -16,7 +19,9 @@ game display; see `src/CLAUDE.md` for how the app itself works.
 - `tsconfig.json` — strict mode, `noUnusedLocals` / `noUnusedParameters`, `noEmit`; covers `src/`.
   `tsconfig.node.json` covers the two config files.
 - `tailwind.config.ts` / `postcss.config.js` — Tailwind scans `index.html` and `src/**/*.{ts,tsx}`;
-  only customisation is the system font stack.
+  it adds the theme colours from `src/theme/colors.js` (`theme.extend.colors`; the default
+  palette stays compiled but `tests/unit/test_no_raw_colours.py` forbids it), keeps the system
+  font stack, and sets `future.hoverOnlyWhenSupported` so `hover:` never sticks on touch screens.
 - `dist/` — build output (git-ignored), bind-mounted into the nginx container.
 
 ## How it fits in
@@ -27,6 +32,8 @@ docker-compose mounts at `/usr/share/nginx/html/host`; nginx serves it under `/h
 SPA fallback to `/host/index.html` and proxies `/api` and `/socket.io` to the backend.
 
 ## Gotchas
+- **The theme script in `index.html` must match `src/theme/theme.ts`** (same storage key, only
+  `light` / `dark` count). It writes no colour values: a hex there fails the raw-colour test.
 - **`dist/` is a snapshot.** :8080 shows whatever was last built; rerun `npm run build` to update it.
   If `dist/` is empty, nginx returns 403 for `/host/`. If Docker created `dist/` as root, the build
   fails with `EACCES` (fix in the root README).

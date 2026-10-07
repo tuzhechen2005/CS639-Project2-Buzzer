@@ -6,6 +6,7 @@ import UsersPage from './pages/UsersPage';
 import UserDetailPage from './pages/UserDetailPage';
 import GuestsPage from './pages/GuestsPage';
 import SessionsPage from './pages/SessionsPage';
+import { ThemeToggle } from './components/ThemeToggle';
 
 function RequireAdmin() {
   const token = localStorage.getItem('token');
@@ -22,18 +23,18 @@ function AdminLayout() {
   }
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+    `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page ${
       isActive
-        ? 'bg-indigo-600 text-white'
-        : 'text-slate-300 hover:bg-slate-700 hover:text-slate-100'
+        ? 'bg-accent-subtle text-accent-text'
+        : 'text-fg-muted hover:bg-surface-raised hover:text-fg'
     }`;
 
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="w-56 shrink-0 bg-slate-900 border-r border-slate-700 flex flex-col">
-        <div className="px-6 py-5 border-b border-slate-700">
-          <h1 className="text-lg font-bold text-white">Buzzer Admin</h1>
+      <aside className="w-56 shrink-0 bg-surface border-r border-line flex flex-col">
+        <div className="px-6 py-5 border-b border-line">
+          <h1 className="text-lg font-bold text-fg">Buzzer Admin</h1>
         </div>
         <nav className="flex-1 p-3 space-y-1">
           <NavLink to="/users" className={linkClass}>
@@ -52,7 +53,7 @@ function AdminLayout() {
           {/* Host and player work happens in those apps; admins pass every check there.
               Plain links: they only work behind nginx (:8080), where the apps share a token. */}
           <div className="pt-5">
-            <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Host &amp; Play</p>
+            <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-wider text-fg-subtle">Host &amp; Play</p>
             <a href="/host/" className={linkClass({ isActive: false })}>
               <Monitor size={16} /> Host app
             </a>
@@ -61,10 +62,13 @@ function AdminLayout() {
             </a>
           </div>
         </nav>
-        <div className="p-3 border-t border-slate-700">
+        <div className="p-3 border-t border-line space-y-2">
+          <div className="px-4">
+            <ThemeToggle />
+          </div>
           <button
             onClick={logout}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-slate-100 w-full transition-colors"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-fg-muted hover:bg-surface-raised hover:text-fg w-full transition-colors focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
           >
             <LogOut size={16} /> Logout
           </button>

@@ -13,21 +13,24 @@ function OptionContent({ text, imageId }: { text: string; imageId?: string | nul
   if (!imageId) return <span>{text}</span>;
   return (
     <span className="flex flex-1 min-w-0 flex-col gap-2">
-      <QuestionImage imageId={imageId} alt={text} className="h-28 w-full" fallbackText={null} />
+      <QuestionImage imageId={imageId} alt={text} className="h-28 w-28 mx-auto" fallbackText={null} />
       <span>{text}</span>
     </span>
   );
 }
 
+// Answer colours (docs/plans/t9-theming.md): the same in both themes, each with a text colour
+// that passes AA on it, and a strong border so yellow and orange stand out on a light page. Written
+// out in full: Tailwind only generates class names it can read literally.
 const OPTION_COLORS = [
-  'bg-red-600 hover:bg-red-500 border-red-500',
-  'bg-blue-600 hover:bg-blue-500 border-blue-500',
-  'bg-yellow-500 hover:bg-yellow-400 border-yellow-400',
-  'bg-green-600 hover:bg-green-500 border-green-500',
-  'bg-purple-600 hover:bg-purple-500 border-purple-500',
-  'bg-orange-500 hover:bg-orange-400 border-orange-400',
-  'bg-pink-600 hover:bg-pink-500 border-pink-500',
-  'bg-teal-600 hover:bg-teal-500 border-teal-500',
+  'bg-option-1 text-on-option-1 border-line-strong',
+  'bg-option-2 text-on-option-2 border-line-strong',
+  'bg-option-3 text-on-option-3 border-line-strong',
+  'bg-option-4 text-on-option-4 border-line-strong',
+  'bg-option-5 text-on-option-5 border-line-strong',
+  'bg-option-6 text-on-option-6 border-line-strong',
+  'bg-option-7 text-on-option-7 border-line-strong',
+  'bg-option-8 text-on-option-8 border-line-strong',
 ];
 
 function optionLabel(i: number): string {
@@ -56,7 +59,7 @@ export default function QuestionPage() {
   if (!currentQuestion) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-slate-400">Loading question…</p>
+        <p className="text-fg-muted">Loading question…</p>
       </div>
     );
   }
@@ -68,13 +71,13 @@ export default function QuestionPage() {
   }
 
   const questionLabel = (
-    <p className="text-slate-400 text-sm text-center tracking-wide uppercase mb-1">
+    <p className="text-fg-muted text-sm text-center tracking-wide uppercase mb-1">
       Question {currentQuestion.questionNumber} of {currentQuestion.totalQuestions}
     </p>
   );
 
   const lockedMsg = (
-    <p className="text-center text-amber-400 text-sm mt-4 font-semibold">
+    <p className="text-center text-warning-text text-sm mt-4 font-semibold">
       Answers locked — waiting for results…
     </p>
   );
@@ -82,7 +85,7 @@ export default function QuestionPage() {
   if (currentQuestion.type === 'multiple_choice') {
     const options = currentQuestion.config.options ?? [];
     return (
-      <div className="py-6 px-4 flex flex-col gap-3">
+      <div className="p-4 flex flex-col gap-4">
         <div className="pb-2">
           {questionLabel}
           <TimerBar key={currentQuestion.questionId} totalSeconds={currentQuestion.timeLimitSeconds} paused={questionLocked} />
@@ -92,15 +95,15 @@ export default function QuestionPage() {
             key={i}
             disabled={submitted || questionLocked}
             onClick={() => submit({ selectedIndex: i })}
-            className={`w-full flex items-center gap-4 rounded-2xl px-5 py-4 text-left text-white font-semibold text-lg border-2 transition-all
-              ${submitted || questionLocked ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}
+            className={`focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page w-full flex items-center gap-4 rounded-2xl px-5 py-4 text-left font-semibold text-lg border-2 transition-all
+              ${submitted || questionLocked ? 'opacity-50 cursor-not-allowed' : 'active:scale-95 hover:[&:not(:active)]:brightness-95 active:brightness-90'}
               ${OPTION_COLORS[i % OPTION_COLORS.length]}`}
           >
             <span className="text-2xl font-black w-8 shrink-0">{optionLabel(i)}</span>
             <OptionContent text={opt} imageId={currentQuestion.config.option_image_ids?.[i]} />
           </button>
         ))}
-        {submitted && <p className="text-center text-slate-400 text-sm mt-4">Answer submitted — waiting for results…</p>}
+        {submitted && <p className="text-center text-fg-muted text-sm mt-4">Answer submitted — waiting for results…</p>}
         {!submitted && questionLocked && lockedMsg}
       </div>
     );
@@ -114,20 +117,20 @@ export default function QuestionPage() {
         <button
           disabled={submitted || questionLocked}
           onClick={() => submit({ selectedValue: true })}
-          className={`w-full rounded-2xl py-8 text-white font-black text-3xl border-2 border-green-500 transition-all
-            ${submitted || questionLocked ? 'opacity-50 cursor-not-allowed bg-green-700' : 'bg-green-600 hover:bg-green-500 active:scale-95'}`}
+          className={`focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page w-full rounded-2xl py-8 bg-success text-on-success font-black text-3xl border-2 border-line-strong transition-all
+            ${submitted || questionLocked ? 'opacity-50 cursor-not-allowed' : 'active:scale-95 hover:[&:not(:active)]:brightness-95 active:brightness-90'}`}
         >
           True
         </button>
         <button
           disabled={submitted || questionLocked}
           onClick={() => submit({ selectedValue: false })}
-          className={`w-full rounded-2xl py-8 text-white font-black text-3xl border-2 border-red-500 transition-all
-            ${submitted || questionLocked ? 'opacity-50 cursor-not-allowed bg-red-700' : 'bg-red-600 hover:bg-red-500 active:scale-95'}`}
+          className={`focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page w-full rounded-2xl py-8 bg-danger text-on-danger font-black text-3xl border-2 border-line-strong transition-all
+            ${submitted || questionLocked ? 'opacity-50 cursor-not-allowed' : 'active:scale-95 hover:[&:not(:active)]:brightness-95 active:brightness-90'}`}
         >
           False
         </button>
-        {submitted && <p className="text-center text-slate-400 text-sm mt-2">Answer submitted — waiting for results…</p>}
+        {submitted && <p className="text-center text-fg-muted text-sm mt-2">Answer submitted — waiting for results…</p>}
         {!submitted && questionLocked && lockedMsg}
       </div>
     );
@@ -136,16 +139,16 @@ export default function QuestionPage() {
   if (currentQuestion.type === 'fill_in_the_blank') {
     const maxLength = currentQuestion.config.maxLength ?? 100;
     return (
-      <div className="min-h-screen flex flex-col justify-center p-4 gap-5">
+      <div className="min-h-screen flex flex-col justify-center p-4 gap-4">
         {questionLabel}
         <TimerBar key={currentQuestion.questionId} totalSeconds={currentQuestion.timeLimitSeconds} paused={questionLocked} />
 
         {submitted ? (
           <div className="flex flex-col items-center gap-3">
             <div className="text-5xl">🔒</div>
-            <p className="text-slate-100 text-xl font-bold">Answer locked in!</p>
-            <p className="text-slate-400 text-base italic">"{inputValue.trim()}"</p>
-            <p className="text-slate-500 text-sm mt-2">Waiting for results…</p>
+            <p className="text-fg text-xl font-bold">Answer locked in!</p>
+            <p className="text-fg-muted text-base italic">"{inputValue.trim()}"</p>
+            <p className="text-fg-subtle text-sm mt-2">Waiting for results…</p>
           </div>
         ) : questionLocked ? (
           <div className="flex flex-col items-center gap-3 mt-4">
@@ -167,12 +170,12 @@ export default function QuestionPage() {
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Type your answer…"
               autoFocus
-              className="w-full rounded-xl px-4 py-4 text-slate-900 text-xl bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-xl px-4 py-4 text-fg text-xl bg-surface-raised border border-line-strong placeholder:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
             />
             <button
               type="submit"
               disabled={!inputValue.trim()}
-              className="w-full rounded-2xl py-5 text-white font-black text-2xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full rounded-2xl py-5 text-on-accent font-black text-2xl bg-accent hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Submit
             </button>
@@ -185,12 +188,12 @@ export default function QuestionPage() {
   if (currentQuestion.type === 'multi_select') {
     const options = currentQuestion.config.options ?? [];
     return (
-      <div className="py-6 px-4 flex flex-col gap-3">
+      <div className="p-4 flex flex-col gap-4">
         <div className="pb-2">
           {questionLabel}
           <TimerBar key={currentQuestion.questionId} totalSeconds={currentQuestion.timeLimitSeconds} paused={questionLocked} />
         </div>
-        <p className="text-center text-slate-400 text-sm">Select all that apply</p>
+        <p className="text-center text-fg-muted text-sm">Select all that apply</p>
         {options.map((opt, i) => {
           const isSelected = selectedIndices.has(i);
           return (
@@ -198,15 +201,15 @@ export default function QuestionPage() {
               key={i}
               disabled={submitted || questionLocked}
               onClick={() => toggleIndex(i)}
-              className={`w-full flex items-center gap-4 rounded-2xl px-5 py-4 text-left font-semibold text-lg border-2 transition-all
+              className={`focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page w-full flex items-center gap-4 rounded-2xl px-5 py-4 text-left font-semibold text-lg border-2 transition-all
                 ${submitted || questionLocked ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}
                 ${isSelected
-                  ? 'bg-indigo-600 border-indigo-400 text-white'
-                  : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600'
+                  ? 'bg-accent border-accent text-on-accent'
+                  : 'bg-surface-raised border-line-strong text-fg'
                 }`}
             >
               <span className={`text-xl font-black w-8 shrink-0 flex items-center justify-center rounded-md border-2 transition-colors
-                ${isSelected ? 'border-white bg-white text-indigo-700' : 'border-slate-500 text-slate-400'}`}>
+                ${isSelected ? 'border-on-accent text-on-accent' : 'border-line-strong text-fg-muted'}`}>
                 {isSelected ? '✓' : optionLabel(i)}
               </span>
               <OptionContent text={opt} imageId={currentQuestion.config.option_image_ids?.[i]} />
@@ -217,12 +220,12 @@ export default function QuestionPage() {
           <button
             disabled={selectedIndices.size === 0}
             onClick={() => submit({ selectedIndices: Array.from(selectedIndices) })}
-            className="w-full rounded-2xl py-5 text-white font-black text-2xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed mt-2"
+            className="w-full rounded-2xl py-5 text-on-accent font-black text-2xl bg-accent hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2"
           >
             Submit ({selectedIndices.size} selected)
           </button>
         )}
-        {submitted && <p className="text-center text-slate-400 text-sm mt-4">Answer submitted — waiting for results…</p>}
+        {submitted && <p className="text-center text-fg-muted text-sm mt-4">Answer submitted — waiting for results…</p>}
         {!submitted && questionLocked && lockedMsg}
       </div>
     );
@@ -242,7 +245,7 @@ export default function QuestionPage() {
     }
 
     return (
-      <div className="py-6 px-4 flex flex-col gap-4">
+      <div className="p-4 flex flex-col gap-4">
         <div className="pb-2">
           {questionLabel}
           <TimerBar key={currentQuestion.questionId} totalSeconds={currentQuestion.timeLimitSeconds} paused={questionLocked} />
@@ -251,13 +254,13 @@ export default function QuestionPage() {
         {submitted ? (
           <div className="flex flex-col items-center gap-3">
             <div className="text-5xl">🔒</div>
-            <p className="text-slate-100 text-xl font-bold">Answer locked in!</p>
+            <p className="text-fg text-xl font-bold">Answer locked in!</p>
             {parsed !== null && (
-              <p className="text-slate-400 text-base italic">
+              <p className="text-fg-muted text-base italic">
                 {formatNumber(parsed)}{unit ? ` ${unit}` : ''}
               </p>
             )}
-            <p className="text-slate-500 text-sm mt-2">Waiting for results…</p>
+            <p className="text-fg-subtle text-sm mt-2">Waiting for results…</p>
           </div>
         ) : questionLocked ? (
           <div className="flex flex-col items-center gap-3 mt-4">{lockedMsg}</div>
@@ -269,13 +272,13 @@ export default function QuestionPage() {
             }}
             className="flex flex-col gap-3"
           >
-            <p className="text-center text-slate-400 text-sm">Enter your best estimate</p>
+            <p className="text-center text-fg-muted text-sm">Enter your best estimate</p>
             <div className="flex items-stretch gap-2">
               <button
                 type="button"
                 onClick={toggleMinus}
                 aria-label="Toggle minus sign"
-                className="w-14 shrink-0 rounded-xl bg-slate-700 text-white text-2xl font-black active:scale-95 hover:bg-slate-600"
+                className="w-14 shrink-0 rounded-xl bg-surface-raised border border-line-strong text-fg text-2xl font-black active:scale-95 focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
               >
                 ±
               </button>
@@ -288,11 +291,11 @@ export default function QuestionPage() {
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="0"
                 aria-label="Your estimate"
-                className="min-w-0 flex-1 rounded-xl px-4 py-4 text-slate-900 text-2xl bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="min-w-0 flex-1 rounded-xl px-4 py-4 text-fg text-2xl bg-surface-raised border border-line-strong placeholder:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
               />
-              {unit && <span className="self-center text-slate-300 text-lg shrink-0">{unit}</span>}
+              {unit && <span className="self-center text-fg-muted text-lg shrink-0">{unit}</span>}
             </div>
-            <p className={`text-center text-sm min-h-5 ${parsed === null && !empty ? 'text-amber-400' : 'text-slate-400'}`}>
+            <p className={`text-center text-sm min-h-5 ${parsed === null && !empty ? 'text-warning-text' : 'text-fg-muted'}`}>
               {parsed !== null
                 ? `= ${formatNumber(parsed)}${unit ? ` ${unit}` : ''}`
                 : empty ? '' : 'Enter a number'}
@@ -300,7 +303,7 @@ export default function QuestionPage() {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="w-full rounded-2xl py-5 text-white font-black text-2xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full rounded-2xl py-5 text-on-accent font-black text-2xl bg-accent hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Submit
             </button>
@@ -327,7 +330,7 @@ export default function QuestionPage() {
         }
         status={
           submitted ? (
-            <p className="text-center text-slate-400 text-sm">Answer submitted — waiting for results…</p>
+            <p className="text-center text-fg-muted text-sm">Answer submitted — waiting for results…</p>
           ) : questionLocked ? (
             lockedMsg
           ) : null
@@ -338,7 +341,7 @@ export default function QuestionPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
-      <p className="text-slate-400">Unsupported question type.</p>
+      <p className="text-fg-muted">Unsupported question type.</p>
     </div>
   );
 }

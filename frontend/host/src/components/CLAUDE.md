@@ -6,10 +6,12 @@ the one renderer for every host view of a plot_point plane (T7). Other composite
 inline in pages.
 
 ## Contents
-- `ui/button.tsx` — `Button` with `variant` (default / outline / ghost / destructive) and `size` (sm / md / lg).
-- `ui/card.tsx` — `Card`, `CardHeader`, `CardContent` wrappers (dark slate panel styling).
-- `ui/input.tsx` — styled `Input`.
-- `ui/TimerBar.tsx` — countdown bar (green → yellow → red) with a seconds readout. Props:
+- `ui/button.tsx` — `Button` with `variant` (default / outline / ghost / destructive) and `size`
+  (sm / md / lg). `rounded-xl`, the shared focus ring, `disabled:opacity-50`; hovers are
+  `enabled:hover:` so a disabled button keeps its colour.
+- `ui/card.tsx` — `Card`, `CardHeader`, `CardContent` wrappers (`rounded-2xl`, `bg-surface`, `p-6`).
+- `ui/input.tsx` — styled `Input` (`surface-raised` with a `line-strong` border, focus ring).
+- `ui/TimerBar.tsx` — countdown bar (`success` → `warning` → `danger` on a `surface-raised` track) with a seconds readout. Props:
   `totalSeconds`, optional `initialSeconds` (for reconnect / locked state), `paused`.
 - `ui/QuestionImage.tsx` — (T8) a question or option image by id (`/api/images/{id}`, no
   login). Shows a same-size pulsing placeholder while loading, and on failure a short note or
@@ -24,9 +26,13 @@ inline in pages.
 - `PromptText.tsx` — shows a question prompt with its formatting (via `lib/promptMarkup.ts`),
   as React elements and text, never raw HTML. Use it wherever a prompt is displayed; printing
   `{prompt}` directly shows `<b>` tags and `&lt;` codes literally.
-
+- `ThemeToggle.tsx` — (T9) the sun/moon light/dark switch: name "Dark theme", state in
+  `aria-pressed`, icon = current theme. Holds no state of its own: reads `<html data-theme>`
+  and re-renders on `themechange`; a click calls `setTheme`. Callers place it with `className`
+  (`HomePage`, `CourseLayout`, `LoginPage`, the game `GameLayout`'s room-code panel).
+  Byte-identical to the admin's copy.
 ## How it fits in
-Used by everything in `pages/`. Styling is Tailwind via `lib/utils.ts`'s `cn`; callers can
+Used by everything in `pages/`. Colours are theme tokens (`bg-surface`, `text-fg-muted`, …; `src/theme/`, T9), never palette classes. Styling is Tailwind via `lib/utils.ts`'s `cn`; callers can
 override with `className`. Hand-rolled shadcn-style components, not an installed library.
 
 ## Gotchas
@@ -34,5 +40,8 @@ override with `className`. Hand-rolled shadcn-style components, not an installed
   `key={questionId}` to reset it per question; changing `initialSeconds` alone does nothing.
 - `TimerBar` is display-only. The server owns the real timer (`websocket/gateway.py`); pausing
   here only mirrors the host's lock.
-- Dark-theme colours are hardcoded (slate/indigo); there is no theme token layer.
+- `PlotScatter` reads its colours from the tokens at draw time (`lib/plotPalette.ts`) and redraws
+  on `themechange`; a canvas that skipped that would keep the old theme's colours.
+- A class passed through `className` that should replace a primitive's hover must use the same
+  variant (`enabled:hover:…`), or tailwind-merge keeps both.
 - The player app has its own diverging copies of these files.

@@ -273,7 +273,7 @@ export function ppListSummary(config: Record<string, unknown>, answer: Record<st
 // Form fields
 // ---------------------------------------------------------------------------
 
-const SELECT = 'rounded-lg border border-slate-600 bg-slate-800 px-2 py-2 text-slate-100 text-sm';
+const SELECT = 'rounded-xl border border-line-strong bg-surface-raised px-2 py-2 text-fg text-sm focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page';
 
 export function PlotPointFields({
   form,
@@ -320,26 +320,26 @@ export function PlotPointFields({
     const label = name === 'x' ? 'ppXLabel' : 'ppYLabel';
     return (
       <div className="flex flex-wrap items-end gap-2">
-        <span className="w-4 pb-2 text-sm font-semibold text-slate-300">{name}</span>
+        <span className="w-4 pb-2 text-sm font-semibold text-fg-muted">{name}</span>
         <div>
-          <label className="block text-xs text-slate-400 mb-1">From</label>
+          <label className="block text-xs text-fg-muted mb-1">From</label>
           <Input type="number" step="any" aria-label={`${name} from`} value={form[min]}
             onChange={(e) => onChange({ [min]: e.target.value })} className="w-24 text-sm" />
         </div>
         <div>
-          <label className="block text-xs text-slate-400 mb-1">To</label>
+          <label className="block text-xs text-fg-muted mb-1">To</label>
           <Input type="number" step="any" aria-label={`${name} to`} value={form[max]}
             onChange={(e) => onChange({ [max]: e.target.value })} className="w-24 text-sm" />
         </div>
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Step</label>
+          <label className="block text-xs text-fg-muted mb-1">Step</label>
           <select className={SELECT} aria-label={`${name} step`} value={form[step]}
             onChange={(e) => onChange({ [step]: Number(e.target.value) })}>
             {PP_STEPS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Axis label (optional)</label>
+          <label className="block text-xs text-fg-muted mb-1">Axis label (optional)</label>
           <Input maxLength={PP_LABEL_MAX} placeholder={name} aria-label={`${name} axis label`} value={form[label]}
             onChange={(e) => onChange({ [label]: e.target.value })} className="w-32 text-sm" />
         </div>
@@ -357,13 +357,13 @@ export function PlotPointFields({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <label className="block text-xs text-slate-400">The plane (at most 20 cells per axis)</label>
+        <label className="block text-xs text-fg-muted">The plane (at most 20 cells per axis)</label>
         {axis('x')}
         {axis('y')}
       </div>
 
       <div>
-        <label className="block text-xs text-slate-400 mb-2">
+        <label className="block text-xs text-fg-muted mb-2">
           Overlays: what the app draws for students to read (lines are extended across the plane)
         </label>
         <div className="space-y-2">
@@ -378,13 +378,13 @@ export function PlotPointFields({
               {o.kind === 'point' && <>{field(o, i, 'x')}{field(o, i, 'y')}</>}
               {o.kind === 'line' && (
                 <>
-                  <span className="text-xs text-slate-500">(</span>{field(o, i, 'x1')}{field(o, i, 'y1')}
-                  <span className="text-xs text-slate-500">) to (</span>{field(o, i, 'x2')}{field(o, i, 'y2')}
-                  <span className="text-xs text-slate-500">)</span>
+                  <span className="text-xs text-fg-subtle">(</span>{field(o, i, 'x1')}{field(o, i, 'y1')}
+                  <span className="text-xs text-fg-subtle">) to (</span>{field(o, i, 'x2')}{field(o, i, 'y2')}
+                  <span className="text-xs text-fg-subtle">)</span>
                 </>
               )}
               {o.kind === 'polynomial' && (
-                <span className="flex items-center gap-1 text-xs text-slate-400">
+                <span className="flex items-center gap-1 text-xs text-fg-muted">
                   y =
                   {o.coefficients.map((c, k) => (
                     <span key={k} className="flex items-center gap-1">
@@ -419,7 +419,7 @@ export function PlotPointFields({
       </div>
 
       <div>
-        <p className="text-xs text-slate-400 mb-2">
+        <p className="text-xs text-fg-muted mb-2">
           {accuracy
             ? 'Preview: click it to set the target (snaps to the nearest grid point).'
             : 'Preview: what students see.'}
@@ -433,18 +433,18 @@ export function PlotPointFields({
             className="w-full max-w-lg h-96"
           />
         ) : (
-          <p className="text-xs text-slate-500">Fix the plane above to see the preview.</p>
+          <p className="text-xs text-fg-subtle">Fix the plane above to see the preview.</p>
         )}
         {accuracy && (
-          <p className="text-sm text-slate-300 mt-2" data-testid="plot-target">
+          <p className="text-sm text-fg-muted mt-2" data-testid="plot-target">
             {form.ppTarget === null
               ? 'Target: not set'
               : targetShown && preview
-                ? <>Target: <span className="text-green-300">{formatGridPoint(preview, graphToGrid(preview, targetShown))}</span></>
+                ? <>Target: <span className="text-success-text">{formatGridPoint(preview, graphToGrid(preview, targetShown))}</span></>
                 : 'Target: no longer on the grid. Click the preview to choose a new one.'}
           </p>
         )}
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-xs text-fg-subtle mt-1">
           Choose curves whose key points (a vertex, an intersection) lie on grid points, or use a finer
           step. A background image is stretched to the plane, so pick axis ranges whose shape matches it.
         </p>
@@ -452,12 +452,12 @@ export function PlotPointFields({
 
       {accuracy && (
         <div>
-          <label className="block text-xs text-slate-400 mb-2">
+          <label className="block text-xs text-fg-muted mb-2">
             Bands: an answer within N cells (counting squares, diagonals included) earns the points
           </label>
           <div className="flex gap-2 mb-1 px-0.5">
-            <span className="w-28 text-xs text-slate-500">Within (cells)</span>
-            <span className="w-24 text-xs text-slate-500">Points</span>
+            <span className="w-28 text-xs text-fg-subtle">Within (cells)</span>
+            <span className="w-24 text-xs text-fg-subtle">Points</span>
           </div>
           <div className="space-y-2">
             {form.ppBands.map((band, i) => (
@@ -468,7 +468,7 @@ export function PlotPointFields({
                 <Input type="number" step="any" min="0" aria-label={`Band ${i + 1} points`} value={band.points}
                   onChange={(e) => onChange({ ppBands: form.ppBands.map((b, j) => (j === i ? { ...b, points: e.target.value } : b)) })}
                   className="w-24 text-sm" />
-                {i === 0 && <span className="text-xs text-green-400">best band = correct</span>}
+                {i === 0 && <span className="text-xs text-success-text">best band = correct</span>}
                 {form.ppBands.length > 1 && (
                   <Button type="button" variant="ghost" size="sm"
                     onClick={() => onChange({ ppBands: form.ppBands.filter((_, j) => j !== i) })}>
@@ -489,14 +489,14 @@ export function PlotPointFields({
               </Button>
             )}
           </div>
-          <p className="text-xs text-slate-500 mt-2">
+          <p className="text-xs text-fg-subtle mt-2">
             Question points (the best band): {form.ppBands[0]?.points || '—'}
           </p>
         </div>
       )}
 
       {problems.length > 0 && (
-        <ul className="text-xs text-amber-300 list-disc pl-5 space-y-0.5" data-testid="plot-problems">
+        <ul className="text-xs text-warning-text list-disc pl-5 space-y-0.5" data-testid="plot-problems">
           {problems.map((p) => <li key={p}>{p}</li>)}
         </ul>
       )}

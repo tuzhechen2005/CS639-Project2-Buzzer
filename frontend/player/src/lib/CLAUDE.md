@@ -19,7 +19,13 @@ numeric_estimate text, and the plot_point plane).
   flipped), snapping (midway rounds up), cell distance, line and polynomial clipping,
   `roundToStep` / `formatCoord` (typographic minus). **Byte-identical to the host's copy**;
   `tests/unit/test_plot_geometry_copies.py` fails if they drift. Imports nothing.
-- `plotPalette.ts` — every canvas colour in one place (T9 switches these to theme tokens).
+- `plotPalette.ts` — every canvas colour in one place. `plotPalette()` builds them from the
+  theme tokens on every call (`tokenColor` from `../theme/theme`), so callers must call it at
+  draw time, not cache it.
+- `theme.test.ts` — (T9) vitest (jsdom) for `src/theme/theme.ts`: stored choice vs OS, invalid
+  or blocked storage, `applyTheme` (attribute, `color-scheme`, meta tag, `themechange`), OS
+  changes only while nothing is stored. It lives here, not in `src/theme/`, because that folder
+  must stay byte-identical across the three apps.
 - `plotDraw.ts` — paints the plane on a canvas: background image, grid, axes, tick labels,
   overlays, the player's point; `planeDescription` for the `aria-label`.
 - `plotPoint.ts` — the plot_point rules that are not drawing: the "Type coordinates" commit

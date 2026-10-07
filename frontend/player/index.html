@@ -3,6 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="" />
+    <script>
+      // Theme before first paint (docs/plans/t9-theming.md): the saved choice, else the OS. Same key
+      // and rule as getStoredTheme() in src/theme/theme.ts.
+      (function () {
+        var theme = null;
+        try {
+          var saved = localStorage.getItem('buzzer-theme');
+          if (saved === 'light' || saved === 'dark') theme = saved;
+        } catch (e) {}
+        if (!theme) theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
     <title>Buzzer</title>
   </head>
   <body>

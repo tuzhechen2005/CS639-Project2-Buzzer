@@ -1,7 +1,9 @@
 // Every colour the host's plot_point canvas draws with, in one place
 // (docs/plans/t7-plot-the-point.md, P5). A canvas is painted by code, so Tailwind classes cannot
-// reach it: T9 switches these to the theme's colour tokens here, and the canvas redraws when the
-// theme changes.
+// reach it: the colours come from the theme's tokens (docs/plans/t9-theming.md, "Canvas mapping"),
+// read on every draw, and PlotScatter redraws when the theme changes.
+
+import { tokenColor } from '../theme/theme';
 
 export interface PlotPalette {
   background: string;
@@ -22,23 +24,21 @@ export interface PlotPalette {
   bandLabel: string;
 }
 
-const DARK: PlotPalette = {
-  background: '#0f172a', // slate-900, the app background
-  grid: '#1e293b', // slate-800
-  axis: '#64748b', // slate-500
-  tickLabel: '#94a3b8', // slate-400
-  overlay: '#38bdf8', // sky-400
-  overlayLabel: '#7dd3fc', // sky-300
-  dot: '#818cf8', // indigo-400
-  dotLabel: '#e0e7ff', // indigo-100
-  target: '#22c55e', // green-500, as "correct" elsewhere on the host screens
-  targetOutline: '#dcfce7', // green-100
-  bandBest: '#22c55e', // green-500
-  band: '#a3a3a3', // neutral-400
-  bandLabel: '#cbd5e1', // slate-300
-};
-
-/** The palette to draw with now. Today the app has one (dark) theme. */
+/** The palette to draw with now, from the current theme's tokens (call it on every draw). */
 export function plotPalette(): PlotPalette {
-  return DARK;
+  return {
+    background: tokenColor('page'),
+    grid: tokenColor('line'),
+    axis: tokenColor('fg-subtle'),
+    tickLabel: tokenColor('fg-muted'),
+    overlay: tokenColor('plot-overlay'),
+    overlayLabel: tokenColor('plot-overlay'),
+    dot: tokenColor('accent'),
+    dotLabel: tokenColor('on-accent'),
+    target: tokenColor('success'),
+    targetOutline: tokenColor('page'),
+    bandBest: tokenColor('success'),
+    band: tokenColor('fg-subtle'),
+    bandLabel: tokenColor('fg-muted'),
+  };
 }
