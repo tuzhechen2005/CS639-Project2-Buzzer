@@ -8,6 +8,9 @@ wizards are built inline in each page.
 - `ui/button.tsx` — `Button` with `variant` (default / outline / ghost / destructive) and `size` (sm / md / lg).
 - `ui/card.tsx` — `Card`, `CardHeader`, `CardContent` wrappers.
 - `ui/input.tsx` — styled `Input`.
+- `PlotScatter.tsx`, `PromptText.tsx` and `ui/QuestionImage.tsx` — copies of the host's, used only
+  by the question editor (`pages/course/`): the plot_point plane preview, the prompt's bold/line
+  markup, and the T8 picture with its loading and error states.
 - `ThemeToggle.tsx` — (T9) the sun/moon light/dark switch ("Dark theme", `aria-pressed`), placed
   in the sidebar footer above Logout and fixed top-right on the login page. Byte-identical to the
   host's copy.

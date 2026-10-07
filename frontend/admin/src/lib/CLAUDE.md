@@ -8,12 +8,16 @@ Shared helpers for the admin app: the REST client and the Tailwind class helper.
   `localStorage['token']`, JSON bodies; returns `{}` for empty (204) bodies. Errors throw
   `Error(text)` where `text` is, in order: `body.message`, `body.detail` if a string, the joined
   `msg` fields of a 422 `detail` array, else `HTTP <status>`. Two extras:
-  - `postForm(path, FormData)` — multipart upload with no `Content-Type` header, so the browser
-    sets the boundary. (No admin page uploads since T4; kept for parity with the host copy.)
+  - `postForm(path, FormData)` / `putForm(path, FormData)` — multipart upload / replace with no
+    `Content-Type` header, so the browser sets the boundary. Used by the image library in the
+    question editor.
   - `download(path)` — authenticated GET that saves the response as a file, using the filename
     from `Content-Disposition` (falls back to `download`). Used for session CSV/Canvas export and
     the HTML report.
 - `utils.ts` — `cn(...)` = `twMerge(clsx(...))`. Identical to the host's.
+- `images.ts`, `numericEstimate.ts`, `plotDraw.ts`, `plotGeometry.ts`, `plotPalette.ts`,
+  `plotPoint.ts`, `promptMarkup.ts` — copies of the host's, used by the question editor.
+  `plotGeometry.ts` must stay byte-identical in all three apps.
 
 ## How it fits in
 Every admin page talks to the backend only through `api`; almost all paths are under
@@ -28,5 +32,5 @@ Every admin page talks to the backend only through `api`; almost all paths are u
   *a* token exists, so a host's login gets into the dashboard and then fails on every page.
 - `download` reads the whole file into memory as a blob before saving. It adds the link to the
   document and revokes the object URL a second after `click()`; Firefox needs both.
-- The host app has an equivalent copy (same methods); the player's is smaller. They are copies,
+- The host app's copy is byte-identical to this one; the player's is smaller. They are copies,
   not shared code.
