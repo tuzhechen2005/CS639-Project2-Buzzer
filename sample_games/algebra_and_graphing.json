@@ -1,0 +1,416 @@
+{
+  "format": "buzzer/game",
+  "version": 1,
+  "game": {
+    "title": "Algebra & Graphing: Lines and Parabolas",
+    "description": "A classroom review of slopes, intercepts, linear functions and parabola vertices, with graphing questions answered on a coordinate plane.",
+    "max_players": 150
+  },
+  "questions": [
+    {
+      "type": "multiple_choice",
+      "grading_type": "ACCURACY",
+      "prompt": "What is the slope of the line through (1, 2) and (3, 8)?",
+      "config": {
+        "options": [
+          "2",
+          "3",
+          "4",
+          "6"
+        ]
+      },
+      "answer_data": {
+        "answer_points": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "time_limit_seconds": 20,
+      "points_value": 1.0
+    },
+    {
+      "type": "multiple_choice",
+      "grading_type": "ACCURACY",
+      "prompt": "Which line has a y-intercept of −4?",
+      "config": {
+        "options": [
+          "y = 2x − 4",
+          "y = −4x + 2",
+          "y = 4x",
+          "y = x + 4"
+        ]
+      },
+      "answer_data": {
+        "answer_points": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "time_limit_seconds": 20,
+      "points_value": 1.0
+    },
+    {
+      "type": "true_false",
+      "grading_type": "ACCURACY",
+      "prompt": "The graph of y = x² opens upward.",
+      "config": {},
+      "answer_data": {
+        "answer_points": {
+          "true": 1.0,
+          "false": 0.0
+        }
+      },
+      "time_limit_seconds": 15,
+      "points_value": 1.0
+    },
+    {
+      "type": "true_false",
+      "grading_type": "ACCURACY",
+      "prompt": "Two parallel lines have slopes whose product is −1.",
+      "config": {},
+      "answer_data": {
+        "answer_points": {
+          "true": 0.0,
+          "false": 1.0
+        }
+      },
+      "time_limit_seconds": 15,
+      "points_value": 1.0
+    },
+    {
+      "type": "fill_in_the_blank",
+      "grading_type": "ACCURACY",
+      "prompt": "Solve for x: 3x − 7 = 11. What is x?",
+      "config": {},
+      "answer_data": {
+        "acceptedAnswers": [
+          "6"
+        ],
+        "answerPoints": [
+          1.0
+        ],
+        "editDistance": 0
+      },
+      "time_limit_seconds": 25,
+      "points_value": 1.0
+    },
+    {
+      "type": "fill_in_the_blank",
+      "grading_type": "ACCURACY",
+      "prompt": "The point where a graph crosses the y-axis is called the y-____.",
+      "config": {},
+      "answer_data": {
+        "acceptedAnswers": [
+          "intercept"
+        ],
+        "answerPoints": [
+          1.0
+        ],
+        "editDistance": 1
+      },
+      "time_limit_seconds": 25,
+      "points_value": 1.0
+    },
+    {
+      "type": "multi_select",
+      "grading_type": "ACCURACY",
+      "prompt": "Which of these points lie on the line y = 2x + 1? Select all that apply.",
+      "config": {
+        "options": [
+          "(0, 1)",
+          "(1, 3)",
+          "(2, 4)",
+          "(−1, −1)",
+          "(3, 6)"
+        ]
+      },
+      "answer_data": {
+        "answer_points": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5,
+          -0.5
+        ]
+      },
+      "time_limit_seconds": 30,
+      "points_value": 1.5
+    },
+    {
+      "type": "multi_select",
+      "grading_type": "ACCURACY",
+      "prompt": "Which of these are linear functions? Select all that apply.",
+      "config": {
+        "options": [
+          "y = 3x − 2",
+          "y = −x/2 + 4",
+          "y = x²",
+          "y = 2ˣ",
+          "y = 7 − x"
+        ]
+      },
+      "answer_data": {
+        "answer_points": [
+          0.5,
+          0.5,
+          -0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "time_limit_seconds": 30,
+      "points_value": 1.5
+    },
+    {
+      "type": "numeric_estimate",
+      "grading_type": "ACCURACY",
+      "prompt": "Estimate the x-intercept of y = 3x − 10 (to one decimal place).",
+      "config": {},
+      "answer_data": {
+        "target": 3.333,
+        "mode": "absolute",
+        "bands": [
+          {
+            "within": 0.1,
+            "points": 1.0
+          },
+          {
+            "within": 0.5,
+            "points": 0.5
+          }
+        ]
+      },
+      "time_limit_seconds": 30,
+      "points_value": 1.0
+    },
+    {
+      "type": "numeric_estimate",
+      "grading_type": "ACCURACY",
+      "prompt": "Without a calculator: roughly what is 2¹⁰?",
+      "config": {},
+      "answer_data": {
+        "target": 1024,
+        "mode": "relative",
+        "bands": [
+          {
+            "within": 5,
+            "points": 1.0
+          },
+          {
+            "within": 25,
+            "points": 0.5
+          }
+        ]
+      },
+      "time_limit_seconds": 30,
+      "points_value": 1.0
+    },
+    {
+      "type": "plot_point",
+      "grading_type": "ACCURACY",
+      "prompt": "Where do the lines y = x + 1 and y = −2x + 7 intersect? Tap the point.",
+      "config": {
+        "xMin": -10,
+        "xMax": 10,
+        "xStep": 1,
+        "yMin": -10,
+        "yMax": 10,
+        "yStep": 1,
+        "xLabel": "x",
+        "yLabel": "y",
+        "overlays": [
+          {
+            "kind": "line",
+            "x1": 0,
+            "y1": 1,
+            "x2": 1,
+            "y2": 2,
+            "label": "y = x + 1"
+          },
+          {
+            "kind": "line",
+            "x1": 0,
+            "y1": 7,
+            "x2": 1,
+            "y2": 5,
+            "label": "y = −2x + 7"
+          }
+        ]
+      },
+      "answer_data": {
+        "target": {
+          "x": 2,
+          "y": 3
+        },
+        "bands": [
+          {
+            "within": 0,
+            "points": 1.0
+          },
+          {
+            "within": 1,
+            "points": 0.5
+          }
+        ]
+      },
+      "time_limit_seconds": 45,
+      "points_value": 1.0
+    },
+    {
+      "type": "plot_point",
+      "grading_type": "ACCURACY",
+      "prompt": "Tap the vertex of the parabola y = x² − 4x + 1.",
+      "config": {
+        "xMin": -10,
+        "xMax": 10,
+        "xStep": 1,
+        "yMin": -10,
+        "yMax": 10,
+        "yStep": 1,
+        "xLabel": "x",
+        "yLabel": "y",
+        "overlays": [
+          {
+            "kind": "polynomial",
+            "coefficients": [
+              1,
+              -4,
+              1
+            ],
+            "label": "y = x² − 4x + 1"
+          }
+        ]
+      },
+      "answer_data": {
+        "target": {
+          "x": 2,
+          "y": -3
+        },
+        "bands": [
+          {
+            "within": 0,
+            "points": 1.0
+          },
+          {
+            "within": 1,
+            "points": 0.5
+          }
+        ]
+      },
+      "time_limit_seconds": 45,
+      "points_value": 1.0
+    },
+    {
+      "type": "plot_point",
+      "grading_type": "ACCURACY",
+      "prompt": "No graph this time: plot the y-intercept of y = −3x + 4.",
+      "config": {
+        "xMin": -10,
+        "xMax": 10,
+        "xStep": 1,
+        "yMin": -10,
+        "yMax": 10,
+        "yStep": 1,
+        "xLabel": "x",
+        "yLabel": "y"
+      },
+      "answer_data": {
+        "target": {
+          "x": 0,
+          "y": 4
+        },
+        "bands": [
+          {
+            "within": 0,
+            "points": 1.0
+          }
+        ]
+      },
+      "time_limit_seconds": 45,
+      "points_value": 1.0
+    },
+    {
+      "type": "multiple_choice",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Class poll: which topic should we review next?",
+      "config": {
+        "options": [
+          "Slopes",
+          "Intercepts",
+          "Systems of equations",
+          "Parabolas"
+        ]
+      },
+      "answer_data": {},
+      "time_limit_seconds": 20,
+      "points_value": 1.0
+    },
+    {
+      "type": "true_false",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Class poll: I can find the slope from two points on my own.",
+      "config": {},
+      "answer_data": {},
+      "time_limit_seconds": 15,
+      "points_value": 1.0
+    },
+    {
+      "type": "multi_select",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Class poll: which tools have you used to draw graphs? Select all that apply.",
+      "config": {
+        "options": [
+          "Graphing calculator",
+          "Desmos",
+          "A spreadsheet",
+          "Paper only"
+        ]
+      },
+      "answer_data": {},
+      "time_limit_seconds": 25,
+      "points_value": 1.0
+    },
+    {
+      "type": "fill_in_the_blank",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Class poll: in one word, how does graphing feel right now?",
+      "config": {},
+      "answer_data": {},
+      "time_limit_seconds": 30,
+      "points_value": 1.0
+    },
+    {
+      "type": "numeric_estimate",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Class poll: about how many minutes did last week's homework take?",
+      "config": {
+        "unit": "minutes"
+      },
+      "answer_data": {},
+      "time_limit_seconds": 25,
+      "points_value": 1.0
+    },
+    {
+      "type": "plot_point",
+      "grading_type": "COMPLETENESS",
+      "prompt": "Class poll: rate this unit. x = how difficult it was, y = how interesting it was (0 to 10).",
+      "config": {
+        "xMin": 0,
+        "xMax": 10,
+        "xStep": 1,
+        "yMin": 0,
+        "yMax": 10,
+        "yStep": 1,
+        "xLabel": "Difficulty",
+        "yLabel": "Interest"
+      },
+      "answer_data": {},
+      "time_limit_seconds": 40,
+      "points_value": 1.0
+    }
+  ]
+}
