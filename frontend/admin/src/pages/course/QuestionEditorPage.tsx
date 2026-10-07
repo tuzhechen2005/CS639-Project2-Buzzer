@@ -293,3 +293,522 @@ function formToPayload(form: FormState) {
   };
 }
 
+function QuestionForm({
+  initial,
+  onSave,
+  onCancel,
+  saving,
+  library,
+}: {
+  library: ImageLibraryState;
+  initial: FormState;
+  onSave: (payload: ReturnType<typeof formToPayload>) => void;
+  onCancel: () => void;
+  saving: boolean;
+}) {
+  const [form, setForm] = useState<FormState>(initial);
+
+  function set<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Type + grading */}
+      <div className="flex gap-3">
+        <div className="flex-1">
+          <label className="block text-xs text-fg-muted mb-1">Question type</label>
+          <select
+            className="w-full rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
+            value={form.type}
+            onChange={(e) => {
+              const type = e.target.value as QuestionType;
+              setForm((prev) => ({
+                ...prev,
+                type,
+                // typing a number takes longer than tapping: raise the untouched default
+                timeLimitSeconds:
+                  type === 'numeric_estimate' && prev.timeLimitSeconds === 30
+                    ? NE_DEFAULT_TIME
+                    : type === 'plot_point' && prev.timeLimitSeconds === 30
+                    ? PP_DEFAULT_TIME
+                    : prev.timeLimitSeconds,
+              }));
+            }}
+          >
+            <option value="multiple_choice">Multiple Choice</option>
+            <option value="true_false">True / False</option>
+            <option value="fill_in_the_blank">Fill in the Blank</option>
+            <option value="multi_select">Multi-Select (Select All That Apply)</option>
+            <option value="numeric_estimate">Numeric Estimate (closest guess)</option>
+            <option value="plot_point">Plot the Point (tap a coordinate plane)</option>
+          </select>
+        </div>
+        <div className="flex-1">
+          <label className="block text-xs text-fg-muted mb-1">Grading</label>
+          <select
+            className="w-full rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
+            value={form.grading}
+            onChange={(e) => set('grading', e.target.value as GradingType)}
+          >
+            <option value="ACCURACY">Accuracy</option>
+            <option value="COMPLETENESS">Completeness</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Prompt */}
+      <div>
+        <label className="block text-xs text-fg-muted mb-1">Prompt</label>
+        <textarea
+          className="w-full rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg placeholder:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page resize-none text-sm"
+          rows={3}
+          placeholder="Question text…"
+          value={form.prompt}
+          onChange={(e) => set('prompt', e.target.value)}
+          required
+        />
+        <div className="flex items-center gap-2 mt-2">
+          {/* plot_point: the same config.image_id is the plane's background (Decision 9). */}
+          <span className="text-xs text-fg-muted">
+            {form.type === 'plot_point' ? 'Background image (optional)' : 'Prompt image (optional)'}
+          </span>
+          <ImagePicker
+            library={library}
+            value={form.imageId}
+            onChange={(id) => set('imageId', id)}
+            label={form.type === 'plot_point' ? 'Background image' : 'Prompt image'}
+          />
+        </div>
+      </div>
+
+      {/* Type-specific */}
+      {form.type === 'multiple_choice' && (
+        <div>
+          <label className="block text-xs text-fg-muted mb-2">Options</label>
+          {form.grading === 'ACCURACY' && (
+            <div className="flex gap-2 mb-1 px-0.5">
+              <span className="flex-1 text-xs text-fg-subtle">Answer text</span>
+              <span className="w-24 text-xs text-fg-subtle">Points</span>
+              {form.mcOptions.length > 2 && <span className="w-7" />}
+            </div>
+          )}
+          <div className="space-y-2">
+            {form.mcOptions.map((opt, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                <Input
+                  placeholder={`Option ${i + 1}`}
+                  value={opt.text}
+                  onChange={(e) => {
+                    const opts = [...form.mcOptions];
+                    opts[i] = { ...opts[i], text: e.target.value };
+                    set('mcOptions', opts);
+                  }}
+                  className="flex-1 text-sm"
+                />
+                <ImagePicker
+                  library={library}
+                  value={opt.imageId ?? null}
+                  onChange={(id) => {
+                    const opts = [...form.mcOptions];
+                    opts[i] = { ...opts[i], imageId: id };
+                    set('mcOptions', opts);
+                  }}
+                  label={`Image for option ${i + 1}`}
+                />
+                {form.grading === 'ACCURACY' && (
+                  <Input
+                    type="number"
+                    placeholder="pts"
+                    value={opt.points}
+                    onChange={(e) => {
+                      const opts = [...form.mcOptions];
+                      opts[i] = { ...opts[i], points: Number(e.target.value) };
+                      set('mcOptions', opts);
+                    }}
+                    className="w-24 text-sm"
+                    min="0"
+                    step="any"
+                  />
+                )}
+                {form.mcOptions.length > 2 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => set('mcOptions', form.mcOptions.filter((_, j) => j !== i))}
+                  >
+                    <Trash2 size={12} />
+                  </Button>
+                )}
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => set('mcOptions', [...form.mcOptions, { text: '', points: 0 }])}
+            >
+              <Plus size={12} className="mr-1" /> Add option
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {form.type === 'multi_select' && (
+        <div>
+          <label className="block text-xs text-fg-muted mb-2">Options</label>
+          {form.grading === 'ACCURACY' && (
+            <div className="flex gap-2 mb-1 px-0.5">
+              <span className="flex-1 text-xs text-fg-subtle">Answer text</span>
+              <span className="w-24 text-xs text-fg-subtle">Points (neg = penalty)</span>
+              {form.msOptions.length > 2 && <span className="w-7" />}
+            </div>
+          )}
+          <div className="space-y-2">
+            {form.msOptions.map((opt, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                <Input
+                  placeholder={`Option ${i + 1}`}
+                  value={opt.text}
+                  onChange={(e) => {
+                    const opts = [...form.msOptions];
+                    opts[i] = { ...opts[i], text: e.target.value };
+                    set('msOptions', opts);
+                  }}
+                  className="flex-1 text-sm"
+                />
+                <ImagePicker
+                  library={library}
+                  value={opt.imageId ?? null}
+                  onChange={(id) => {
+                    const opts = [...form.msOptions];
+                    opts[i] = { ...opts[i], imageId: id };
+                    set('msOptions', opts);
+                  }}
+                  label={`Image for option ${i + 1}`}
+                />
+                {form.grading === 'ACCURACY' && (
+                  <Input
+                    type="number"
+                    placeholder="pts"
+                    value={opt.points}
+                    onChange={(e) => {
+                      const opts = [...form.msOptions];
+                      opts[i] = { ...opts[i], points: Number(e.target.value) };
+                      set('msOptions', opts);
+                    }}
+                    className="w-24 text-sm"
+                    step="any"
+                  />
+                )}
+                {form.msOptions.length > 2 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => set('msOptions', form.msOptions.filter((_, j) => j !== i))}
+                  >
+                    <Trash2 size={12} />
+                  </Button>
+                )}
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => set('msOptions', [...form.msOptions, { text: '', points: 1 }])}
+            >
+              <Plus size={12} className="mr-1" /> Add option
+            </Button>
+          </div>
+          {form.grading === 'ACCURACY' && (
+            <p className="text-fg-subtle text-xs mt-1">
+              Correct options: positive pts. Distractors: negative pts (penalty). Score = sum of selected, capped at 0.
+            </p>
+          )}
+        </div>
+      )}
+
+      {form.type === 'true_false' && form.grading === 'ACCURACY' && (
+        <div>
+          <label className="block text-xs text-fg-muted mb-2">Points per answer</label>
+          <div className="flex gap-4">
+            <div>
+              <span className="text-fg-muted text-sm">True:</span>
+              <Input
+                type="number"
+                value={form.tfTruePoints}
+                onChange={(e) => set('tfTruePoints', Number(e.target.value))}
+                className="w-28 mt-1 text-sm"
+                min="0"
+                step="any"
+              />
+            </div>
+            <div>
+              <span className="text-fg-muted text-sm">False:</span>
+              <Input
+                type="number"
+                value={form.tfFalsePoints}
+                onChange={(e) => set('tfFalsePoints', Number(e.target.value))}
+                className="w-28 mt-1 text-sm"
+                min="0"
+                step="any"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {form.type === 'fill_in_the_blank' && form.grading === 'ACCURACY' && (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-fg-muted mb-2">Accepted answers</label>
+            <div className="flex gap-2 mb-1 px-0.5">
+              <span className="flex-1 text-xs text-fg-subtle">Answer text</span>
+              <span className="w-24 text-xs text-fg-subtle">Points</span>
+              {form.fibAnswers.length > 1 && <span className="w-7" />}
+            </div>
+            <div className="space-y-2">
+              {form.fibAnswers.map((ans, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <Input
+                    placeholder={`Answer ${i + 1}`}
+                    value={ans.text}
+                    onChange={(e) => {
+                      const answers = [...form.fibAnswers];
+                      answers[i] = { ...answers[i], text: e.target.value };
+                      set('fibAnswers', answers);
+                    }}
+                    className="flex-1 text-sm"
+                  />
+                  <Input
+                    type="number"
+                    placeholder="pts"
+                    value={ans.points}
+                    onChange={(e) => {
+                      const answers = [...form.fibAnswers];
+                      answers[i] = { ...answers[i], points: Number(e.target.value) };
+                      set('fibAnswers', answers);
+                    }}
+                    className="w-24 text-sm"
+                    min="0"
+                    step="any"
+                  />
+                  {form.fibAnswers.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => set('fibAnswers', form.fibAnswers.filter((_, j) => j !== i))}
+                    >
+                      <Trash2 size={12} />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => set('fibAnswers', [...form.fibAnswers, { text: '', points: 1 }])}
+              >
+                <Plus size={12} className="mr-1" /> Add answer
+              </Button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-fg-muted mb-1">Edit distance tolerance (fuzzy match)</label>
+            <Input
+              type="number"
+              value={form.fibEditDistance}
+              onChange={(e) => set('fibEditDistance', Number(e.target.value))}
+              className="w-28 text-sm"
+              min="0"
+            />
+          </div>
+        </div>
+      )}
+
+      {form.type === 'numeric_estimate' && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-3">
+            {form.grading === 'ACCURACY' && (
+              <>
+                <div>
+                  <label className="block text-xs text-fg-muted mb-1">Target (the true value)</label>
+                  <Input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 1665"
+                    value={form.neTarget}
+                    onChange={(e) => set('neTarget', e.target.value)}
+                    className="w-40 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-fg-muted mb-1">Tolerance is measured in</label>
+                  <select
+                    className="rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg text-sm focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
+                    value={form.neMode}
+                    onChange={(e) => set('neMode', e.target.value as NeMode)}
+                  >
+                    <option value="relative">Percent of the target</option>
+                    <option value="absolute">The answer's own units</option>
+                  </select>
+                </div>
+              </>
+            )}
+            <div>
+              <label className="block text-xs text-fg-muted mb-1">Unit (optional)</label>
+              <Input
+                placeholder="steps, years, m…"
+                maxLength={20}
+                value={form.neUnit}
+                onChange={(e) => set('neUnit', e.target.value)}
+                className="w-36 text-sm"
+              />
+            </div>
+          </div>
+
+          {form.grading === 'ACCURACY' && (
+            <div>
+              <label className="block text-xs text-fg-muted mb-2">
+                Bands: a guess within the tolerance earns the points (the first band that fits wins)
+              </label>
+              <div className="flex gap-2 mb-1 px-0.5">
+                <span className="w-32 text-xs text-fg-subtle">
+                  Within {form.neMode === 'relative' ? '(%)' : form.neUnit ? `(${form.neUnit})` : '(units)'}
+                </span>
+                <span className="w-24 text-xs text-fg-subtle">Points</span>
+                {form.neBands.length > 1 && <span className="w-7" />}
+              </div>
+              <div className="space-y-2">
+                {form.neBands.map((band, i) => (
+                  <div key={i} className="flex gap-2 items-center">
+                    <Input
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={band.within}
+                      onChange={(e) => {
+                        const bands = [...form.neBands];
+                        bands[i] = { ...bands[i], within: e.target.value };
+                        set('neBands', bands);
+                      }}
+                      className="w-32 text-sm"
+                    />
+                    <Input
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={band.points}
+                      onChange={(e) => {
+                        const bands = [...form.neBands];
+                        bands[i] = { ...bands[i], points: e.target.value };
+                        set('neBands', bands);
+                      }}
+                      className="w-24 text-sm"
+                    />
+                    {i === 0 && <span className="text-xs text-success-text">best band = correct</span>}
+                    {form.neBands.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => set('neBands', form.neBands.filter((_, j) => j !== i))}
+                      >
+                        <Trash2 size={12} />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {form.neBands.length < NE_MAX_BANDS && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const last = form.neBands[form.neBands.length - 1];
+                      const within = last ? String(Number(last.within) * 2 || '') : '';
+                      const points = last ? String(Math.max(1, Math.floor(Number(last.points) / 2)) || '') : '';
+                      set('neBands', [...form.neBands, { within, points }]);
+                    }}
+                  >
+                    <Plus size={12} className="mr-1" /> Add band
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-fg-subtle mt-2">
+                Question points (the best band): {form.neBands[0]?.points || '—'}
+              </p>
+            </div>
+          )}
+
+          {numericProblems(form).length > 0 && (
+            <ul className="text-xs text-warning-text list-disc pl-5 space-y-0.5">
+              {numericProblems(form).map((p) => <li key={p}>{p}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {form.type === 'plot_point' && (
+        <PlotPointFields
+          form={form}
+          accuracy={form.grading === 'ACCURACY'}
+          imageId={form.imageId}
+          onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+        />
+      )}
+
+      {/* Time + points */}
+      <div className="flex gap-4">
+        <div>
+          <label className="block text-xs text-fg-muted mb-1">Time limit (seconds)</label>
+          <Input
+            type="number"
+            value={form.timeLimitSeconds}
+            onChange={(e) => set('timeLimitSeconds', Number(e.target.value))}
+            className="w-28 text-sm"
+            min="2"
+            max="300"
+          />
+        </div>
+        {form.grading === 'COMPLETENESS' && (
+          <div>
+            <label className="block text-xs text-fg-muted mb-1">Points value</label>
+            <Input
+              type="number"
+              value={form.pointsValue}
+              onChange={(e) => set('pointsValue', Number(e.target.value))}
+              className="w-28 text-sm"
+              min="0"
+              max="100000"
+              step="any"
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-3">
+        <Button
+          type="button"
+          onClick={() => onSave(formToPayload(form))}
+          disabled={
+            saving
+            || (form.type === 'numeric_estimate' && numericProblems(form).length > 0)
+            || (form.type === 'plot_point' && plotProblems(form, form.grading === 'ACCURACY').length > 0)
+          }
+        >
+          {saving ? 'Saving…' : 'Save Question'}
+        </Button>
+        <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+      </div>
+    </div>
+  );
+}
+
+// ---- Main page ----
+
