@@ -812,3 +812,496 @@ function QuestionForm({
 
 // ---- Main page ----
 
+/**
+ * A game's questions, under its course (`/courses/:courseId/games/:gameId/questions`).
+ * Locked games (with recorded answers) are read-only apart from the title, description
+ * and max players; Duplicate makes an editable copy.
+ */
+export default function QuestionEditorPage() {
+  const { courseId, gameId } = useParams<{ courseId: string; gameId: string }>();
+  const navigate = useNavigate();
+  const [game, setGame] = useState<Game | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
+  // Game details header
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [detailTitle, setDetailTitle] = useState('');
+  const [detailDescription, setDetailDescription] = useState('');
+  const [detailMaxPlayers, setDetailMaxPlayers] = useState('');
+  const [detailSaving, setDetailSaving] = useState(false);
+  const library = useImageLibrary(gameId);
+
+  async function load() {
+    let redirected = false;
+    try {
+      const [g, qs] = await Promise.all([
+        api.get<Game>(`/games/${gameId}`),
+        api.get<Question[]>(`/games/${gameId}/questions`),
+      ]);
+      if (String(g.course_id) !== courseId) {
+        // The game belongs to another course: show it under the right one. Keep the
+        // spinner up until the new route loads, so "Game not found" doesn't flash.
+        redirected = true;
+        navigate(`/courses/${g.course_id}/games/${g.id}/questions`, { replace: true });
+        return;
+      }
+      setGame(g);
+      setQuestions(qs);
+      void library.refresh(); // "Used by" changes with every question save
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load');
+    } finally {
+      if (!redirected) setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    // The page stays mounted when only gameId changes (Duplicate opens the copy in the same
+    // course), so drop the previous game: a failed load must not leave it on screen while
+    // edits post to the new id.
+    setGame(null);
+    setQuestions([]);
+    setError('');
+    setLoading(true);
+    setShowAddForm(false);
+    setEditingId(null);
+    setEditingDetails(false);
+    void load();
+  }, [courseId, gameId]);
+
+  function startEditDetails(g: Game) {
+    setDetailTitle(g.title);
+    setDetailDescription(g.description);
+    setDetailMaxPlayers(String(g.max_players));
+    setEditingDetails(true);
+  }
+
+  async function saveDetails(e: React.FormEvent) {
+    e.preventDefault();
+    setDetailSaving(true);
+    setError('');
+    try {
+      const updated = await api.put<Game>(`/games/${gameId}`, {
+        title: detailTitle,
+        description: detailDescription,
+        max_players: Number(detailMaxPlayers),
+      });
+      setGame(updated);
+      setEditingDetails(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save game details');
+    } finally {
+      setDetailSaving(false);
+    }
+  }
+
+  async function addQuestion(payload: ReturnType<typeof formToPayload>) {
+    setSaving(true);
+    setError('');
+    try {
+      await api.post(`/games/${gameId}/questions`, payload);
+      setShowAddForm(false);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save question');
+      // The game may have been played or opened in a room meanwhile (409); reload so
+      // the page shows its current state.
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateQuestion(id: number, payload: ReturnType<typeof formToPayload>) {
+    setSaving(true);
+    setError('');
+    try {
+      await api.put(`/games/${gameId}/questions/${id}`, payload);
+      setEditingId(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update question');
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteQuestion(id: number) {
+    if (!confirm('Delete this question?')) return;
+    setError('');
+    try {
+      await api.delete(`/games/${gameId}/questions/${id}`);
+      setQuestions((prev) => prev.filter((q) => q.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete question');
+      await load();
+    }
+  }
+
+  async function moveQuestion(index: number, direction: -1 | 1) {
+    const newOrder = [...questions];
+    const target = index + direction;
+    if (target < 0 || target >= newOrder.length) return;
+    [newOrder[index], newOrder[target]] = [newOrder[target], newOrder[index]];
+    setError('');
+    try {
+      await api.post(`/games/${gameId}/questions/reorder`, {
+        order: newOrder.map((q) => q.id),
+      });
+      setQuestions(newOrder);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reorder');
+      // A co-host may have changed the questions; show the current list.
+      await load();
+    }
+  }
+
+  async function handleExport() {
+    setDownloading(true);
+    setError('');
+    try {
+      await api.download(`/games/${gameId}/export`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  async function handleDuplicate() {
+    setDuplicating(true);
+    setError('');
+    try {
+      const copy = await api.post<Game>(`/games/${gameId}/duplicate`);
+      navigate(`/courses/${copy.course_id}/games/${copy.id}/questions`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to duplicate game');
+    } finally {
+      setDuplicating(false);
+    }
+  }
+
+  const typeLabel: Record<QuestionType, string> = {
+    multiple_choice: 'MC',
+    true_false: 'T/F',
+    fill_in_the_blank: 'Fill',
+    multi_select: 'Multi',
+    numeric_estimate: 'Num',
+    plot_point: 'Plot',
+  };
+
+  if (loading) return <div className="text-fg-muted">Loading…</div>;
+  if (!game) return <p className="text-danger-text text-sm">{error || 'Game not found.'}</p>;
+
+  const locked = game.locked;
+
+  return (
+    <div className="max-w-4xl space-y-6">
+      {/* Game details */}
+      <Card>
+        {editingDetails ? (
+          <>
+            <CardHeader><h3 className="text-lg font-semibold text-fg">Game details</h3></CardHeader>
+            <CardContent>
+              <form onSubmit={saveDetails} className="space-y-3">
+                <Input placeholder="Title" value={detailTitle} onChange={(e) => setDetailTitle(e.target.value)} required />
+                <textarea
+                  placeholder="Description (optional)"
+                  value={detailDescription}
+                  onChange={(e) => setDetailDescription(e.target.value)}
+                  className="w-full rounded-xl border border-line-strong bg-surface-raised px-3 py-2 text-fg placeholder:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page resize-none"
+                  rows={3}
+                />
+                <div>
+                  <label className="block text-xs text-fg-muted mb-1">Max players</label>
+                  <Input
+                    type="number"
+                    value={detailMaxPlayers}
+                    onChange={(e) => setDetailMaxPlayers(e.target.value)}
+                    min="1"
+                    max="500"
+                    className="w-32"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <Button type="submit" disabled={detailSaving}>{detailSaving ? 'Saving…' : 'Save'}</Button>
+                  <Button type="button" variant="ghost" onClick={() => setEditingDetails(false)}>Cancel</Button>
+                </div>
+              </form>
+            </CardContent>
+          </>
+        ) : (
+          <div className="flex items-start justify-between gap-4 px-6 py-4">
+            <div className="min-w-0">
+              <h2 className="text-2xl font-bold text-fg">{game.title}</h2>
+              {game.description && <p className="text-fg-muted text-sm mt-1">{game.description}</p>}
+              <p className="text-fg-subtle text-xs mt-1">
+                {questions.length} question{questions.length !== 1 ? 's' : ''} · Max {game.max_players} players
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Button variant="outline" size="sm" onClick={() => startEditDetails(game)}>
+                <Pencil size={14} className="mr-1" /> Edit details
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => void handleExport()} disabled={downloading}>
+                <Download size={14} className="mr-1" />
+                {downloading ? 'Exporting…' : 'Export JSON'}
+              </Button>
+              {locked ? (
+                <Button size="sm" onClick={() => void handleDuplicate()} disabled={duplicating}>
+                  <Copy size={14} className="mr-1" /> {duplicating ? 'Duplicating…' : 'Duplicate to edit'}
+                </Button>
+              ) : (
+                <Button size="sm" onClick={() => { setShowAddForm(true); setEditingId(null); }}>
+                  <Plus size={14} className="mr-1" /> Add Question
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {locked && (
+        <div className="flex items-start gap-3 rounded-xl border border-warning/40 bg-warning-subtle px-4 py-3 text-sm text-warning-text">
+          <Lock size={16} className="mt-0.5 shrink-0" />
+          <p>
+            This game has been played and has recorded answers, so its questions can't be changed
+            (past scores and reports depend on them). Use <strong>Duplicate to edit</strong> to make an
+            editable copy. The title, description and max players can still be edited.
+          </p>
+        </div>
+      )}
+
+      {error && <p className="text-danger-text text-sm">{error}</p>}
+
+      <ImageLibraryPanel
+        library={library}
+        questionNumbers={new Map(questions.map((q, i) => [q.id, i + 1]))}
+        locked={locked}
+      />
+
+      {/* Add question form */}
+      {showAddForm && !locked && (
+        <Card>
+          <CardHeader><h3 className="font-semibold text-fg">New Question</h3></CardHeader>
+          <CardContent>
+            <QuestionForm
+              initial={defaultForm()}
+              library={library}
+              onSave={(payload) => void addQuestion(payload)}
+              onCancel={() => setShowAddForm(false)}
+              saving={saving}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Question list */}
+      {questions.length === 0 && !showAddForm && (
+        <p className="text-fg-muted">No questions yet. Add one above.</p>
+      )}
+
+      <div className="space-y-4">
+        {questions.map((q, i) => (
+          <Card key={q.id}>
+            {editingId === q.id && !locked ? (
+              <>
+                <CardHeader>
+                  <h3 className="font-semibold text-fg">Edit Question {i + 1}</h3>
+                </CardHeader>
+                <CardContent>
+                  <QuestionForm
+                    initial={questionToForm(q)}
+                    library={library}
+                    onSave={(payload) => void updateQuestion(q.id, payload)}
+                    onCancel={() => setEditingId(null)}
+                    saving={saving}
+                  />
+                </CardContent>
+              </>
+            ) : (
+              <div className="flex items-start gap-4 px-6 py-4">
+                {/* Reorder buttons */}
+                {!locked && (
+                  <div className="flex flex-col gap-1 mt-1">
+                    <button
+                      onClick={() => void moveQuestion(i, -1)}
+                      disabled={i === 0}
+                      className="text-fg-subtle hover:text-fg disabled:opacity-20 focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
+                      title="Move up"
+                    >
+                      <ChevronUp size={16} />
+                    </button>
+                    <button
+                      onClick={() => void moveQuestion(i, 1)}
+                      disabled={i === questions.length - 1}
+                      className="text-fg-subtle hover:text-fg disabled:opacity-20 focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page"
+                      title="Move down"
+                    >
+                      <ChevronDown size={16} />
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-fg-subtle text-xs font-mono">Q{i + 1}</span>
+                    <span className="px-1.5 py-0.5 rounded text-xs bg-surface-raised text-fg-muted">
+                      {typeLabel[q.type]}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-xs bg-surface-raised text-fg-muted">
+                      {q.grading_type}
+                    </span>
+                    <span className="text-fg-subtle text-xs">{q.time_limit_seconds}s · {q.points_value}pts</span>
+                  </div>
+                  <p className="text-fg text-sm leading-relaxed"><PromptText prompt={q.prompt} /></p>
+                  {typeof q.config['image_id'] === 'string' && (
+                    <QuestionImage
+                      imageId={q.config['image_id']}
+                      version={library.byId(q.config['image_id'])?.sha256}
+                      alt={q.type === 'plot_point' ? 'Background image' : 'Prompt image'}
+                      className="h-16 w-28 mt-2"
+                      align="left"
+                    />
+                  )}
+
+                  {q.type === 'multiple_choice' && (
+                    <div className="mt-2 space-y-1">
+                      {((q.config['options'] as string[]) ?? []).map((opt, oi) => {
+                        const pts = ((q.answer_data['answer_points'] as number[]) ?? [])[oi] ?? 0;
+                        return (
+                          <div key={oi} className="flex items-center gap-2 text-xs">
+                            <span className={pts > 0 ? 'text-success-text' : 'text-fg-subtle'}>
+                              {pts > 0 ? '✓' : '○'}
+                            </span>
+                            {typeof (q.config['option_image_ids'] as unknown[] | undefined)?.[oi] === 'string' && (
+                              <QuestionImage
+                                imageId={(q.config['option_image_ids'] as string[])[oi]}
+                                version={library.byId((q.config['option_image_ids'] as string[])[oi])?.sha256}
+                                alt={opt}
+                                className="h-6 w-9"
+                                fallbackText={null}
+                              />
+                            )}
+                            <span className={pts > 0 ? 'text-fg' : 'text-fg-muted'}>{opt}</span>
+                            {pts > 0 && <span className="text-fg-subtle">({pts}pts)</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {q.type === 'true_false' && (
+                    <div className="mt-2 flex gap-4 text-xs">
+                      {(['true', 'false'] as const).map((k) => {
+                        const pts = (q.answer_data['answer_points'] as Record<string, number>)?.[k] ?? 0;
+                        return (
+                          <span key={k} className={pts > 0 ? 'text-success-text' : 'text-fg-subtle'}>
+                            {k.charAt(0).toUpperCase() + k.slice(1)}: {pts}pts
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {q.type === 'fill_in_the_blank' && (
+                    <div className="mt-2 text-xs text-fg-muted">
+                      Accepted: {((q.answer_data['acceptedAnswers'] as string[]) ?? []).join(', ')}
+                      {(q.answer_data['editDistance'] as number) > 0 && (
+                        <span className="ml-2 text-fg-subtle">(±{q.answer_data['editDistance'] as number} edit distance)</span>
+                      )}
+                    </div>
+                  )}
+
+                  {q.type === 'numeric_estimate' && (
+                    <div className="mt-2 text-xs text-fg-muted space-y-0.5">
+                      {q.grading_type === 'ACCURACY' ? (
+                        <>
+                          <div>
+                            Target: <span className="text-success-text">
+                              {String(q.answer_data['target'])}{q.config['unit'] ? ` ${String(q.config['unit'])}` : ''}
+                            </span>
+                            <span className="ml-2 text-fg-subtle">
+                              ({q.answer_data['mode'] === 'relative' ? 'percent of the target' : 'absolute units'})
+                            </span>
+                          </div>
+                          <div>
+                            {((q.answer_data['bands'] as { within: number; points: number }[]) ?? [])
+                              .map((b) => `±${b.within}${q.answer_data['mode'] === 'relative' ? '%' : ''} → ${b.points}pts`)
+                              .join(' · ')}
+                          </div>
+                        </>
+                      ) : (
+                        <div>Any number earns full points{q.config['unit'] ? ` (${String(q.config['unit'])})` : ''}</div>
+                      )}
+                    </div>
+                  )}
+
+                  {q.type === 'plot_point' && (
+                    <div className="mt-2 text-xs text-fg-muted">
+                      {ppListSummary(q.config, q.answer_data, q.grading_type === 'ACCURACY')}
+                    </div>
+                  )}
+
+                  {q.type === 'multi_select' && (
+                    <div className="mt-2 space-y-1">
+                      {((q.config['options'] as string[]) ?? []).map((opt, oi) => {
+                        const pts = ((q.answer_data['answer_points'] as number[]) ?? [])[oi] ?? 0;
+                        const isCorrect = pts > 0;
+                        return (
+                          <div key={oi} className="flex items-center gap-2 text-xs">
+                            <span className={isCorrect ? 'text-success-text' : pts < 0 ? 'text-danger-text' : 'text-fg-subtle'}>
+                              {isCorrect ? '✓' : pts < 0 ? '−' : '○'}
+                            </span>
+                            {typeof (q.config['option_image_ids'] as unknown[] | undefined)?.[oi] === 'string' && (
+                              <QuestionImage
+                                imageId={(q.config['option_image_ids'] as string[])[oi]}
+                                version={library.byId((q.config['option_image_ids'] as string[])[oi])?.sha256}
+                                alt={opt}
+                                className="h-6 w-9"
+                                fallbackText={null}
+                              />
+                            )}
+                            <span className={isCorrect ? 'text-fg' : 'text-fg-muted'}>{opt}</span>
+                            {pts !== 0 && <span className="text-fg-subtle">({pts > 0 ? '+' : ''}{pts}pts)</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {!locked && (
+                  <div className="flex gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setEditingId(q.id); setShowAddForm(false); }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void deleteQuestion(q.id)}
+                      title="Delete question"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
