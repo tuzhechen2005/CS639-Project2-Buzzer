@@ -174,6 +174,15 @@ export default function CoursesPage() {
         </span>
         <div className="flex items-center gap-2 shrink-0">
           {extra}
+          {!systemIds.has(g.course_id) && (
+            <Link
+              to={`/courses/${g.course_id}/games/${g.id}/questions`}
+              className="inline-flex items-center gap-1 text-xs font-medium text-accent-text hover:underline focus-visible:outline-none focus-visible:ring-2 ring-focus ring-offset-2 ring-offset-page rounded"
+              title="Create and edit this game's questions"
+            >
+              <Pencil size={12} /> Questions
+            </Link>
+          )}
           <Button
             variant="ghost"
             size="sm"

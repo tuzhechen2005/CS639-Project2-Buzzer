@@ -6,6 +6,7 @@ import UsersPage from './pages/UsersPage';
 import UserDetailPage from './pages/UserDetailPage';
 import GuestsPage from './pages/GuestsPage';
 import SessionsPage from './pages/SessionsPage';
+import GameQuestionsPage from './pages/GameQuestionsPage';
 import { ThemeToggle } from './components/ThemeToggle';
 
 function RequireAdmin() {
@@ -93,6 +94,7 @@ export default function App() {
             <Route path="/users" element={<UsersPage />} />
             <Route path="/users/:userId" element={<UserDetailPage />} />
             <Route path="/courses" element={<CoursesPage />} />
+            <Route path="/courses/:courseId/games/:gameId/questions" element={<GameQuestionsPage />} />
             <Route path="/guests" element={<GuestsPage />} />
             <Route path="/sessions" element={<SessionsPage />} />
           </Route>
