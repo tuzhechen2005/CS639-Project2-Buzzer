@@ -16,13 +16,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 PLAYER = ROOT / "frontend" / "player" / "src" / "lib" / "plotGeometry.ts"
 HOST = ROOT / "frontend" / "host" / "src" / "lib" / "plotGeometry.ts"
+ADMIN = (
+    ROOT / "frontend" / "admin" / "src" / "lib" / "plotGeometry.ts"
+)  # the admin question editor draws the plane too
 
 
 def test_plot_geometry_copies_are_byte_identical():
-    for path in (PLAYER, HOST):
-        assert path.is_file(), f"missing {path} (run from a full checkout, not the backend container)"
-    player, host = PLAYER.read_bytes(), HOST.read_bytes()
-    assert player == host, (
-        f"{PLAYER.relative_to(ROOT)} and {HOST.relative_to(ROOT)} differ: "
-        "edit both copies together (cp one over the other)"
-    )
+    for path in (PLAYER, HOST, ADMIN):
+        assert path.is_file(), (
+            f"missing {path} (run from a full checkout, not the backend container)"
+        )
+    player = PLAYER.read_bytes()
+    for other in (HOST, ADMIN):
+        assert player == other.read_bytes(), (
+            f"{PLAYER.relative_to(ROOT)} and {other.relative_to(ROOT)} differ: "
+            "edit all copies together (cp one over the others)"
+        )
