@@ -33,6 +33,9 @@ function accessName(a: CourseAccessItem): string {
   return a.display_name ?? a.username ?? a.netid ?? a.user_id;
 }
 
+/** How many per-course access lists are fetched at once. */
+const ACCESS_BATCH = 8;
+
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [games, setGames] = useState<Game[]>([]);
@@ -57,9 +60,16 @@ export default function CoursesPage() {
         api.get<Game[]>('/admin/games'),
       ]);
       const real = cs.filter((c) => !c.is_system);
-      const lists = await Promise.all(
-        real.map((c) => api.get<CourseAccessItem[]>(`/admin/courses/${c.id}/access`)),
-      );
+      // A few requests at a time: with hundreds of courses, firing them all at once makes the
+      // browser run out of connections and the whole page fails to load.
+      const lists: CourseAccessItem[][] = [];
+      for (let i = 0; i < real.length; i += ACCESS_BATCH) {
+        lists.push(
+          ...(await Promise.all(
+            real.slice(i, i + ACCESS_BATCH).map((c) => api.get<CourseAccessItem[]>(`/admin/courses/${c.id}/access`)),
+          )),
+        );
+      }
       setCourses(cs);
       setGames(gs);
       setAccess(Object.fromEntries(real.map((c, i) => [c.id, lists[i]])));
