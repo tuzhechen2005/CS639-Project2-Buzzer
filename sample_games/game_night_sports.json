@@ -141,31 +141,6 @@
       "points_value": 1.5
     },
     {
-      "type": "multi_select",
-      "grading_type": "ACCURACY",
-      "prompt": "Which of these sports were part of the Paris 2024 Olympics? Select all that apply.",
-      "config": {
-        "options": [
-          "Breaking (breakdancing)",
-          "Skateboarding",
-          "Cricket",
-          "Surfing",
-          "Baseball"
-        ]
-      },
-      "answer_data": {
-        "answer_points": [
-          0.5,
-          0.5,
-          -0.5,
-          0.5,
-          -0.5
-        ]
-      },
-      "time_limit_seconds": 30,
-      "points_value": 1.5
-    },
-    {
       "type": "numeric_estimate",
       "grading_type": "ACCURACY",
       "prompt": "How long is a marathon, in kilometres?",
